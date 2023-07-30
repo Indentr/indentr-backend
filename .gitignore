@@ -1,0 +1,6 @@
+venv
+__pycache__
+.env
+.service-accounts
+static/requests/*
+log.log
