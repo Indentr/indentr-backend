@@ -1,14 +1,9 @@
 # Indentr - FastAPI
 Backend for indentr website.
 
-## Clone the project
-```
-git clone https://github.com/
-```
+## Run locally
 
-## Run local
-
-### Create virtual env
+### Create new virtual env
 ```
 python3 -m venv venv
 ```
