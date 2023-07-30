@@ -50,7 +50,7 @@ def get_mongo_db():
 
 @app.on_event("startup")
 async def startup_event():
-    # When server starts up create a mongodb instance
+    # When server starts up create a mongodb instance and save to apps state
     app.state.db = get_mongo_db()
 
 
