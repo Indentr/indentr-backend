@@ -27,13 +27,14 @@ uvicorn app.main:app --reload
 
 ## Code Formatting
 ### Black
-Black is a code formatter for Python that enforces a consistent and opinionated coding style. It automatically formats your Python code to ensure it adheres to the defined style guidelines. To run Black on your project, use the following command:
+Black is a Python code formatter that automatically formats your code to ensure consistent style, eliminating the need for manual formatting.
 ```bash
 black .
 ```
 
 ### Ruff
-Ruff is a powerful "super-formatter" that combines multiple linters and code formatters to analyze and automatically format your Python code. It includes tools like Black, isort, pyflakes, flake8-comprehensions, and flake8-bugbear.
+Ruff is a code analysis tool that combines multiple linters and formatters, including Black, to comprehensively check and format Python code.
+> Running ruff in your project will apply Black's formatting rules along with other linters and formatters configured in Ruff.
 ```bash
 ruff .
 ```
