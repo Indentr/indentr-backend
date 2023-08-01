@@ -1,11 +1,11 @@
-import jwt
 import time
 from typing import Dict
 
-from fastapi import Request, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import jwt
+from fastapi import HTTPException, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.constants import JWT_SECRET, JWT_ALGORITHM
+from app.constants import config
 
 
 def token_response(token: str):
@@ -14,17 +14,19 @@ def token_response(token: str):
 
 def signJWT(user_id: str) -> Dict[str, str]:
     payload = {"user_id": user_id, "expires": time.time() + 3600}
-    token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    token = jwt.encode(payload, config["PROD"]["SECRET_KEY"], algorithm=config["PROD"]["JWT_ALGORITHM"])
 
     return token_response(token)
 
 
 def decodeJWT(token: str) -> dict:
     try:
-        decoded_token = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        decoded_token = jwt.decode(token, config["PROD"]["SECRET_KEY"], algorithms=config["PROD"]["JWT_ALGORITHM"])
         return decoded_token if decoded_token["expires"] >= time.time() else None
-    except:
-        return {}
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
 
 
 class JWTBearer(HTTPBearer):
@@ -40,14 +42,16 @@ class JWTBearer(HTTPBearer):
                 raise HTTPException(status_code=403, detail="Invalid token or expired token.")
             return credentials.credentials
         else:
-            raise HTTPException(status_code=403, detail="Invalid authorization code.")
+            raise HTTPException(status_code=403, detail="Invalid authorisation code.")
 
-    def verify_jwt(self, jwtoken: str) -> bool:
+    def verify_jwt(self, jwt: str) -> bool:
         isTokenValid: bool = False
 
         try:
-            payload = decodeJWT(jwtoken)
-        except:
+            payload = decodeJWT(jwt)
+        except jwt.ExpiredSignatureError:
+            payload = None
+        except jwt.InvalidTokenError:
             payload = None
         if payload:
             isTokenValid = True
