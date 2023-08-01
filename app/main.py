@@ -1,18 +1,14 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-
-from app.routes import user
-
-from app.constants import config
-
 import logging
 
-from starlette_context import context, plugins
-from starlette_context.middleware import RawContextMiddleware
-from starlette.middleware import Middleware
-
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware import Middleware
+from starlette_context.middleware import RawContextMiddleware
+
+from app.constants import config
 from app.db import connect_to_mongodb
+from app.routes import profile, user, verifyJWT
 
 middleware = [Middleware(RawContextMiddleware)]
 
@@ -38,14 +34,14 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=config['PROD']['ALLOWED_ORIGINS'],
+    allow_origins=config["PROD"]["ALLOWED_ORIGINS"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
 def get_mongo_db():
-    return connect_to_mongodb(config['PROD']['DB_URI'])
+    return connect_to_mongodb(config["PROD"]["DB_URI"])
 
 
 @app.on_event("startup")
@@ -60,3 +56,5 @@ def get_health():
 
 
 app.include_router(user.router)
+app.include_router(profile.router)
+app.include_router(verifyJWT.router)
