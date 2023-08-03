@@ -13,14 +13,14 @@ def get_profile(request: Request, access_token=Depends(JWTBearer())):
     Get the user's profile information and their latest letters.
 
     Parameters:
-        - request (Request): The request object from FastAPI.
-        - access_token (str, optional): The JWT access token obtained from the JWTBearer dependency.
+    - request (Request): The request object from FastAPI.
+    - access_token (str, optional): The JWT access token obtained from the `JWTBearer` dependency.
 
     Returns:
         dict: A dictionary containing the user's profile information and their latest letters.
 
     Raises:
-        HTTPException: If the access token is invalid or if there are any errors during data retrieval.
+        `HTTPException`: If the access token is invalid or if there are any errors during data retrieval.
     """
 
     db = request.app.state.db
@@ -64,16 +64,16 @@ async def saveImg(request: Request, access_token=Depends(JWTBearer())):
     stored in the database.
 
     Parameters:
-        - request (Request): The request object from FastAPI.
-        - access_token (str, optional): The JWT access token obtained from the JWTBearer dependency.
+    - request (Request): The request object from FastAPI.
+    - access_token (str, optional): The JWT access token obtained from the `JWTBearer` dependency.
 
     Returns:
         dict: A dictionary containing the encoded image data of the saved image.
 
     Raises:
-        HTTPException: If there are any errors during image upload or database update.
+        `HTTPException`: If there are any errors during image upload or database update.
     """
-    
+
     try:
         # Get the image data from the request stream
         image = b''
