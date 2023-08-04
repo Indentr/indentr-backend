@@ -2,8 +2,8 @@ from fastapi import APIRouter, Request
 from fastapi.exceptions import HTTPException
 
 from app.middleware.jwt import signJWT
-from app.models.user import UserLoginRequest
-from app.services.user import check_user
+from app.models.login import UserLoginRequest
+from app.services.login import check_user
 
 router = APIRouter(prefix="/login", tags=["Login"])
 
@@ -31,6 +31,11 @@ def post_user_login(body: UserLoginRequest, request: Request):
     """
 
     db = request.app.state.db
-    if check_user(email=body.email, password=body.password, db=db):
-        return signJWT(body.email)
+    users_collection = db['users']
+    user_document = users_collection.find_one({'email': body.email})
+    print(user_document)
+
+    if user_document and check_user(email=body.email, password=body.password, db=db):
+        user_id = str(user_document['_id'])
+        return signJWT(user_id)
     raise HTTPException(status_code=403, detail="Access denied.")

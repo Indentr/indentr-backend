@@ -8,7 +8,7 @@ from starlette_context.middleware import RawContextMiddleware
 
 from app.constants import config
 from app.db import connect_to_mongodb
-from app.routes import profile, user, verifyJWT
+from app.routes import login, profile, verifyJWT
 
 middleware = [Middleware(RawContextMiddleware)]
 
@@ -55,6 +55,6 @@ def get_health():
     return {"message": "Welcome to Indentr!"}
 
 
-app.include_router(user.router)
+app.include_router(login.router)
 app.include_router(profile.router)
 app.include_router(verifyJWT.router)
