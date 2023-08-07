@@ -50,7 +50,7 @@ def get_profile(request: Request, access_token=Depends(JWTBearer())):
         letter['createdAt'] = created_at
         letter['_id'] = str(letter['_id'])
 
-    return {"letters": letters, "user": user_object}
+    return { "user": user_object, "letters": letters }
 
 
 
