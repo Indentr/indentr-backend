@@ -33,7 +33,6 @@ def post_user_login(body: UserLoginRequest, request: Request):
     db = request.app.state.db
     users_collection = db['users']
     user_document = users_collection.find_one({'email': body.email})
-    print(user_document)
 
     if user_document and check_user(email=body.email, password=body.password, db=db):
         user_id = str(user_document['_id'])

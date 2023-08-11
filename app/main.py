@@ -8,7 +8,7 @@ from starlette_context.middleware import RawContextMiddleware
 
 from app.config import production_config
 from app.db import connect_to_mongodb
-from app.routes import files, login, profile, verifyJWT
+from app.routes import create, files, login, profile
 
 middleware = [Middleware(RawContextMiddleware)]
 
@@ -58,4 +58,4 @@ def get_health():
 app.include_router(login.router)
 app.include_router(profile.router)
 app.include_router(files.router)
-app.include_router(verifyJWT.router)
+app.include_router(create.router)

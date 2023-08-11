@@ -1,5 +1,5 @@
 from bson import ObjectId
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.middleware.jwt import JWTBearer, decodeJWT
 
@@ -51,3 +51,40 @@ def get_files(request: Request, access_token=Depends(JWTBearer())):
         letter['_id'] = str(letter['_id'])
 
     return { "letters": letters }
+
+
+
+
+
+
+@router.get("/{letter_id}/")
+def get_treatment_plan(letter_id: str, request: Request, access_token=Depends(JWTBearer())):
+    """
+    """
+
+    db = request.app.state.db
+    letters_collection = db['letters']
+    try:
+        # Query the collection using the ObjectId
+        letter = letters_collection.find_one({"_id": ObjectId(letter_id)})
+
+        if letter is None:
+            raise HTTPException(status_code=404, detail="Letter not found")
+
+        created_at = letter['_id'].generation_time.strftime('%Y-%m-%d %H:%M:%S')
+        letter['createdAt'] = created_at
+        letter['_id'] = str(letter['_id'])
+        letter['user_id'] = str(letter['user_id'])
+
+        return letter
+
+    except Exception:
+         raise HTTPException(status_code=400, detail="Error getting treatment plan") from None
+
+
+
+
+
+
+
+

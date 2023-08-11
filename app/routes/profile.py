@@ -40,7 +40,7 @@ def get_profile(request: Request, access_token=Depends(JWTBearer())):
         }
 
     letters_collection = db['letters']
-    letters = list(letters_collection.find({'user_email': user['email']}).sort('_id', -1).limit(3))
+    letters = list(letters_collection.find({'user_id': ObjectId(user_id)}).sort('_id', -1).limit(3))
 
 
     # Access the 'createdAt' field for each letter and convert it to time date format
@@ -49,6 +49,7 @@ def get_profile(request: Request, access_token=Depends(JWTBearer())):
         created_at = letter['_id'].generation_time.strftime('%Y-%m-%d %H:%M:%S')
         letter['createdAt'] = created_at
         letter['_id'] = str(letter['_id'])
+        letter['user_id'] = str(letter['user_id'])
 
     return { "user": user_object, "letters": letters }
 
@@ -87,13 +88,14 @@ async def saveImg(request: Request, access_token=Depends(JWTBearer())):
 
         # Extract user's email from JWT token
         token = decodeJWT(access_token)
-        user_email = token['user_id']
+        user_id = token['user_id']
+        print(user_id)
 
 
         # Update the user's image in MongoDB
         dbUsers = request.app.state.db.users
         dbUsers.update_one(
-            {'email': user_email},
+            {'_id': ObjectId(user_id)},
             {'$set': {'img': image}}
         )
 
@@ -137,13 +139,13 @@ async def saveDetails(body: userDetails, request: Request, access_token=Depends(
 
         # Extract user's email from JWT token
         token = decodeJWT(access_token)
-        user_email = token['user_id']
+        user_id = token['user_id']
 
 
         # Update the user's image in MongoDB
         dbUsers = request.app.state.db.users
         dbUsers.update_one(
-            {'email': user_email},
+            {'_id': ObjectId(user_id)},
             {'$set': {
                 'email': email,
                 'phone': phone,
