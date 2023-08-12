@@ -13,6 +13,5 @@ class PatientDetails(BaseModel):
 
 
 class SymptomData(BaseModel):
-    patientDetails: str
     symptomDetails: str
 
