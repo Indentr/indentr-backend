@@ -17,9 +17,22 @@ router = APIRouter(prefix="/create", tags=["Create"])
 log = logging.getLogger(__name__)
 
 @router.post("/symptoms")
-async def generateQuestions(body: SymptomData, request: Request, access_token=Depends(JWTBearer())):
+async def generate_questions(body: SymptomData, request: Request, access_token=Depends(JWTBearer())):
     """
+    Generate follow-up questions for patient symptoms.
+
+    This endpoint generates follow-up questions for each symptom provided by the patient.
+    It uses the GPT model to formulate the questions based on the provided symptom.
+
+    Args:
+    - body (`SymptomData`): JSON data containing patient and symptom details.
+    - request (`Request`): FastAPI request object.
+    - access_token (`str, optional`): JWT access token. Defaults to `Depends(JWTBearer())`.
+
+    Returns:
+    - A list of `JSON objects` containing follow-up questions for each symptom.
     """
+
 
     start = time.time()
     request_id = uuid.uuid4().hex
