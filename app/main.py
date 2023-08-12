@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware import Middleware
 from starlette_context.middleware import RawContextMiddleware
 
-from app.config import production_config
+from app.config import config
 from app.db import connect_to_mongodb
 from app.routes import create, files, login, profile
 
@@ -34,14 +34,14 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=production_config.get("ALLOWED_ORIGINS"),
+    allow_origins=config.get("ALLOWED_ORIGINS"),
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
 def get_mongo_db():
-    return connect_to_mongodb(production_config.get("DB_URI"))
+    return connect_to_mongodb(config.get("DB_URI"))
 
 
 @app.on_event("startup")

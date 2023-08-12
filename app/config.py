@@ -1,8 +1,8 @@
 import configparser
 import os
 
-config = configparser.ConfigParser()
-config.read(os.path.abspath(os.path.join(".ini")))
+configParser = configparser.ConfigParser()
+configParser.read(os.path.abspath(os.path.join(".ini")))
 
 
 class Settings:
@@ -10,7 +10,7 @@ class Settings:
         self.section = section
 
     def get(self, key):
-        return config.get(self.section, key)
+        return configParser.get(self.section, key)
 
-production_config = Settings("production")
-testing_config = Settings("test")
+config = Settings("production")
+# testing_config = Settings("test")
