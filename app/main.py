@@ -2,7 +2,6 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from starlette.middleware import Middleware
 from starlette_context.middleware import RawContextMiddleware
 
@@ -29,8 +28,6 @@ logging.basicConfig(
 
 logging.debug(f"Logging initialized at level {log_level}")
 
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.add_middleware(
     CORSMiddleware,

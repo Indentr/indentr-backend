@@ -23,7 +23,7 @@ async def ask_gpt(prompt: str, system_prompt: str):
                     "content": prompt
                 }
             ],
-            temperature=0.0  # Set temperature to 0
+            temperature=0.0
         )
 
     content = response['choices'][0]['message']['content']
