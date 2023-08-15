@@ -15,3 +15,9 @@ class PatientDetails(BaseModel):
 class SymptomData(BaseModel):
     symptomDetails: str
 
+
+
+class treatmentPlanData(BaseModel):
+    patientDetails: str
+    symptomDetails: str
+
