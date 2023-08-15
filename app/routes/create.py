@@ -72,6 +72,47 @@ async def generate_questions(body: SymptomData, request: Request, access_token=D
 @router.post("/treatmentOverview")
 async def generate_treatment_overview(body: treatmentPlanData, request: Request, access_token=Depends(JWTBearer())):
     """
+    Generate a treatment overview based on patient and symptom details.
+
+    - **patientDetails**: A JSON string containing patient details.
+    - **symptomDetails**: A JSON string containing symptom details.
+
+    Returns a JSON response containing diagnosis, further investigations recommendations, and a treatment plan
+    based on the patient's symptom data.
+
+    **Note**: This route requires an access token obtained through authentication.
+
+    ### Response:
+
+    A JSON response containing diagnosis, further investigations recommendations, and a treatment plan.
+
+    Example response:
+
+    ```json
+    {
+        "Diagnosis": {
+            "s1": {
+                "d1": "[insert diagnosis of symptom 1]"
+            },
+            "s2": {
+                "d1": "[insert diagnosis of symptom 2]"
+            }
+        },
+        "Further investigations": {
+            "s1": {
+                "inv1": "[insert investigation 1]"
+            },
+            "s2": {}
+        },
+        "Treatment plan": {
+            "plan1": {
+                "1": "[insert step 1 for symptom 1]"
+            },
+            "plan2": {
+                "1": "[insert step 1 for symptom 2]"
+            }
+        }
+    }
     """
 
     start = time.time()
@@ -145,6 +186,18 @@ async def generate_treatment_overview(body: treatmentPlanData, request: Request,
 @router.post("/treatmentPlan")
 async def generate_treatment_plan(body: treatmentPlanData, request: Request, access_token=Depends(JWTBearer())):
     """
+    Generates a treatment plan based on patient and symptom details.
+
+    - **patientDetails**: A JSON string containing patient details.
+    - **symptomDetails**: A JSON string containing symptom details.
+
+    Returns an HTML-formatted treatment plan tailored to the patient's symptoms.
+
+    **Note**: This route requires an access token obtained through authentication.
+
+    ### Response:
+
+    A formatted HTML treatment plan.
     """
 
     start = time.time()
