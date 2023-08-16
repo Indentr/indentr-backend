@@ -3,10 +3,11 @@ import logging
 import time
 import uuid
 
+from bson import ObjectId
 from fastapi import APIRouter, Depends, Request
 
-from app.middleware.jwt import JWTBearer
-from app.models.create import SymptomData, treatmentPlanData
+from app.middleware.jwt import JWTBearer, decodeJWT
+from app.models.create import SymptomData, createTreatmentPlan, treatmentPlanData
 from app.services.openAI import ask_gpt
 from app.treatmentPlans.implantLetter import example_consent_letter
 
@@ -83,7 +84,6 @@ async def generate_treatment_overview(body: treatmentPlanData, request: Request,
     **Note**: This route requires an access token obtained through authentication.
 
     ### Response:
-
     A JSON response containing diagnosis, further investigations recommendations, and a treatment plan.
 
     Example response:
@@ -196,7 +196,6 @@ async def generate_treatment_plan(body: treatmentPlanData, request: Request, acc
     **Note**: This route requires an access token obtained through authentication.
 
     ### Response:
-
     A formatted HTML treatment plan.
     """
 
@@ -252,15 +251,14 @@ async def generate_treatment_plan(body: treatmentPlanData, request: Request, acc
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
-    header = """
-    <p>
-        4 Privat Drive,<br>
-        Little Whinging,<br>
-        Surrey,<br>
-        CR3 OBD
-    </p>
-    <p></p>
-    """
+    address = patientDetails['address']
+    address_parts = address.split(', ')
+
+    # Generate the HTML lines dynamically
+    html_lines = "\n".join([f"<p>{part},</p>" for part in address_parts])
+
+    # Format the address into the HTML string
+    header = (f"""{html_lines}""") + ("<p></p>")
 
     dear = f"""
     <p>
@@ -271,5 +269,38 @@ async def generate_treatment_plan(body: treatmentPlanData, request: Request, acc
 
     return (header + dear + treatmentPlan)
 
+
+
+
+@router.post("/createTreatmentPlan")
+def create_treatment_plan(body: createTreatmentPlan, request: Request, access_token=Depends(JWTBearer())):
+    """
+    """
+
+    start = time.time()
+    request_id = uuid.uuid4().hex
+    log.info(f"Request {request_id} received for saving treatment plan.")
+
+    patientDetails = body.patientDetails
+    treatmentPlan = body.treatmentPlan
+    db = request.app.state.db
+    token = decodeJWT(access_token)
+    user_id = token['user_id']
+    letters_collection = db['letters']
+
+    letter_data = {
+        "consent_letter": treatmentPlan,
+        "patient_info": json.loads(patientDetails),
+        "user_id": ObjectId(user_id)
+    }
+
+    result = letters_collection.insert_one(letter_data)
+
+    if result.inserted_id:
+        log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
+        return {"message": "Letter saved successfully", "letter_id": str(result.inserted_id)}
+    else:
+        log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
+        return {"message": "Failed to insert letter to files"}
 
 
