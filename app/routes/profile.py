@@ -12,17 +12,17 @@ router = APIRouter(prefix="/profile", tags=["Profile"])
 @router.get("/")
 def get_profile(request: Request, access_token=Depends(JWTBearer())):
     """
-    Get the user's profile information and their latest letters.
+    # Get User Profile and Latest Letters
+    This endpoint retrieves the user's profile information along with their latest letters. It requires the following parameters:
 
-    Parameters:
-    - request (Request): The request object from FastAPI.
-    - access_token (str, optional): The JWT access token obtained from the `JWTBearer` dependency.
+    ## Parameters
+    - `access_token` (str, optional): This route is protected so requires a valid access token.
 
-    Returns:
-        dict: A dictionary containing the user's profile information and their latest letters.
+    ## Response
+    A dictionary containing the user's profile information and their latest letters.
 
-    Raises:
-        `HTTPException`: If the access token is invalid or if there are any errors during data retrieval.
+    ## Errors
+    - **HTTPException**: If the access token is invalid or if there are any errors during data retrieval.
     """
 
     db = request.app.state.db
@@ -60,21 +60,18 @@ def get_profile(request: Request, access_token=Depends(JWTBearer())):
 @router.post("/saveImg")
 async def saveImg(request: Request, access_token=Depends(JWTBearer())):
     """
-    Upload and save the user's profile image.
+    # Upload and Save User Profile Image
+    This endpoint allows a user to upload and save their profile image. The image data is received as binary data in the request stream. The image is then associated with the user's email and stored in the database.
 
-    This endpoint allows a user to upload and save their profile image. The image data is received
-    as binary data in the request stream. The image is then associated with the user's email and
-    stored in the database.
+    ## Parameters
+    - `request` (Request): The request object from FastAPI.
+    - `access_token` (str, optional): The JWT access token obtained from the `JWTBearer` dependency.
 
-    Parameters:
-    - request (Request): The request object from FastAPI.
-    - access_token (str, optional): The JWT access token obtained from the `JWTBearer` dependency.
+    ## Response
+    A dictionary containing the encoded image data of the saved image.
 
-    Returns:
-        dict: A dictionary containing the encoded image data of the saved image.
-
-    Raises:
-        `HTTPException`: If there are any errors during image upload or database update.
+    ## Errors
+    - **HTTPException**: If there are any errors during image upload or database update.
     """
 
     try:
@@ -113,20 +110,19 @@ async def saveImg(request: Request, access_token=Depends(JWTBearer())):
 @router.post("/saveDetails")
 async def saveDetails(body: userDetails, request: Request, access_token=Depends(JWTBearer())):
     """
-    Save User Details
+    # Save User Details
+    This endpoint is used to save the user's email, phone number, and address to the database.
 
-    Save the user's email, phone number, and address to the database.
+    ## Parameters
+    - `body` (userDetails): The user details to be updated.
+    - `request` (Request): The request object from FastAPI.
+    - `access_token` (str, optional): The JWT access token obtained from the `JWTBearer` dependency.
 
-    Args:
-        body (userDetails): The user details to be updated.
-        request (Request): The request object from FastAPI.
-        access_token (str, optional): The JWT access token obtained from the `JWTBearer` dependency.
+    ## Response
+    A dictionary containing the updated user details.
 
-    Returns:
-        dict: A dictionary containing the updated user details.
-
-    Raises:
-        HTTPException: If there are any errors during the update process.
+    ## Errors
+    - **HTTPException**: If there are any errors during the update process.
     """
 
     try:
