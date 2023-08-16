@@ -1,10 +1,16 @@
+import logging
+import time
+import uuid
+
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.middleware.jwt import JWTBearer, decodeJWT
+from app.models.file import saveTreatmentPlan
 
 router = APIRouter(prefix="/files", tags=["Files"])
 
+log = logging.getLogger(__name__)
 
 @router.get("/")
 def get_files(request: Request, access_token=Depends(JWTBearer())):
@@ -84,6 +90,34 @@ def get_treatment_plan(letter_id: str, request: Request, access_token=Depends(JW
 
 
 
+@router.post("/saveTreatmentPlan")
+def save_treatment_plan(body: saveTreatmentPlan, request: Request, access_token=Depends(JWTBearer())):
+    """
+    """
+
+    start = time.time()
+    request_id = uuid.uuid4().hex
+    log.info(f"Request {request_id} received for saving treatment plan.")
+
+    letterId = body.letterId.strip('"\'')
+    print(letterId)
+    treatmentPlan = body.treatmentPlan
+    db = request.app.state.db
+    token = decodeJWT(access_token)
+    token['user_id']
+    letters_collection = db['letters']
+
+    update_result = letters_collection.update_one(
+        {"_id": ObjectId(letterId)},  # Find the document with the given _id
+        {"$set": {"consent_letter": treatmentPlan}}  # Update the consent_letter field
+    )
+
+    if update_result.modified_count > 0:
+        log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
+        return {"message": "Letter updated successfully"}
+    else:
+        log.debug(f"Request {request_id} failed and took {round((time.time() - start), 2)} seconds.")
+        raise HTTPException(status_code=404, detail="Letter Id not found in database")
 
 
 
