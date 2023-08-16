@@ -11,23 +11,24 @@ router = APIRouter(prefix="/login", tags=["Login"])
 @router.post("/")
 def post_user_login(body: UserLoginRequest, request: Request):
     """
-    Process user login request.
+    # Process User Login Request
 
-    This route is used to handle user login requests. It receives a `UserLoginRequest` object as the request body,
-    containing the user's email and password. The `check_user` function is called to validate the user's credentials
-    against the database.
+    This route handles user login requests. It expects a `UserLoginRequest` object as the request body, containing the user's email and password. The `check_user` function is invoked to validate the user's credentials against the database.
 
-    If the user's credentials are valid, the `signJWT` function is called to generate an access token, which is returned
-    as the response.
+    If the user's credentials are valid, the `signJWT` function generates an access token, which is then returned in the response.
 
-    Parameters:
-    - body (UserLoginRequest): The request body containing the user's email and password.
+    ## Parameters
 
-    Returns:
-    dict: A dictionary containing the generated access token.
+    - `body` (UserLoginRequest): The request body containing the user's email and password.
 
-    Raises:
-    HTTPException: If the user's credentials are invalid or if access is denied for any reason.
+    ## Response
+
+    A dictionary containing the generated access token.
+
+    ## Errors
+
+    - **HTTPException**: If the user's credentials are invalid or if access is denied for any reason.
+
     """
 
     db = request.app.state.db
