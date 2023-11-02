@@ -45,3 +45,23 @@ ruff .
 ```bash
 http://127.0.0.1:8000/docs
 ```
+
+
+## Docker
+### Build image
+Generates a Docker image, which can then be used to create a run containers.
+```bash
+docker build -t indentr-backend .
+```
+
+### Run container
+Starts a Docker container named indentr-backend and maps port 8080 from the host to port 8080 inside the container.
+```bash
+docker run -p 8080:8080 indentr-backend
+```
+
+## Google cloud
+Deploy to google cloud
+```bash
+gcloud run deploy indentr-backend --port 8080 --source .
+```
