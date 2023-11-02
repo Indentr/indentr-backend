@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from fastapi.exceptions import HTTPException
+from bson import ObjectId
 
-from app.middleware.jwt import signJWT
+from app.middleware.jwt import signJWT, JWTBearer, decodeJWT
 from app.models.login import UserLoginRequest, UserRegisterRequest
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -11,19 +12,8 @@ router = APIRouter(prefix="/auth", tags=["Authorisation"])
 @router.post("/login")
 def post_user_login(body: UserLoginRequest, request: Request):
     """
-    # Process User Login Request
     This route handles user login requests. It expects a `UserLoginRequest` object as the request body, containing the user's email and password. The `check_user` function is invoked to validate the user's credentials against the database.
     If the user's credentials are valid, the `signJWT` function generates an access token, which is then returned in the response.
-
-    ## Parameters
-    - `body` (UserLoginRequest): The request body containing the user's email and password.
-
-    ## Response
-    A dictionary containing the generated access token.
-
-    ## Errors
-    - **HTTPException**: If the user's credentials are invalid or if access is denied for any reason.
-
     """
 
     db = request.app.state.db
@@ -41,7 +31,8 @@ def post_user_login(body: UserLoginRequest, request: Request):
 @router.post("/register")
 def post_user_registration(body: UserRegisterRequest, request: Request):
     """
-        
+    This route handles user registration requests. It expects a `UserRegisterRequest` object as the request body, containing the user's name, email, and password.
+    The route first checks if the provided email is already in use. If the email is available, it securely hashes the password and creates a new user in the database.
     """
 
     db = request.app.state.db
@@ -60,3 +51,18 @@ def post_user_registration(body: UserRegisterRequest, request: Request):
     users_collection.insert_one({'name': body.name, 'email': body.email, 'password': hash_pass})
 
     return {"message": "Registered successfully"}
+
+
+
+
+
+@router.get("/user")
+def authenticate_user(request: Request, access_token=Depends(JWTBearer())):
+    """
+    Checks if `access_token` is valid and then signs a new JWT based on the user_id
+    """
+
+    token = decodeJWT(access_token)
+    user_id = token['user_id']
+
+    return signJWT(user_id)

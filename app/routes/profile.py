@@ -12,17 +12,7 @@ router = APIRouter(prefix="/profile", tags=["Profile"])
 @router.get("/")
 def get_profile(request: Request, access_token=Depends(JWTBearer())):
     """
-    # Get User Profile and Latest Letters
-    This endpoint retrieves the user's profile information along with their latest letters. It requires the following parameters:
-
-    ## Parameters
-    - `access_token` (str, optional): This route is protected so requires a valid access token.
-
-    ## Response
-    A dictionary containing the user's profile information and their latest letters.
-
-    ## Errors
-    - **HTTPException**: If the access token is invalid or if there are any errors during data retrieval.
+    Retrieves the user's profile information along with their latest letters. 
     """
 
     db = request.app.state.db
@@ -58,20 +48,12 @@ def get_profile(request: Request, access_token=Depends(JWTBearer())):
 
 
 @router.post("/saveImg")
-async def saveImg(request: Request, access_token=Depends(JWTBearer())):
+async def save_img(request: Request, access_token=Depends(JWTBearer())):
     """
     # Upload and Save User Profile Image
-    This endpoint allows a user to upload and save their profile image. The image data is received as binary data in the request stream. The image is then associated with the user's email and stored in the database.
-
-    ## Parameters
-    - `request` (Request): The request object from FastAPI.
-    - `access_token` (str, optional): The JWT access token obtained from the `JWTBearer` dependency.
-
-    ## Response
-    A dictionary containing the encoded image data of the saved image.
-
-    ## Errors
-    - **HTTPException**: If there are any errors during image upload or database update.
+    Allows a user to upload and save an image for their profile. 
+    The image data is received as binary data in the request stream. 
+    The image is then associated with the user's email and stored in the database.
     """
 
     try:
@@ -108,21 +90,9 @@ async def saveImg(request: Request, access_token=Depends(JWTBearer())):
 
 
 @router.post("/saveDetails")
-async def saveDetails(body: userDetails, request: Request, access_token=Depends(JWTBearer())):
+async def save_details(body: userDetails, request: Request, access_token=Depends(JWTBearer())):
     """
-    # Save User Details
-    This endpoint is used to save the user's email, phone number, and address to the database.
-
-    ## Parameters
-    - `body` (userDetails): The user details to be updated.
-    - `request` (Request): The request object from FastAPI.
-    - `access_token` (str, optional): The JWT access token obtained from the `JWTBearer` dependency.
-
-    ## Response
-    A dictionary containing the updated user details.
-
-    ## Errors
-    - **HTTPException**: If there are any errors during the update process.
+    Saves the user's email, phone number, and address to the database.
     """
 
     try:
