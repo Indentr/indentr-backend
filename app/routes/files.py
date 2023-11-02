@@ -47,7 +47,7 @@ def get_files(request: Request, access_token=Depends(JWTBearer())):
 
 
 
-@router.get("/{letter_id}/")
+@router.get("/{letter_id}")
 def get_treatment_plan(letter_id: str, request: Request, access_token=Depends(JWTBearer())):
     """
     Retrieves a treatment plan based on the provided letter ID.
