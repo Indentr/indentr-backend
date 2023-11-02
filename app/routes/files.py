@@ -15,27 +15,7 @@ log = logging.getLogger(__name__)
 @router.get("/")
 def get_files(request: Request, access_token=Depends(JWTBearer())):
     """
-    # Retrieves All Users' Treatment Plans
-
-    This endpoint allows authenticated users to retrieve all treatment plans.
-
-    - **Access Token**: JWT access token obtained during authentication.
-    - **Response Model**: A dictionary with a single key "letters" containing a list of letter dictionaries.
-
-    Each letter dictionary contains:
-    - `_id`: str (Letter's ID)
-    - `patient_info`: dict (Patient's information)
-    - `consent_letter`: str (Letter's content)
-    - `user_id`: str (User's ID)
-    - `createdAt`: str (Creation timestamp in the format "YYYY-MM-DD HH:MM:SS")
-
-    ## Response
-
-    A dictionary with a single key "letters" containing a list of letter dictionaries.
-
-    ## Errors
-
-    - **HTTP 403 Forbidden**: If authentication fails.
+    This endpoint allows authenticated users to retrieve all of their treatment plans.
     """
 
     db = request.app.state.db
@@ -70,41 +50,10 @@ def get_files(request: Request, access_token=Depends(JWTBearer())):
 @router.get("/{letter_id}/")
 def get_treatment_plan(letter_id: str, request: Request, access_token=Depends(JWTBearer())):
     """
-    Retrieve Treatment Plan
-    -----------------------
-
     Retrieves a treatment plan based on the provided letter ID.
 
-    Parameters:
-    - **letter_id** (str): The ID of the letter for which the treatment plan should be retrieved.
-    - **request** (Request): The incoming HTTP request object.
-    - **access_token** (str, optional): JWT access token for authentication. Defaults to Depends(JWTBearer()).
-
-    Returns:
-    - **dict**: A dictionary containing the retrieved treatment plan details.
-
-    Raises:
-    - **HTTPException 404**: If the provided letter ID is not found in the database.
-    - **HTTPException 400**: If there is an error retrieving the treatment plan.
-
-    Example:
-    ```
-    GET /{letter_id}/
-    Response: 200 OK
-
-    {
-        "_id": "64dcecb741371bcccfaa5979",
-        "user_id": "123456789",
-        "consent_letter": "The detailed treatment plan...",
-        "patient_info": {
-            "name": "John Doe",
-            "age": 35,
-            "address": "123 Main St, City, State",
-            ...
-        },
-        "createdAt": "2023-08-16 12:34:56"
-    }
-    ```
+    ## TODO:
+    - needs to also check that the requested letter belongs to the user
     """
 
     db = request.app.state.db
@@ -132,39 +81,8 @@ def get_treatment_plan(letter_id: str, request: Request, access_token=Depends(JW
 @router.post("/saveTreatmentPlan")
 def save_treatment_plan(body: saveTreatmentPlan, request: Request, access_token=Depends(JWTBearer())):
     """
-    Save Treatment Plan
-    -------------------
-
     Saves a treatment plan to the database. If a letter with the provided ID
     exists, the consent letter field will be updated with the new treatment plan.
-
-    Parameters:
-    - **body** (saveTreatmentPlan): Request body containing letterId and treatmentPlan.
-    - **request** (Request): The incoming HTTP request object.
-    - **access_token** (str, optional): JWT access token for authentication. Defaults to Depends(JWTBearer()).
-
-    Returns:
-    - **dict**: A dictionary indicating the result of the operation.
-
-    Raises:
-    - **HTTPException 404**: If the update operation fails due to a missing or invalid letter ID.
-
-    Example:
-    ```
-    POST /saveTreatmentPlan
-    Request Body:
-    {
-        "letterId": "64dcecb741371bcccfaa5979",
-        "treatmentPlan": "A detailed treatment plan for the patient..."
-    }
-
-    Response: 200 OK
-
-    {
-        "message": "Letter updated successfully"
-    }
-    ```
-    Raises an HTTPException if the provided letter ID is not found in the database.
     """
 
     start = time.time()
