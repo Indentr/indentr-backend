@@ -30,7 +30,7 @@ def get_files(request: Request, access_token=Depends(JWTBearer())):
     # Sort the letters by patient_info.last_name
     sort_field = "patient_info.last_name"
     # Find and retrieve the letters with projection and sorting
-    letters = list(letters_collection.find({"user_id": user_id}, projection=projection).sort(sort_field))
+    letters =  list(letters_collection.find({"user_id": user_id}, projection=projection).sort(sort_field))
 
     # Access the 'createdAt' field for each letter and convert it to time date format
     # Add a createdAt attribute to letter
