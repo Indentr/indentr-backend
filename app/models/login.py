@@ -7,6 +7,6 @@ class UserLoginRequest(BaseModel):
 
 
 class UserRegisterRequest(BaseModel):
-    name: str 
-    email: str 
-    password: str 
+    name: str
+    email: str
+    password: str

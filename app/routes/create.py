@@ -15,6 +15,7 @@ router = APIRouter(prefix="/create", tags=["Create"])
 
 log = logging.getLogger(__name__)
 
+
 @router.post("/symptoms")
 async def generate_questions(body: SymptomData, request: Request, access_token=Depends(JWTBearer())):
     """
@@ -105,8 +106,6 @@ async def generate_questions(body: SymptomData, request: Request, access_token=D
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
     return json.loads(symptoms)
-
-
 
 
 # @router.post("/treatmentOverview")
@@ -217,11 +216,6 @@ async def generate_questions(body: SymptomData, request: Request, access_token=D
 #     return json.loads(treatmentGuide)
 
 
-
-
-
-
-
 @router.post("/treatmentPlan")
 async def generate_treatment_plan(body: treatmentPlanData, request: Request, access_token=Depends(JWTBearer())):
     """
@@ -313,8 +307,8 @@ async def generate_treatment_plan(body: treatmentPlanData, request: Request, acc
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
-    address = patientDetails['address']
-    address_parts = address.split(', ')
+    address = patientDetails["address"]
+    address_parts = address.split(", ")
 
     # Generate the HTML lines dynamically
     html_lines = "\n".join([f"<p>{part},</p>" for part in address_parts])
@@ -329,9 +323,7 @@ async def generate_treatment_plan(body: treatmentPlanData, request: Request, acc
     <p></p>
     """
 
-    return (header + dear + treatmentPlan)
-
-
+    return header + dear + treatmentPlan
 
 
 @router.post("/createTreatmentPlan")
@@ -375,7 +367,7 @@ def create_treatment_plan(body: createTreatmentPlan, request: Request, access_to
       "message": "Failed to insert letter to files"
     }
     ```
-    
+
     ## Notes
     - This route requires an access token obtained through authentication.
     """
@@ -388,14 +380,10 @@ def create_treatment_plan(body: createTreatmentPlan, request: Request, access_to
     treatmentPlan = body.treatmentPlan
     db = request.app.state.db
     token = decodeJWT(access_token)
-    user_id = token['user_id']
-    letters_collection = db['letters']
+    user_id = token["user_id"]
+    letters_collection = db["letters"]
 
-    letter_data = {
-        "consent_letter": treatmentPlan,
-        "patient_info": json.loads(patientDetails),
-        "user_id": ObjectId(user_id)
-    }
+    letter_data = {"consent_letter": treatmentPlan, "patient_info": json.loads(patientDetails), "user_id": ObjectId(user_id)}
 
     result = letters_collection.insert_one(letter_data)
 
@@ -405,5 +393,3 @@ def create_treatment_plan(body: createTreatmentPlan, request: Request, access_to
     else:
         log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
         return {"message": "Failed to insert letter to files"}
-
-

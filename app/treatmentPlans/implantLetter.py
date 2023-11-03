@@ -1,4 +1,3 @@
-
 example_consent_letter = """
 Further to your recent treatment planning appointment at which we discussed your treatment options, you have confirmed that you wish to proceed with the implant option.
 We plan on the extraction of your third molars due to their poor prognosis, and immediately following on with the placement of implants.
