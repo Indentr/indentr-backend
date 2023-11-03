@@ -33,8 +33,7 @@ black .
 ```
 
 ### Ruff
-Ruff is a code analysis tool that combines multiple linters and formatters, including Black, to comprehensively check and format Python code.
-> Running ruff in your project will apply Black's formatting rules along with other linters and formatters configured in Ruff.
+Ruff is a code analysis tool that comprehensively checks and can apply automatic fixes to your Python code.
 ```bash
 ruff .
 ```
