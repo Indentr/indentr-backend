@@ -12,5 +12,6 @@ class Settings:
     def get(self, key):
         return configParser.get(self.section, key)
 
+
 config = Settings("production")
 # testing_config = Settings("test")

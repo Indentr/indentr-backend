@@ -1,10 +1,9 @@
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.exceptions import HTTPException
-from bson import ObjectId
-
-from app.middleware.jwt import signJWT, JWTBearer, decodeJWT
-from app.models.login import UserLoginRequest, UserRegisterRequest
 from werkzeug.security import check_password_hash, generate_password_hash
+
+from app.middleware.jwt import JWTBearer, decodeJWT, signJWT
+from app.models.login import UserLoginRequest, UserRegisterRequest
 
 router = APIRouter(prefix="/auth", tags=["Authorisation"])
 
@@ -17,15 +16,13 @@ def post_user_login(body: UserLoginRequest, request: Request):
     """
 
     db = request.app.state.db
-    users_collection = db['users']
-    user_document = users_collection.find_one({'email': body.email})
+    users_collection = db["users"]
+    user_document = users_collection.find_one({"email": body.email})
 
     if user_document and check_password_hash(user_document["password"], body.password):
-        user_id = str(user_document['_id'])
+        user_id = str(user_document["_id"])
         return signJWT(user_id)
     raise HTTPException(status_code=403, detail="Access denied.")
-
-
 
 
 @router.post("/register")
@@ -36,7 +33,7 @@ def post_user_registration(body: UserRegisterRequest, request: Request):
     """
 
     db = request.app.state.db
-    users_collection = db['users']
+    users_collection = db["users"]
 
     print(body)
 
@@ -47,13 +44,10 @@ def post_user_registration(body: UserRegisterRequest, request: Request):
         raise HTTPException(status_code=400, detail="Email already in use")
 
     # If the email doesn't exist, hash the password and create the new user
-    hash_pass = generate_password_hash(body.password, method='sha256')
-    users_collection.insert_one({'name': body.name, 'email': body.email, 'password': hash_pass})
+    hash_pass = generate_password_hash(body.password, method="sha256")
+    users_collection.insert_one({"name": body.name, "email": body.email, "password": hash_pass})
 
     return {"message": "Registered successfully"}
-
-
-
 
 
 @router.get("/user")
@@ -63,6 +57,6 @@ def authenticate_user(request: Request, access_token=Depends(JWTBearer())):
     """
 
     token = decodeJWT(access_token)
-    user_id = token['user_id']
+    user_id = token["user_id"]
 
     return signJWT(user_id)

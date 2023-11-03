@@ -16,12 +16,11 @@ class SymptomData(BaseModel):
     symptomDetails: str
 
 
-
 class treatmentPlanData(BaseModel):
     patientDetails: str
     symptomDetails: str
 
+
 class createTreatmentPlan(BaseModel):
     treatmentPlan: str
     patientDetails: str
-
