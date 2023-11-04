@@ -9,7 +9,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -19,6 +18,10 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Set up environment variables
+        run: |
+          echo "ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }}" >> $GITHUB_ENV
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -27,3 +30,4 @@ jobs:
       - name: Run tests
         run: |
           pytest
+
