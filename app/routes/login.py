@@ -11,8 +11,11 @@ router = APIRouter(prefix="/auth", tags=["Authorisation"])
 @router.post("/login")
 def post_user_login(body: UserLoginRequest, request: Request):
     """
-    This route handles user login requests. It expects a `UserLoginRequest` object as the request body, containing the user's email and password. The `check_user` function is invoked to validate the user's credentials against the database.
-    If the user's credentials are valid, the `signJWT` function generates an access token, which is then returned in the response.
+    This route handles user login requests. It expects a `UserLoginRequest` object
+    as the request body, containing the user's email and password. The `check_user`
+    function is invoked to validate the user's credentials against the database.
+    If the user's credentials are valid, the `signJWT` function generates an access
+    token, which is then returned in the response.
     """
 
     db = request.app.state.db
@@ -28,8 +31,10 @@ def post_user_login(body: UserLoginRequest, request: Request):
 @router.post("/register")
 def post_user_registration(body: UserRegisterRequest, request: Request):
     """
-    This route handles user registration requests. It expects a `UserRegisterRequest` object as the request body, containing the user's name, email, and password.
-    The route first checks if the provided email is already in use. If the email is available, it securely hashes the password and creates a new user in the database.
+    This route handles user registration requests. It expects a `UserRegisterRequest`
+    object as the request body, containing the user's name, email, and password.
+    The route first checks if the provided email is already in use. If the email is
+    available, it securely hashes the password and creates a new user in the database.
     """
 
     db = request.app.state.db
@@ -42,7 +47,7 @@ def post_user_registration(body: UserRegisterRequest, request: Request):
         raise HTTPException(status_code=400, detail="Email already in use")
 
     # If the email doesn't exist, hash the password and create the new user
-    hash_pass = generate_password_hash(body.password, method="sha256")
+    hash_pass = generate_password_hash(body.password, method="scrypt")
     users_collection.insert_one({"name": body.name, "email": body.email, "password": hash_pass})
 
     return {"message": "Registered successfully"}

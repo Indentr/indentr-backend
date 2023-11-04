@@ -21,6 +21,10 @@ jobs:
       - name: Set up environment variables
         run: |
           echo "ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }}" >> $GITHUB_ENV
+          echo "TEST_DB_URI=${{ secrets.TEST_DB_URI }}" >> $GITHUB_ENV
+          echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> $GITHUB_ENV
+          echo "JWT_ALGORITHM=${{ secrets.JWT_ALGORITHM }}" >> $GITHUB_ENV
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: |
