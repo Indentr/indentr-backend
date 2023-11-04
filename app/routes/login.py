@@ -42,7 +42,7 @@ def post_user_registration(body: UserRegisterRequest, request: Request):
         raise HTTPException(status_code=400, detail="Email already in use")
 
     # If the email doesn't exist, hash the password and create the new user
-    hash_pass = generate_password_hash(body.password, method="sha256")
+    hash_pass = generate_password_hash(body.password, method="scrypt")
     users_collection.insert_one({"name": body.name, "email": body.email, "password": hash_pass})
 
     return {"message": "Registered successfully"}

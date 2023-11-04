@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DB_URI = os.getenv("DB_URI")
+TEST_DB_URI = os.getenv("TEST_DB_URI")
 SECRET_KEY = os.getenv("SECRET_KEY")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
