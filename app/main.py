@@ -5,9 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware import Middleware
 from starlette_context.middleware import RawContextMiddleware
 
+from app.constants import ALLOWED_ORIGINS, DB_URI
 from app.db import connect_to_mongodb
 from app.routes import create, files, login, profile
-from app.constants import ALLOWED_ORIGINS, DB_URI
 
 middleware = [Middleware(RawContextMiddleware)]
 
