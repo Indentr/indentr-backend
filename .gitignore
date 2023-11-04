@@ -4,3 +4,4 @@ __pycache__
 .service-accounts
 static/requests/*
 log.log
+.ini

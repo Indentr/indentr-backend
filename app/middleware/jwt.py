@@ -5,7 +5,7 @@ import jwt
 from fastapi import HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.config import config
+from app.constants import SECRET_KEY, JWT_ALGORITHM
 
 
 def token_response(token: str):
@@ -14,14 +14,14 @@ def token_response(token: str):
 
 def signJWT(user_id: str) -> Dict[str, str]:
     payload = {"user_id": user_id, "expires": time.time() + (3600 * 24)}
-    token = jwt.encode(payload, config.get("SECRET_KEY"), algorithm=config.get("JWT_ALGORITHM"))
+    token = jwt.encode(payload, config.get("SECRET_KEY"), algorithm=JWT_ALGORITHM)
 
     return token_response(token)
 
 
 def decodeJWT(token: str) -> dict:
     try:
-        decoded_token = jwt.decode(token, config.get("SECRET_KEY"), algorithms=config.get("JWT_ALGORITHM"))
+        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=JWT_ALGORITHM)
         return decoded_token if decoded_token["expires"] >= time.time() else None
     except jwt.ExpiredSignatureError:
         return None

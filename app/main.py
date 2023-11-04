@@ -5,9 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware import Middleware
 from starlette_context.middleware import RawContextMiddleware
 
-from app.config import config
 from app.db import connect_to_mongodb
 from app.routes import create, files, login, profile
+from app.constants import ALLOWED_ORIGINS, DB_URI
 
 middleware = [Middleware(RawContextMiddleware)]
 
@@ -31,14 +31,14 @@ logging.debug(f"Logging initialized at level {log_level}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=config.get("ALLOWED_ORIGINS"),
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
 def get_mongo_db():
-    return connect_to_mongodb(config.get("DB_URI"))
+    return connect_to_mongodb(DB_URI)
 
 
 @app.on_event("startup")
