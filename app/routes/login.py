@@ -35,8 +35,6 @@ def post_user_registration(body: UserRegisterRequest, request: Request):
     db = request.app.state.db
     users_collection = db["users"]
 
-    print(body)
-
     # Check if the email already exists
     existing_user = users_collection.find_one({"email": body.email})
 
