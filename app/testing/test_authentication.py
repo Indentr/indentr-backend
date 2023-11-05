@@ -6,35 +6,45 @@ from app.db import connect_to_mongodb
 from app.main import app
 from app.middleware.jwt import decodeJWT
 
-success_token = 1
 app.state.db = connect_to_mongodb(TEST_DB_URI)
 client = TestClient(app)
 
 
-# Hook that wipes users collection once tests have finished
-@pytest.fixture(scope="session", autouse=True)
+# Hook that wipes users collection after each test finishes
+@pytest.fixture(autouse=True)
 def cleanup_database(request):
     db = app.state.db
 
-    # Provide the collection name where your user data is stored
-    user_collection = db["users"]
+    # Get a list of all collections in the database
+    collections = db.list_collection_names()
+    # Drop all collections
+    for collection_name in collections:
+        if collection_name != "system.indexes":  # Skip system.indexes collection
+            db[collection_name].drop()
 
     # Run all tests
     yield
 
-    # Perform the cleanup after all tests
-    user_collection.delete_many({})  # Clear the user collection
+    # Drop all collections
+    for collection_name in collections:
+        if collection_name != "system.indexes":  # Skip system.indexes collection
+            db[collection_name].drop()
 
 
-def test_register_user():
+@pytest.fixture
+def register_test_user():
     response = client.post("/auth/register", json={"name": "John Terry", "email": "johnterry@gmail.com", "password": "password"})
+    return response
 
-    assert response.status_code == 200, response.text
-    data = response.json()
+
+
+def test_register_user(register_test_user):
+    assert register_test_user.status_code == 200, register_test_user.text
+    data = register_test_user.json()
     assert data["message"] == "Registered successfully"
 
 
-def test_register_existing_user():
+def test_register_existing_user(register_test_user):
     response = client.post("/auth/register", json={"name": "John Terry", "email": "johnterry@gmail.com", "password": "password"})
 
     assert response.status_code == 400, response.text
@@ -42,7 +52,7 @@ def test_register_existing_user():
     assert data["detail"] == "Email already in use"
 
 
-def test_login_user():
+def test_login_user(register_test_user):
     response = client.post("/auth/login", json={"email": "johnterry@gmail.com", "password": "password"})
 
     # Checks if response was success
@@ -69,7 +79,7 @@ def test_login_user_access_denied():
     assert data["detail"] == "Access denied."
 
 
-def test_authenticate_user():
+def test_authenticate_user(register_test_user):
     loginResponse = client.post("/auth/login", json={"email": "johnterry@gmail.com", "password": "password"})
 
     data = loginResponse.json()
@@ -86,7 +96,7 @@ def test_authenticate_user():
     assert response.status_code == 200, response.text
 
 
-def test_authenticate_user_incorrect_token():
+def test_authenticate_user_incorrect_token(register_test_user):
     response = client.get(
         "/auth/user",
         headers={
