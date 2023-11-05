@@ -1,7 +1,6 @@
 import logging
 import time
 import uuid
-
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -57,9 +56,6 @@ def get_treatment_plan(letter_id: str, request: Request, access_token=Depends(JW
         # Query the collection using the ObjectId
         letter = letters_collection.find_one({"_id": ObjectId(letter_id)})
 
-        if letter is None:
-            raise HTTPException(status_code=404, detail="Letter not found")
-
         created_at = letter["_id"].generation_time.strftime("%Y-%m-%d %H:%M:%S")
         letter["createdAt"] = created_at
         letter["_id"] = str(letter["_id"])
@@ -68,7 +64,8 @@ def get_treatment_plan(letter_id: str, request: Request, access_token=Depends(JW
         return letter
 
     except Exception:
-        raise HTTPException(status_code=400, detail="Error getting treatment plan") from None
+        # Handle any other unhandled exceptions with a 400 status code
+        raise HTTPException(status_code=400, detail="Error finding letter") from None
 
 
 @router.post("/saveTreatmentPlan")
