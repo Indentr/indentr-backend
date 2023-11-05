@@ -2,7 +2,6 @@
 Backend for indentr website.
 
 ## Run locally
-
 ### Create new virtual env
 ```bash
 python3 -m venv venv
@@ -25,6 +24,15 @@ Command to run the server with hot reload, ie server will automatically reload o
 uvicorn app.main:app --reload
 ```
 
+> Once the server is running you can view the API documentation (provided by Swagger UI) by entering the following url
+```bash
+http://127.0.0.1:8000/docs
+```
+
+
+
+
+
 ## Code Formatting
 ### Black
 Black is a Python code formatter that automatically formats your code to ensure consistent style, eliminating the need for manual formatting.
@@ -39,11 +47,22 @@ ruff .
 ```
 
 
-## API documentation (provided by Swagger UI)
-
+## Testing
+To run tests just enter the following into terminal
 ```bash
-http://127.0.0.1:8000/docs
+pytest
 ```
+
+> To view the applications total test code coverage 
+```bash
+pytest --cov=app --cov-report term-missing   
+``` 
+
+
+
+
+
+
 
 
 ## Docker
