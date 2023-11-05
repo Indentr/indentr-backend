@@ -37,7 +37,6 @@ def register_test_user():
     return response
 
 
-
 def test_register_user(register_test_user):
     assert register_test_user.status_code == 200, register_test_user.text
     data = register_test_user.json()

@@ -7,7 +7,7 @@ from starlette_context.middleware import RawContextMiddleware
 
 from app.constants import ALLOWED_ORIGINS, DB_URI
 from app.db import connect_to_mongodb
-from app.routes import create, files, auth, profile
+from app.routes import auth, create, files, profile
 
 middleware = [Middleware(RawContextMiddleware)]
 
