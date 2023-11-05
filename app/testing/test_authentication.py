@@ -75,7 +75,6 @@ def test_authenticate_user():
     data = loginResponse.json()
     token = data["access_token"]
 
-    print(f"Success token: {token}")
     response = client.get(
         "/auth/user",
         headers={
@@ -85,3 +84,15 @@ def test_authenticate_user():
     )
 
     assert response.status_code == 200, response.text
+
+
+def test_authenticate_user_incorrect_token():
+    response = client.get(
+        "/auth/user",
+        headers={
+            "Authorization": "None",
+            "Content-Type": "application/json",
+        },
+    )
+
+    assert response.status_code == 403, response.text
