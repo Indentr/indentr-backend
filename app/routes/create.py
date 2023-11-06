@@ -72,7 +72,7 @@ async def generate_questions(body: SymptomData, request: Request, access_token=D
 
     This format presents the information clearly and concisely, making it easy for users to understand the purpose of the endpoint, its parameters, request and response examples, and potential errors.
     """
-  start = time.time()
+    start = time.time()
     request_id = uuid.uuid4().hex
 
     symptomDetails = json.loads(body.symptomDetails)
@@ -112,7 +112,7 @@ async def generate_questions(body: SymptomData, request: Request, access_token=D
 async def generate_treatment_plan(body: treatmentPlanData, request: Request, access_token=Depends(JWTBearer())):
     """
     # Generate Treatment Plan/informed consent letter based on Patient and Symptom Details
-    This endpoint generates a treatment plan that doubles as an informed consent letter, tailored to the patient's symptoms. 
+    This endpoint generates a treatment plan that doubles as an informed consent letter, tailored to the patient's symptoms.
     The treatment plan/informed consent letter is returned as an HTML-formatted string.
 
     ## Parameters
@@ -165,7 +165,7 @@ async def generate_treatment_plan(body: treatmentPlanData, request: Request, acc
 
         I want you to write a treatment plan that is also an informed consent letter for the patient above based on the symptom details provided.
         I have provided an example to use as a guide on how to structure a treatment plan letter. The aim of the letter is to provide the patient,
-        with the information that they need to make a decision to go forward with the treatment. The letter should provide some information about the 
+        with the information that they need to make a decision to go forward with the treatment. The letter should provide some information about the
         possible complications. The letter is, however, essentially a final sales pitch for the treatment that has already been discusssed in person
         with the patient.
 
