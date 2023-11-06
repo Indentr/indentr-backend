@@ -72,8 +72,7 @@ async def generate_questions(body: SymptomData, request: Request, access_token=D
 
     This format presents the information clearly and concisely, making it easy for users to understand the purpose of the endpoint, its parameters, request and response examples, and potential errors.
     """
-
-    start = time.time()
+  start = time.time()
     request_id = uuid.uuid4().hex
 
     symptomDetails = json.loads(body.symptomDetails)
@@ -85,7 +84,7 @@ async def generate_questions(body: SymptomData, request: Request, access_token=D
     prompt = f"""
         Patient's symptom: {', '.join(symptomDetails)}
 
-        For each symptom, please ask the dentist three follow-up questions.
+      For each symptom, please ask the dentist three follow-up questions.
         These questions should aim to gather more information from the dentist about the patient's symptoms.
         Please format your response as JSON, as shown below:
         [
