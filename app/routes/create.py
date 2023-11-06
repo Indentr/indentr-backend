@@ -19,7 +19,8 @@ log = logging.getLogger(__name__)
 @router.post("/symptoms")
 async def generate_questions(body: SymptomData, request: Request, access_token=Depends(JWTBearer())):
     """
-    # Generate Follow-Up Questions for Patient Symptoms
+    # Generate Follow-Up Questions for Patient Symptoms, the questions should be focussed on what the dentist is going to
+      need to know in order to better understand how to treat the patient.
 
     This endpoint generates follow-up questions for each symptom provided by the patient.
     It uses the GPT model to formulate the questions based on the provided symptom.
@@ -108,119 +109,12 @@ async def generate_questions(body: SymptomData, request: Request, access_token=D
     return json.loads(symptoms)
 
 
-# @router.post("/treatmentOverview")
-# async def generate_treatment_overview(body: treatmentPlanData, request: Request, access_token=Depends(JWTBearer())):
-#     """
-#     Generate a treatment overview based on patient and symptom details.
-
-#     - **patientDetails**: A JSON string containing patient details.
-#     - **symptomDetails**: A JSON string containing symptom details.
-
-#     Returns a JSON response containing diagnosis, further investigations recommendations, and a treatment plan
-#     based on the patient's symptom data.
-
-#     **Note**: This route requires an access token obtained through authentication.
-
-#     ### Response:
-#     A JSON response containing diagnosis, further investigations recommendations, and a treatment plan.
-
-#     Example response:
-
-#     ```json
-#     {
-#         "Diagnosis": {
-#             "s1": {
-#                 "d1": "[insert diagnosis of symptom 1]"
-#             },
-#             "s2": {
-#                 "d1": "[insert diagnosis of symptom 2]"
-#             }
-#         },
-#         "Further investigations": {
-#             "s1": {
-#                 "inv1": "[insert investigation 1]"
-#             },
-#             "s2": {}
-#         },
-#         "Treatment plan": {
-#             "plan1": {
-#                 "1": "[insert step 1 for symptom 1]"
-#             },
-#             "plan2": {
-#                 "1": "[insert step 1 for symptom 2]"
-#             }
-#         }
-#     }
-#     """
-
-#     start = time.time()
-#     request_id = uuid.uuid4().hex
-
-#     patientDetails = json.loads(body.patientDetails)
-#     symptomDetails = json.loads(body.symptomDetails)
-
-#     log.info(f"Request {request_id} received for generating treatment overview.")
-#     log.info(f"Patient details: {patientDetails}")
-#     log.info(f"treatment plan details: {symptomDetails}")
-
-#     prompt = f"""
-#         The patient was born {patientDetails['dob']} and their gender is {patientDetails['gender']}.
-#         Patient's symptoms data:
-
-#         {symptomDetails}
-
-#         Each JSON object contains the symptom name along with questions and responses.
-#         The questions and responses help to try and highlight the potential best course of treatment for that symptom.
-
-#         Based on the provided patient's symptom data,
-#         please provide a diagnosis, further investigations recomendations and a treatment plan.
-#         example response based on two symptoms (number of symptoms can range from 1 to n):
-#         {{
-#             "Diagnosis": {{
-#                 "s1": {{
-#                     "d1": "[insert diagnosis of symptom 1]",
-#                 }}
-#                  "s1": {{
-#                     "d1": "etc.",
-#                 }}
-#             }},
-#             "Further investigations": {{
-#                 "s1": {{
-#                     "inv1": "[insert investigation 1]", // leave empty if you think symptom doesn't warrant further investigation
-#                     "etc.": "[etc.]"
-#                 }},
-#                 "s2": {{
-#                     "etc": "[etc.]" // leave empty if you think symptom doesn't warrant further investigation
-#                 }}
-#             }},
-#             "Treatment plan": {{
-#                 "plan1": {{
-#                     "1":[insert step 1 for symptom 1]",
-#                     "etc.": "[etc.]",
-
-#                 }},
-#                 "plan2": {{
-#                     "1": "[insert step 1 for symptom 2]",
-#                     "etc.": "[etc.]",
-#                 }}
-#             }}
-#         }}
-
-#         Your response must be in a valid JSON format, like the example JSON response above.
-#     """
-
-#     treatmentGuide = await ask_gpt(prompt, "You're a helpful AI dental assistant")
-
-#     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
-
-#     return json.loads(treatmentGuide)
-
-
 @router.post("/treatmentPlan")
 async def generate_treatment_plan(body: treatmentPlanData, request: Request, access_token=Depends(JWTBearer())):
     """
-    # Generate Treatment Plan based on Patient and Symptom Details
-    This endpoint generates a treatment plan tailored to the patient's symptoms. The treatment plan is returned as an HTML-formatted string.
+    # Generate Treatment Plan/informed consent letter based on Patient and Symptom Details
+    This endpoint generates a treatment plan that doubles as an informed consent letter, tailored to the patient's symptoms. 
+    The treatment plan/informed consent letter is returned as an HTML-formatted string.
 
     ## Parameters
     - `body` (`treatmentPlanData`): JSON data containing patient and symptom details.
@@ -270,8 +164,11 @@ async def generate_treatment_plan(body: treatmentPlanData, request: Request, acc
         Patient's dob: {patientDetails['dob']}
         Patient's symptoms: {symptomDetails}
 
-        I want you to write a treatment plan for the patient above based on the symptom details provided.
-        I have provided an example to use as a guide on how to structure a treatment plan letter.
+        I want you to write a treatment plan that is also an informed consent letter for the patient above based on the symptom details provided.
+        I have provided an example to use as a guide on how to structure a treatment plan letter. The aim of the letter is to provide the patient,
+        with the information that they need to make a decision to go forward with the treatment. The letter should provide some information about the 
+        possible complications. The letter is, however, essentially a final sales pitch for the treatment that has already been discusssed in person
+        with the patient.
 
         Example dental treatment plan consent letter:
         {example_consent_letter}
