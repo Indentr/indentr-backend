@@ -54,7 +54,7 @@ def cleanup_database(request):
         if collection_name != "system.indexes":  # Skip system.indexes collection
             db[collection_name].drop()
 
-    # Run all tests
+    # Run test
     yield
 
     # Drop all collections

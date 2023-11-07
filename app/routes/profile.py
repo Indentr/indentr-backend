@@ -100,5 +100,8 @@ async def save_details(body: userDetails, request: Request, access_token=Depends
         dbUsers.update_one({"_id": ObjectId(user_id)}, {"$set": {"email": email, "phone": phone, "address": address}})
 
         return {"email": email, "phone": phone, "address": address}
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to save details") from e
