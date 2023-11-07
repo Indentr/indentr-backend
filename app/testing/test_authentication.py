@@ -1,13 +1,13 @@
-from fastapi.testclient import TestClient
-import pytest
 import time
-import jwt
 
-from app.constants import TEST_DB_URI
+import jwt
+import pytest
+from fastapi.testclient import TestClient
+
+from app.constants import JWT_ALGORITHM, SECRET_KEY, TEST_DB_URI
 from app.database.db import connect_to_mongodb
 from app.main import app
-from app.middleware.jwt import decodeJWT, JWTBearer
-from app.constants import JWT_ALGORITHM, SECRET_KEY
+from app.middleware.jwt import decodeJWT
 
 app.state.db = connect_to_mongodb(TEST_DB_URI)
 client = TestClient(app)
@@ -110,10 +110,9 @@ def test_authenticate_user_incorrect_token(register_test_user):
     assert response.status_code == 403, response.text
 
 
-
 def test_decodeJWT_expired_signature():
     # Create an expired token to test the ExpiredSignatureError
-    expired_token = jwt.encode({'data': 'sample_data', 'expires': time.time() - 1000}, SECRET_KEY, algorithm=JWT_ALGORITHM)
+    expired_token = jwt.encode({"data": "sample_data", "expires": time.time() - 1000}, SECRET_KEY, algorithm=JWT_ALGORITHM)
     decoded_token = decodeJWT(expired_token)
     # Ensure the function returns None for an expired token
     assert decoded_token is None
@@ -122,10 +121,9 @@ def test_decodeJWT_expired_signature():
 def test_decodeJWT_invalid_token():
     # Create an invalid token to test the InvalidTokenError
     invalid_token = "invalid_token_string"
-    
+
     # Ensure the function returns None for an invalid token
     assert decodeJWT(invalid_token) is None
-
 
 
 def test_invalid_authentication_scheme(register_test_user):
@@ -147,9 +145,8 @@ def test_invalid_authentication_scheme(register_test_user):
     assert data["detail"] == "Invalid authentication credentials"
 
 
-
 def test_expired_token(register_test_user):
-    expired_token = jwt.encode({'data': 'sample_data', 'expires': time.time() - 1000}, SECRET_KEY, algorithm=JWT_ALGORITHM)
+    expired_token = jwt.encode({"data": "sample_data", "expires": time.time() - 1000}, SECRET_KEY, algorithm=JWT_ALGORITHM)
 
     response = client.get(
         "/auth/user",
@@ -175,5 +172,3 @@ def test_no_token(register_test_user):
     assert response.status_code == 403, response.text
     data = response.json()
     assert data["detail"] == "Not authenticated"
-
-
