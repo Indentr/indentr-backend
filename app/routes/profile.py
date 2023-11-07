@@ -3,9 +3,9 @@ import base64
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from app.database.crud import get_user_details, update_user_image
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.user import userDetails
-from app.database.crud import get_user_details, update_user_image
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
