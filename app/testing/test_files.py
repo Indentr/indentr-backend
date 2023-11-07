@@ -5,7 +5,7 @@ from bson import ObjectId
 from fastapi.testclient import TestClient
 
 from app.constants import TEST_DB_URI
-from app.db import connect_to_mongodb
+from app.database.db import connect_to_mongodb
 from app.main import app
 from app.middleware.jwt import decodeJWT
 

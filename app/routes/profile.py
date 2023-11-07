@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.user import userDetails
+from app.database.crud import get_user_details, update_user_image
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
@@ -19,15 +20,7 @@ def get_profile(request: Request, access_token=Depends(JWTBearer())):
     token = decodeJWT(access_token)
 
     user_id = token["user_id"]
-    users_collection = db["users"]
-    user = users_collection.find_one({"_id": ObjectId(user_id)}, {"_id": 0, "email": 1, "phone": 1, "address": 1, "img": 1})
-    if user is not None:
-        user_object = {
-            "email": user["email"],
-            "phone": user.get("phone", None),
-            "address": user.get("address", None),
-            "img": base64.b64encode(user.get("img", b"")).decode("utf-8"),
-        }
+    user_object = get_user_details(db, user_id)
 
     letters_collection = db["letters"]
     letters = list(letters_collection.find({"user_id": ObjectId(user_id)}).sort("_id", -1).limit(3))
@@ -64,15 +57,15 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
         # Extract user's email from JWT token
         token = decodeJWT(access_token)
         user_id = token["user_id"]
-        print(user_id)
 
-        # Update the user's image in MongoDB
-        dbUsers = request.app.state.db.users
-        dbUsers.update_one({"_id": ObjectId(user_id)}, {"$set": {"img": image}})
+        db = request.app.state.db
 
+        update_user_image(db, image, user_id)
         encoded_image = base64.b64encode(image).decode("utf-8")
-
         return {"image": encoded_image}
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to save image") from e
 
