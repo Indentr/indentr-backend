@@ -1,3 +1,5 @@
+import base64
+
 from bson import ObjectId
 from fastapi import HTTPException
 
@@ -8,6 +10,11 @@ def get_user_details(db, user_id):
 
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # Convert the image data to base64
+    if "img" in user:
+        user["img"] = base64.b64encode(user["img"]).decode("utf-8")
+
     return user
 
 
