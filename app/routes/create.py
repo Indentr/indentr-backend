@@ -7,7 +7,7 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, Request
 
 from app.middleware.jwt import JWTBearer, decodeJWT
-from app.models.create import SymptomData, SymptomsResponse, SaveTreatmentPlan, TreatmentPlanData, TreatmentPlanResponse, SaveTreatmentPlanResponse
+from app.models.create import SymptomData, SymptomResponse, SaveTreatmentPlan, TreatmentPlanData, TreatmentPlanResponse, SaveTreatmentPlanResponse
 from app.services.openAI import ask_gpt
 from app.treatmentPlans.implantLetter import example_consent_letter
 
@@ -16,14 +16,13 @@ router = APIRouter(prefix="/create", tags=["Create"])
 log = logging.getLogger(__name__)
 
 
-@router.post("/symptoms", response_model=SymptomsResponse)
+@router.post("/symptoms", response_model=list[SymptomResponse])
 async def generate_questions(body: SymptomData, request: Request, access_token=Depends(JWTBearer())):
     """
     # Generate Follow-Up Questions for Patient Symptoms
     This endpoint generates follow-up questions for each symptom provided by the patient.
     It uses the GPT model to formulate the questions based on the provided symptom.
     """
-
     start = time.time()
     request_id = uuid.uuid4().hex
 
