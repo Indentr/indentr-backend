@@ -7,7 +7,14 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, Request
 
 from app.middleware.jwt import JWTBearer, decodeJWT
-from app.models.create import SymptomData, SymptomResponse, SaveTreatmentPlan, TreatmentPlanData, TreatmentPlanResponse, SaveTreatmentPlanResponse
+from app.models.create import (
+    SaveTreatmentPlan,
+    SaveTreatmentPlanResponse,
+    SymptomData,
+    SymptomResponse,
+    TreatmentPlanData,
+    TreatmentPlanResponse,
+)
 from app.services.openAI import ask_gpt
 from app.treatmentPlans.implantLetter import example_consent_letter
 
@@ -57,7 +64,6 @@ async def generate_questions(body: SymptomData, request: Request, access_token=D
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
     return json.loads(symptoms)
-
 
 
 @router.post("/treatmentPlan", response_model=TreatmentPlanResponse)
@@ -138,7 +144,7 @@ async def generate_treatment_plan(body: TreatmentPlanData, request: Request, acc
     # Generate the HTML response
     response_html = header + dear + treatmentPlan
 
-    return {'html_content': response_html}
+    return {"html_content": response_html}
 
 
 @router.post("/saveTreatmentPlan", response_model=SaveTreatmentPlanResponse)
