@@ -16,6 +16,10 @@ class SymptomData(BaseModel):
     symptomDetails: str
 
 
+class DentistNotes(BaseModel):
+    dentistNotes: str
+
+
 class treatmentPlanData(BaseModel):
     patientDetails: str
     symptomDetails: str
