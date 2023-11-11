@@ -1,7 +1,9 @@
+import logging
 import backoff
 import openai
 
 from app.constants import OPENAI_API_KEY
+log = logging.getLogger(__name__)
 
 
 @backoff.on_exception(backoff.expo, (openai.error.RateLimitError, openai.error.ServiceUnavailableError, openai.error.Timeout))
