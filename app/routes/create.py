@@ -107,6 +107,7 @@ async def generate_questions(body: SymptomData, request: Request, access_token=D
     """
 
     symptoms = await ask_gpt(prompt, "You're an AI dental assistant")
+    log.info(f"GPT symptoms response: {symptoms}")
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
@@ -151,6 +152,7 @@ async def generate_questions_from_dentist_notes(body: DentistNotes, request: Req
     """
 
     symptoms = await ask_gpt(prompt, "You're an AI dental assistant")
+    log.info(f"GPT symptoms response: {symptoms}")
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
@@ -249,6 +251,8 @@ async def generate_treatment_plan(body: treatmentPlanData, request: Request, acc
     """
 
     treatmentPlan = await ask_gpt(prompt, "You're a UK based dentist writing treatment plan letters for patients")
+    log.info(f"GPT treatment plan response: {treatmentPlan}")
+
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 

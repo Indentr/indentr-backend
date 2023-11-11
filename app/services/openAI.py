@@ -1,36 +1,7 @@
-import logging
-import os
-
 import backoff
 import openai
 
 from app.constants import OPENAI_API_KEY
-
-# Relative path to the logs directory from the script's location
-relative_path_to_logs = os.path.join("..", "logs")
-
-# Absolute path to the logs directory
-log_dir = os.path.abspath(relative_path_to_logs)
-
-# Create the logs directory if it doesn't exist
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-
-# Now, specify the path to the log file
-log_file_path = os.path.join(log_dir, "api_calls.log")
-
-# Set up logging to file with the absolute path to the log file
-logging.basicConfig(
-    filename=log_file_path,  # Path to log file
-    filemode="a",  # Append to the existing log file; use 'w' to overwrite
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",  # Log message format
-    level=logging.INFO,  # Logging level
-)
-
-# Get the logger
-log = logging.getLogger(__name__)
-
-# The rest of your function remains unchanged
 
 
 @backoff.on_exception(backoff.expo, (openai.error.RateLimitError, openai.error.ServiceUnavailableError, openai.error.Timeout))
