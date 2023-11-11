@@ -8,10 +8,13 @@ from fastapi import APIRouter, Depends, Request
 
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
+    SaveTreatmentPlan,
     DentistNotes,
+    SaveTreatmentPlanResponse,
     SymptomData,
-    createTreatmentPlan,
-    treatmentPlanData,
+    SymptomResponse,
+    TreatmentPlanData,
+    TreatmentPlanResponse,
 )
 from app.services.openAI import ask_gpt
 from app.treatmentPlans.implantLetter import example_consent_letter
@@ -21,61 +24,12 @@ router = APIRouter(prefix="/create", tags=["Create"])
 log = logging.getLogger(__name__)
 
 
-@router.post("/symptoms")
+@router.post("/symptoms", response_model=list[SymptomResponse])
 async def generate_questions(body: SymptomData, request: Request, access_token=Depends(JWTBearer())):
     """
-    # Generate Follow-Up Questions for Patient Symptoms, the questions should be focussed on what the dentist is going to
-      need to know in order to better understand how to treat the patient.
-
+    # Generate Follow-Up Questions for Patient Symptoms
     This endpoint generates follow-up questions for each symptom provided by the patient.
     It uses the GPT model to formulate the questions based on the provided symptom.
-
-    ## Parameters
-
-    - `body` (`SymptomData`): JSON data containing patient and symptom details.
-    - `request` (`Request`): FastAPI request object.
-    - `access_token` (`str, optional`): JWT access token. Defaults to `Depends(JWTBearer())`.
-
-    ## Response
-
-    A list of JSON objects containing follow-up questions for each symptom.
-
-    ## Example Request
-
-    ```http
-    POST /symptoms HTTP/1.1
-    Host: your-api-domain.com
-    Content-Type: application/json
-    Authorization: Bearer your-access-token
-
-    {
-      "symptomDetails": "{\"symptom1\": \"description1\", \"symptom2\": \"description2\", ...}"
-    }
-    ```
-
-    ## Example Response
-    ```json
-    [
-        {
-            "symptom": "[Symptom name]",
-            "q1": "[Insert q1]",
-            "q2": "[q2]",
-            "q3": "[q3]"
-        },
-        {
-            "symptom": "[Another Symptom]",
-            "q1": "[Insert q1]",
-            "q2": "[q2]",
-            "q3": "[q3]"
-        },
-        ...
-    ]
-    ```
-
-    ## Errors
-    HTTPException: If there are any errors during the process.
-
-    This format presents the information clearly and concisely, making it easy for users to understand the purpose of the endpoint, its parameters, request and response examples, and potential errors.
     """
     start = time.time()
     request_id = uuid.uuid4().hex
@@ -112,6 +66,7 @@ async def generate_questions(body: SymptomData, request: Request, access_token=D
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
     return json.loads(symptoms)
+
 
 
 @router.post("/notes")
@@ -159,44 +114,11 @@ async def generate_questions_from_dentist_notes(body: DentistNotes, request: Req
     return json.loads(symptoms)
 
 
-@router.post("/treatmentPlan")
-async def generate_treatment_plan(body: treatmentPlanData, request: Request, access_token=Depends(JWTBearer())):
+@router.post("/treatmentPlan", response_model=TreatmentPlanResponse)
+async def generate_treatment_plan(body: TreatmentPlanData, request: Request, access_token=Depends(JWTBearer())):
     """
-    # Generate Treatment Plan/informed consent letter based on Patient and Symptom Details
-    This endpoint generates a treatment plan that doubles as an informed consent letter, tailored to the patient's symptoms.
-    The treatment plan/informed consent letter is returned as an HTML-formatted string.
-
-    ## Parameters
-    - `body` (`treatmentPlanData`): JSON data containing patient and symptom details.
-    - `request` (`Request`): FastAPI request object.
-    - `access_token` (`str, optional`): JWT access token. Defaults to `Depends(JWTBearer())`.
-
-    ## Response
-    A formatted HTML (string) treatment plan, customized based on the provided patient and symptom details.
-
-    ## Example Request
-    ```http
-    POST /treatmentPlan HTTP/1.1
-    Host: your-api-domain.com
-    Content-Type: application/json
-    Authorization: Bearer your-access-token
-
-    {
-      "patientDetails": "{\"dob\": \"1990-01-01\", \"forename\": \"John\", \"surname\": \"Doe\", \"address\": \"123 Main St, City, Country\"}",
-      "symptomDetails": "{\"symptom1\": \"description1\", \"symptom2\": \"description2\", ...}"
-    }
-    ```
-
-    ## Example Response
-    ```str
-    '<p>123 Main St,</p>
-    <p>City,</p>
-    <p>Country,</p>
-    <p></p>
-    <p>Dear John Doe,</p>
-    <p></p>
-    <p>[HTML-formatted treatment plan]</p>'
-    ```
+    # Generates a treatment plan based on Patient and Symptom Details
+    This endpoint generates a treatment plan tailored to the patient's symptoms. The treatment plan is returned as an HTML-formatted string.
     """
 
     start = time.time()
@@ -272,53 +194,17 @@ async def generate_treatment_plan(body: treatmentPlanData, request: Request, acc
     <p></p>
     """
 
-    return header + dear + treatmentPlan
+    # Generate the HTML response
+    response_html = header + dear + treatmentPlan
+
+    return {"html_content": response_html}
 
 
-@router.post("/createTreatmentPlan")
-def create_treatment_plan(body: createTreatmentPlan, request: Request, access_token=Depends(JWTBearer())):
+@router.post("/saveTreatmentPlan", response_model=SaveTreatmentPlanResponse)
+def save_treatment_plan(body: SaveTreatmentPlan, request: Request, access_token=Depends(JWTBearer())):
     """
     # Create Treatment Plan
     This endpoint allows the creation and saving of a treatment plan. The provided treatment plan content and patient details are saved to the database.
-
-    ## Parameters
-    - `body` (`createTreatmentPlan`): JSON data containing patient details and the treatment plan content.
-    - `request` (`Request`): FastAPI request object.
-    - `access_token` (`str, optional`): JWT access token. Defaults to `Depends(JWTBearer())`.
-
-    ## Response
-    - `message` (`str`): A message indicating the result of the operation ("Letter saved successfully" or "Failed to insert letter to files").
-    - `letter_id` (`str`): The ID of the inserted letter if the operation was successful.
-
-    ## Example Request
-    ```http
-    POST /createTreatmentPlan HTTP/1.1
-    Host: your-api-domain.com
-    Content-Type: application/json
-    Authorization: Bearer your-access-token
-
-    {
-      "patientDetails": "{\"forename\": \"John\", \"surname\": \"Doe\"}",
-      "treatmentPlan": "<p>HTML-formatted treatment plan</p>"
-    }
-    ```
-    ## Example Response (Success)
-    ```json
-    {
-      "message": "Letter saved successfully",
-      "letter_id": "inserted-letter-id"
-    }
-    ```
-
-    ## Example Response (Failure)
-    ```json
-    {
-      "message": "Failed to insert letter to files"
-    }
-    ```
-
-    ## Notes
-    - This route requires an access token obtained through authentication.
     """
 
     start = time.time()
