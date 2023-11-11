@@ -51,6 +51,11 @@ class TreatmentPlanResponse(BaseModel):
 
 
 # Request model
+class DentistNotes(BaseModel):
+    dentistNotes: str
+
+
+# Request model
 class SaveTreatmentPlan(BaseModel):
     treatmentPlan: str = Field(
         ..., example="<p>123 Main St,</p><p>City,</p><p>Country,</p><p></p><p>Dear John Doe,</p><p></p><p>[HTML-formatted treatment plan]</p>"
@@ -58,6 +63,7 @@ class SaveTreatmentPlan(BaseModel):
     patientDetails: str = Field(
         ..., example={"dob": "1111-11-11", "forename": "Ryan", "surname": "Reynolds", "address": "1 Hollywood, Los Angeles, United States"}
     )
+
 
 
 # Response model

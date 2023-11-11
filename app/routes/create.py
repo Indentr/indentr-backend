@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Request
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
     SaveTreatmentPlan,
+    DentistNotes,
     SaveTreatmentPlanResponse,
     SymptomData,
     SymptomResponse,
@@ -32,7 +33,7 @@ async def generate_questions(body: SymptomData, request: Request, access_token=D
     """
     start = time.time()
     request_id = uuid.uuid4().hex
-
+    print("hello")
     symptomDetails = json.loads(body.symptomDetails)
     symptomDetails = list(symptomDetails.values())
 
@@ -42,7 +43,7 @@ async def generate_questions(body: SymptomData, request: Request, access_token=D
     prompt = f"""
         Patient's symptom: {', '.join(symptomDetails)}
 
-        For each symptom, please ask the dentist three follow-up questions.
+      For each symptom, please ask the dentist three follow-up questions.
         These questions should aim to gather more information from the dentist about the patient's symptoms.
         Please format your response as JSON, as shown below:
         [
@@ -60,6 +61,53 @@ async def generate_questions(body: SymptomData, request: Request, access_token=D
     """
 
     symptoms = await ask_gpt(prompt, "You're an AI dental assistant")
+    log.info(f"GPT symptoms response: {symptoms}")
+
+    log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+    return json.loads(symptoms)
+
+
+
+@router.post("/notes")
+async def generate_questions_from_dentist_notes(body: DentistNotes, request: Request, access_token=Depends(JWTBearer())):
+    """
+    # Generate Follow-Up Questions for Patient Symptoms, the questions should be focussed on what the dentist is going to
+      need to know in order to better understand how to treat the patient.
+
+    This endpoint generates follow-up questions for the dentist notes.
+    It uses the GPT model to formulate the questions based on the provided symptom.
+    """
+    start = time.time()
+    request_id = uuid.uuid4().hex
+    print("hello")
+    dentistNotes = json.loads(body.dentistNotes)
+
+    log.info(f"Request {request_id} received for symptom questions.")
+    log.info(f"Symptoms: {dentistNotes}")
+
+    prompt = f"""
+        Dentists notes: {dentistNotes}
+
+        Based on the dentists notes, please ask the dentist three follow-up questions.
+        These questions should aim to gather more information from the dentist about what the dentist plans to do in terms of treatment.
+        Please format your response as JSON, as shown below:
+        [
+            {{
+                "symptom": "[Symptom name]",
+                "q1": "[Insert q1]",
+                "q2": "[q2]",
+                "q3": "[q3]"
+            }},
+            {{
+                etc.
+            }}
+        ]
+        IMPORTANT: the questions you ask must be asked using a passive voice
+    """
+
+    symptoms = await ask_gpt(prompt, "You're an AI dental assistant")
+    log.info(f"GPT symptoms response: {symptoms}")
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
@@ -88,8 +136,11 @@ async def generate_treatment_plan(body: TreatmentPlanData, request: Request, acc
         Patient's dob: {patientDetails['dob']}
         Patient's symptoms: {symptomDetails}
 
-        I want you to write a treatment plan for the patient above based on the symptom details provided.
-        I have provided an example to use as a guide on how to structure a treatment plan letter.
+        I want you to write a treatment plan that is also an informed consent letter for the patient above based on the symptom details provided.
+        I have provided an example to use as a guide on how to structure a treatment plan letter. The aim of the letter is to provide the patient,
+        with the information that they need to make a decision to go forward with the treatment. The letter should provide some information about the
+        possible complications. The letter is, however, essentially a final sales pitch for the treatment that has already been discusssed in person
+        with the patient.
 
         Example dental treatment plan consent letter:
         {example_consent_letter}
@@ -122,6 +173,8 @@ async def generate_treatment_plan(body: TreatmentPlanData, request: Request, acc
     """
 
     treatmentPlan = await ask_gpt(prompt, "You're a UK based dentist writing treatment plan letters for patients")
+    log.info(f"GPT treatment plan response: {treatmentPlan}")
+
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
