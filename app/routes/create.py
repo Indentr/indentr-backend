@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends, Request
 
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
-    SaveTreatmentPlan,
     DentistNotes,
+    SaveTreatmentPlan,
     SaveTreatmentPlanResponse,
     SymptomData,
     SymptomResponse,
@@ -66,7 +66,6 @@ async def generate_questions(body: SymptomData, request: Request, access_token=D
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
     return json.loads(symptoms)
-
 
 
 @router.post("/notes")
@@ -174,7 +173,6 @@ async def generate_treatment_plan(body: TreatmentPlanData, request: Request, acc
 
     treatmentPlan = await ask_gpt(prompt, "You're a UK based dentist writing treatment plan letters for patients")
     log.info(f"GPT treatment plan response: {treatmentPlan}")
-
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
