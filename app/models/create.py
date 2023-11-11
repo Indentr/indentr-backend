@@ -65,7 +65,6 @@ class SaveTreatmentPlan(BaseModel):
     )
 
 
-
 # Response model
 class SaveTreatmentPlanResponse(BaseModel):
     message: str = Field(..., example="Letter saved successfully")
