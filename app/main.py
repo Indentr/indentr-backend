@@ -31,7 +31,7 @@ logging.debug(f"Logging initialized at level {log_level}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=[ALLOWED_ORIGINS],
     allow_methods=["*"],
     allow_headers=["*"],
 )
