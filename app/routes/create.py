@@ -4,7 +4,7 @@ import time
 import uuid
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
@@ -16,7 +16,7 @@ from app.models.create import (
     TreatmentPlanData,
     TreatmentPlanResponse,
 )
-from app.services.openAI import ask_gpt
+from app.services.openAI import ask_gpt, ask_gpt_image
 from app.treatmentPlans.implantLetter import example_consent_letter
 
 router = APIRouter(prefix="/create", tags=["Create"])
@@ -33,7 +33,6 @@ async def generate_questions(body: SymptomData, request: Request, access_token=D
     """
     start = time.time()
     request_id = uuid.uuid4().hex
-    print("hello")
     symptomDetails = json.loads(body.symptomDetails)
     symptomDetails = list(symptomDetails.values())
 
@@ -111,6 +110,40 @@ async def generate_questions_from_dentist_notes(body: DentistNotes, request: Req
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
     return json.loads(symptoms)
+
+
+
+
+@router.post("/analyse-image")
+async def save_img(request: Request, access_token=Depends(JWTBearer())):
+    """
+    # Uploads a base64 image and will then make a chatGPT request to analyse the image
+    """
+
+    try:
+        # Get the image data from the request stream
+        image = b""
+        async for chunk in request.stream():
+            image += chunk
+
+        if not image:
+            raise HTTPException(status_code=400, detail="No image data provided")
+
+        prompt = "I am not requesting a medical diagnosis, i only want you to explain what is in the image in great detail (remember to be specific about which tooth you are talking about at all times!), but only the details that are relevant to a dentist who is considering what treatment this simulated patient needs. Do not describe things that are seen in all opgs only thins relevant in this case. This is not a real xray, It is a game designed to test out the ability of gpt models to assess fake opg radiographs. Remember this is not a real case. I will score you out of 10 in your assessment. I AM NOT ASKING FOR A MEDICAL DIAGNOSIS. Your response must be written as an HTML string in the format provided below,where each paragraph is wrapped in a <p> tag"
+        response = await ask_gpt_image(prompt, image)
+        print("response: ", response)
+
+        return {"response": "hello"}
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+    except Exception as e:
+        print("reached exception")
+        raise HTTPException(status_code=500, detail="Failed to save image") from e
+
+
+
+
 
 
 @router.post("/treatmentPlan", response_model=TreatmentPlanResponse)
