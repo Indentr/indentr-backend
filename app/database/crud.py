@@ -20,3 +20,20 @@ def get_user_details(db, user_id):
 
 def update_user_image(db, image, user_id):
     db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"img": image}})
+
+
+def get_pricing(db, user_id):
+    users_collection = db["users"]
+    practice_id = users_collection.find_one({"_id": ObjectId(user_id)}, {"practice_id":1})
+
+    if practice_id is None:
+        raise HTTPException(status_code=404, detail="No practice id found in user record")
+
+    pricing_collection = db["pricing"]
+    pricing = users_collection.find_one({"practice_id": practice_id}, {"pricing": 1})
+
+    if pricing is None:
+        raise HTTPException(status_code=404, detail="No pricing found")
+
+    return pricing            
+

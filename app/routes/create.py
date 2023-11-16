@@ -18,6 +18,7 @@ from app.models.create import (
 )
 from app.services.openAI import ask_gpt, ask_gpt_image
 from app.treatmentPlans.implantLetter import example_consent_letter
+from app.database.crud import get_pricing
 
 router = APIRouter(prefix="/create", tags=["Create"])
 
@@ -87,7 +88,7 @@ async def generate_questions_from_dentist_notes(body: DentistNotes, request: Req
     prompt = f"""
         Dentists notes: {dentistNotes}
 
-        Based on the dentists notes, please ask the dentist however many questions you want (between 0 and 10)follow-up questions.
+        Based on the dentists notes, please ask the dentist however many questions you want (between 0 and 10).
         These questions should aim to gather more information from the dentist filling any gaps that they might have left in their notes.
         The reason we are gathering this information is so that we can use ai to automatically generate a consent letter that can be sent to 
         the patient expaining the treatment etc. To this end focus the questions appropriatly. They should focus on the current state of the 
@@ -152,8 +153,15 @@ async def generate_treatment_plan(body: TreatmentPlanData, request: Request, acc
     This endpoint generates a treatment plan tailored to the patient's symptoms. The treatment plan is returned as an HTML-formatted string.
     """
 
+
     start = time.time()
     request_id = uuid.uuid4().hex
+
+    db = request.app.state.db
+    token = decodeJWT(access_token)
+    user_id = token["user_id"]
+
+    pricing_list = get_pricing(db, user_id);
 
     patientDetails = json.loads(body.patientDetails)
     symptomDetails = json.loads(body.symptomDetails)
@@ -173,8 +181,13 @@ async def generate_treatment_plan(body: TreatmentPlanData, request: Request, acc
         possible complications. The letter is, however, essentially a final sales pitch for the treatment that has already been discusssed in person
         with the patient.
 
+        Please include a section that breaks down the cost of the planned treatments based on the provided dental practice pricing list.
+
         Example dental treatment plan consent letter:
         {example_consent_letter}
+
+        Dental practice pricing list:
+        {pricing_list}
 
         Your response must be written as an HTML string in the format provided below,
         where each paragraph is wrapped in a <p> tag:
