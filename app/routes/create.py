@@ -87,8 +87,12 @@ async def generate_questions_from_dentist_notes(body: DentistNotes, request: Req
     prompt = f"""
         Dentists notes: {dentistNotes}
 
-        Based on the dentists notes, please ask the dentist three follow-up questions.
-        These questions should aim to gather more information from the dentist about what the dentist plans to do in terms of treatment.
+        Based on the dentists notes, please ask the dentist however many questions you want (between 0 and 10)follow-up questions.
+        These questions should aim to gather more information from the dentist filling any gaps that they might have left in their notes.
+        The reason we are gathering this information is so that we can use ai to automatically generate a consent letter that can be sent to 
+        the patient expaining the treatment etc. To this end focus the questions appropriatly. They should focus on the current state of the 
+        symptoms and what the dentist wants to do moving forward. including questions about any risk factors associated.
+        The final question should suggest several forms of treatment and ask the dentist what they would like to proceed with.
         Please format your response as JSON, as shown below:
         [
             {{
@@ -96,6 +100,7 @@ async def generate_questions_from_dentist_notes(body: DentistNotes, request: Req
                 "q1": "[Insert q1]",
                 "q2": "[q2]",
                 "q3": "[q3]"
+                "q4": "[q4]"
             }},
             {{
                 etc.
