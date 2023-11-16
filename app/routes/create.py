@@ -4,7 +4,7 @@ import time
 import uuid
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
@@ -112,8 +112,6 @@ async def generate_questions_from_dentist_notes(body: DentistNotes, request: Req
     return json.loads(symptoms)
 
 
-
-
 @router.post("/analyse-image")
 async def save_img(request: Request, access_token=Depends(JWTBearer())):
     """
@@ -140,10 +138,6 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
     except Exception as e:
         print("reached exception")
         raise HTTPException(status_code=500, detail="Failed to save image") from e
-
-
-
-
 
 
 @router.post("/treatmentPlan", response_model=TreatmentPlanResponse)
