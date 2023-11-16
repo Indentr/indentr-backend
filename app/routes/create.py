@@ -101,7 +101,6 @@ async def generate_questions_from_dentist_notes(body: DentistNotes, request: Req
                 "q1": "[Insert q1]",
                 "q2": "[q2]",
                 "q3": "[q3]"
-                "q4": "[q4]"
             }},
             {{
                 etc.
