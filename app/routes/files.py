@@ -81,7 +81,6 @@ def save_treatment_plan(body: saveTreatmentPlan, request: Request, access_token=
     log.info(f"Request {request_id} received for saving treatment plan.")
 
     letterId = body.letterId.strip("\"'")
-    print(letterId)
     treatmentPlan = body.treatmentPlan
     db = request.app.state.db
     token = decodeJWT(access_token)
