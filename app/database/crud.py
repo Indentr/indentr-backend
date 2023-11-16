@@ -24,16 +24,25 @@ def update_user_image(db, image, user_id):
 
 def get_pricing(db, user_id):
     users_collection = db["users"]
-    practice_doc = users_collection.find_one({"_id": ObjectId(user_id)}, {"practice_id":1})
-    if practice_doc is None:
-        raise HTTPException(status_code=404, detail="No practice id found in user record")
-
-    practice_id = practice_doc.get("practice_id")
     pricing_collection = db["pricing"]
-    pricing = pricing_collection.find_one({"practice_id": practice_id}, {"pricing": 1})
+
+    # Use the aggregation framework to join the collections and project the desired fields
+    result = users_collection.aggregate([
+        {"$match": {"_id": ObjectId(user_id)}},
+        {"$lookup": {
+            "from": "pricing",
+            "localField": "practice_id",
+            "foreignField": "practice_id",
+            "as": "pricing"
+        }},
+        {"$unwind": "$pricing"},
+        {"$project": {"_id": 0, "pricing.pricing": 1}}
+    ])
+
+    pricing = next(result, None)
 
     if pricing is None:
         raise HTTPException(status_code=404, detail="No pricing found")
 
-    return pricing            
+    return pricing["pricing"]         
 
