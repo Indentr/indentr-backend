@@ -38,7 +38,6 @@ def cleanup_database(request):
             db[collection_name].drop()
 
 
-
 @pytest.fixture
 def register_test_user():
     response = client.post("/auth/register", json={"name": "John Terry", "email": "johnterry@gmail.com", "password": "password"})
