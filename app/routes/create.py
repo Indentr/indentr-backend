@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
-    DentistNotes,
     SaveTreatmentPlan,
     SaveTreatmentPlanResponse,
     SymptomData,
@@ -19,14 +18,15 @@ from app.models.create import (
 from app.services.openAI import ask_gpt, ask_gpt_image
 from app.treatmentPlans.implantLetter import example_consent_letter
 from app.database.crud import get_pricing
+from app.prompts import dentist_notes_prompt, symptoms_details_prompt
 
 router = APIRouter(prefix="/create", tags=["Create"])
 
 log = logging.getLogger(__name__)
 
 
-@router.post("/symptoms", response_model=list[SymptomResponse])
-async def generate_questions(body: SymptomData, request: Request, access_token=Depends(JWTBearer())):
+@router.post("/generate_questions/{form_type}", response_model=list[SymptomResponse])
+async def generate_questions(body: SymptomData, form_type: str, request: Request, access_token=Depends(JWTBearer())):
     """
     # Generate Follow-Up Questions for Patient Symptoms
     This endpoint generates follow-up questions for each symptom provided by the patient.
@@ -34,87 +34,41 @@ async def generate_questions(body: SymptomData, request: Request, access_token=D
     """
     start = time.time()
     request_id = uuid.uuid4().hex
+
     symptomDetails = json.loads(body.symptomDetails)
-    symptomDetails = list(symptomDetails.values())
+    print(symptomDetails)
+
+    if (form_type == "symptom"):
+        symptomDetails = ', '.join(list(symptomDetails.values()))
+        selected_prompt = symptoms_details_prompt
+
+    else:
+        selected_prompt = dentist_notes_prompt
 
     log.info(f"Request {request_id} received for symptom questions.")
     log.info(f"Symptoms: {symptomDetails}")
 
     prompt = f"""
-        Patient's symptom: {', '.join(symptomDetails)}
+        Patient's symptoms (dentist notes): {symptomDetails}
 
-      For each symptom, please ask the dentist three follow-up questions.
-        These questions should aim to gather more information from the dentist about the patient's symptoms.
-        Please format your response as JSON, as shown below:
-        [
-            {{
-                "symptom": "[Symptom name]",
-                "q1": "[Insert q1]",
-                "q2": "[q2]",
-                "q3": "[q3]"
-            }},
-            {{
-                etc.
-            }}
-        ]
-        IMPORTANT: the questions you ask must be asked using a passive voice
+        {selected_prompt}
     """
 
-    symptoms = await ask_gpt(prompt, "You're an AI dental assistant")
+    original_response = await ask_gpt(prompt, "You're an AI dental assistant")
+
+    try:
+        symptoms = json.loads(original_response)
+    except json.JSONDecodeError as e:
+        # Handle the case where json.loads fails, still send GPT response back as error message
+        error_detail = f"Error decoding GPT response: {str(e)}"
+        raise HTTPException(status_code=500, detail=error_detail)
+
+    print("symptoms", symptoms)
     log.info(f"GPT symptoms response: {symptoms}")
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
-    return json.loads(symptoms)
-
-
-@router.post("/notes")
-async def generate_questions_from_dentist_notes(body: DentistNotes, request: Request, access_token=Depends(JWTBearer())):
-    """
-    # Generate Follow-Up Questions for Patient Symptoms, the questions should be focussed on what the dentist is going to
-      need to know in order to better understand how to treat the patient.
-
-    This endpoint generates follow-up questions for the dentist notes.
-    It uses the GPT model to formulate the questions based on the provided symptom.
-    """
-    start = time.time()
-    request_id = uuid.uuid4().hex
-    print("hello")
-    dentistNotes = json.loads(body.dentistNotes)
-
-    log.info(f"Request {request_id} received for symptom questions.")
-    log.info(f"Symptoms: {dentistNotes}")
-
-    prompt = f"""
-        Dentists notes: {dentistNotes}
-
-        Based on the dentists notes, please ask the dentist however many questions you want (between 0 and 10).
-        These questions should aim to gather more information from the dentist filling any gaps that they might have left in their notes.
-        The reason we are gathering this information is so that we can use ai to automatically generate a consent letter that can be sent to 
-        the patient expaining the treatment etc. To this end focus the questions appropriatly. They should focus on the current state of the 
-        symptoms and what the dentist wants to do moving forward. including questions about any risk factors associated.
-        The final question should suggest several forms of treatment and ask the dentist what they would like to proceed with.
-        Please format your response as JSON, as shown below:
-        [
-            {{
-                "symptom": "[Symptom name]",
-                "q1": "[Insert q1]",
-                "q2": "[q2]",
-                "q3": "[q3]"
-            }},
-            {{
-                etc.
-            }}
-        ]
-        IMPORTANT: the questions you ask must be asked using a passive voice
-    """
-
-    symptoms = await ask_gpt(prompt, "You're an AI dental assistant")
-    log.info(f"GPT symptoms response: {symptoms}")
-
-    log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
-
-    return json.loads(symptoms)
+    return symptoms
 
 
 @router.post("/analyse-image")
@@ -141,7 +95,6 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
     except HTTPException as e:
         raise e  # Reraise the HTTPException
     except Exception as e:
-        print("reached exception")
         raise HTTPException(status_code=500, detail="Failed to save image") from e
 
 
@@ -166,7 +119,7 @@ async def generate_treatment_plan(body: TreatmentPlanData, request: Request, acc
     symptomDetails = json.loads(body.symptomDetails)
 
     log.info(f"Request {request_id} received for s.")
-    log.info(f"Patient details: {patientDetails}")
+    log.info(f"Patient dob: {patientDetails['dob']}")
     log.info(f"treatment plan details: {symptomDetails}")
 
     prompt = f"""
@@ -192,7 +145,7 @@ async def generate_treatment_plan(body: TreatmentPlanData, request: Request, acc
         where each paragraph is wrapped in a <p> tag:
 
         <p class="p1-title">[insert paragraph text, do not include dear ....]</p>
-        <p></p> // insert empty p for a newline between each section
+        <p></p> // IMPORTANT: for each new paragraph/section insert an empty p tag
         <p class="etc">[etc.]</p>
 
         // if letter requires an undordered list or bullet list then within a paragraph you can insert html for ul/ol
@@ -202,6 +155,7 @@ async def generate_treatment_plan(body: TreatmentPlanData, request: Request, acc
                 <li>[etc.]</li>
             </ul>
         </p>
+        <p></p>
         <p class="insert-pX-title]">
             <ol>
                 <li>[insert list item]</li>

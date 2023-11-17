@@ -42,7 +42,8 @@ def get_pricing(db, user_id):
     pricing = next(result, None)
 
     if pricing is None:
-        raise HTTPException(status_code=404, detail="No pricing found")
+        # raise HTTPException(status_code=404, detail="No pricing found")
+        return "No pricing available, use best judgement"
 
     return pricing["pricing"]         
 
