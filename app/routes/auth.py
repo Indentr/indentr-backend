@@ -39,6 +39,12 @@ def post_user_registration(body: UserRegisterRequest, request: Request):
 
     db = request.app.state.db
     users_collection = db["users"]
+    configs_collection = db["configs"]
+
+    # Check if user registrations are allowed
+    configs_doc = configs_collection.find_one({})
+    if not configs_doc or not configs_doc.get("allow_registrations", False):
+        raise HTTPException(status_code=403, detail="User registrations are not allowed at the moment.")
 
     # Check if the email already exists
     existing_user = users_collection.find_one({"email": body.email})
