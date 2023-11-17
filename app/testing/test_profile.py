@@ -75,16 +75,20 @@ def cleanup_database(request):
 
     # Get a list of all collections in the database
     collections = db.list_collection_names()
-    # Drop all collections
-    for collection_name in collections:
+
+    # Exclude 'configs' collection from the list
+    collections_to_drop = [collection_name for collection_name in collections if collection_name != "configs"]
+
+    # Drop all collections (except 'configs')
+    for collection_name in collections_to_drop:
         if collection_name != "system.indexes":  # Skip system.indexes collection
             db[collection_name].drop()
 
-    # Run test
+    # Run all tests
     yield
 
-    # Drop all collections
-    for collection_name in collections:
+    # Drop all collections (except 'configs')
+    for collection_name in collections_to_drop:
         if collection_name != "system.indexes":  # Skip system.indexes collection
             db[collection_name].drop()
 
