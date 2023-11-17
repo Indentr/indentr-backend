@@ -1,14 +1,5 @@
 from pydantic import BaseModel, Field
 
-# Request model
-# class PatientDetails(BaseModel):
-#     forename: str
-#     surname: str
-#     dob: date
-#     gender: str
-#     address: str
-#     numSymptoms: int
-
 
 # Request model
 class SymptomData(BaseModel):
@@ -48,11 +39,6 @@ class TreatmentPlanResponse(BaseModel):
     html_content: str = Field(
         ..., example="<p>123 Main St,</p><p>City,</p><p>Country,</p><p></p><p>Dear John Doe,</p><p></p><p>[HTML-formatted treatment plan]</p>"
     )
-
-
-# Request model
-class DentistNotes(BaseModel):
-    dentistNotes: str
 
 
 # Request model
