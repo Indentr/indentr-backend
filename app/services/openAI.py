@@ -17,7 +17,7 @@ async def ask_gpt(prompt: str, system_prompt: str):
     openai.api_key = OPENAI_API_KEY
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}], temperature=0.0
+            model="gpt-4", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}], temperature=0.0
         )
 
         content = response["choices"][0]["message"]["content"]
@@ -40,28 +40,6 @@ async def ask_gpt_image(prompt: str, base64_image: str):
     openai.api_key = OPENAI_API_KEY
 
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {openai.api_key}"}
-
-    # payload = {
-    #     "model": "gpt-4-vision-preview",
-    #     "messages": [
-    #       {
-    #         "role": "user",
-    #         "content": [
-    #           {
-    #             "type": "text",
-    #             "text": prompt
-    #           },
-    #           {
-    #             "type": "image_url",
-    #             "image_url": {
-    #               "url": f"data:image/jpeg;base64,{base64_image}"
-    #             }
-    #           }
-    #         ]
-    #       }
-    #     ],
-    #     "max_tokens": 5000
-    # }
 
     payload = {
         "model": "gpt-4-vision-preview",
