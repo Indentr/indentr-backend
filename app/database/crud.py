@@ -24,20 +24,17 @@ def update_user_image(db, image, user_id):
 
 def get_pricing(db, user_id):
     users_collection = db["users"]
-    pricing_collection = db["pricing"]
+    db["pricing"]
 
     # Use the aggregation framework to join the collections and project the desired fields
-    result = users_collection.aggregate([
-        {"$match": {"_id": ObjectId(user_id)}},
-        {"$lookup": {
-            "from": "pricing",
-            "localField": "practice_id",
-            "foreignField": "practice_id",
-            "as": "pricing"
-        }},
-        {"$unwind": "$pricing"},
-        {"$project": {"_id": 0, "pricing.pricing": 1}}
-    ])
+    result = users_collection.aggregate(
+        [
+            {"$match": {"_id": ObjectId(user_id)}},
+            {"$lookup": {"from": "pricing", "localField": "practice_id", "foreignField": "practice_id", "as": "pricing"}},
+            {"$unwind": "$pricing"},
+            {"$project": {"_id": 0, "pricing.pricing": 1}},
+        ]
+    )
 
     pricing = next(result, None)
 
@@ -45,5 +42,4 @@ def get_pricing(db, user_id):
         # raise HTTPException(status_code=404, detail="No pricing found")
         return "No pricing available, use best judgement"
 
-    return pricing["pricing"]         
-
+    return pricing["pricing"]
