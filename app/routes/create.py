@@ -36,7 +36,6 @@ async def generate_questions(body: SymptomData, form_type: str, request: Request
     request_id = uuid.uuid4().hex
 
     symptomDetails = json.loads(body.symptomDetails)
-    print(symptomDetails)
 
     if form_type == "symptom":
         symptomDetails = ", ".join(list(symptomDetails.values()))
@@ -63,7 +62,6 @@ async def generate_questions(body: SymptomData, form_type: str, request: Request
         error_detail = f"Error decoding GPT response: {str(e)}"
         raise HTTPException(status_code=500, detail=error_detail) from e
 
-    print("symptoms", symptoms)
     log.info(f"GPT symptoms response: {symptoms}")
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
