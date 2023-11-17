@@ -6,6 +6,7 @@ import uuid
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from app.database.crud import get_pricing
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
     SaveTreatmentPlan,
@@ -15,10 +16,9 @@ from app.models.create import (
     TreatmentPlanData,
     TreatmentPlanResponse,
 )
+from app.prompts import dentist_notes_prompt, symptoms_details_prompt
 from app.services.openAI import ask_gpt, ask_gpt_image
 from app.treatmentPlans.implantLetter import example_consent_letter
-from app.database.crud import get_pricing
-from app.prompts import dentist_notes_prompt, symptoms_details_prompt
 
 router = APIRouter(prefix="/create", tags=["Create"])
 
@@ -38,8 +38,8 @@ async def generate_questions(body: SymptomData, form_type: str, request: Request
     symptomDetails = json.loads(body.symptomDetails)
     print(symptomDetails)
 
-    if (form_type == "symptom"):
-        symptomDetails = ', '.join(list(symptomDetails.values()))
+    if form_type == "symptom":
+        symptomDetails = ", ".join(list(symptomDetails.values()))
         selected_prompt = symptoms_details_prompt
 
     else:
@@ -61,7 +61,7 @@ async def generate_questions(body: SymptomData, form_type: str, request: Request
     except json.JSONDecodeError as e:
         # Handle the case where json.loads fails, still send GPT response back as error message
         error_detail = f"Error decoding GPT response: {str(e)}"
-        raise HTTPException(status_code=500, detail=error_detail)
+        raise HTTPException(status_code=500, detail=error_detail) from e
 
     print("symptoms", symptoms)
     log.info(f"GPT symptoms response: {symptoms}")
@@ -105,7 +105,6 @@ async def generate_treatment_plan(body: TreatmentPlanData, request: Request, acc
     This endpoint generates a treatment plan tailored to the patient's symptoms. The treatment plan is returned as an HTML-formatted string.
     """
 
-
     start = time.time()
     request_id = uuid.uuid4().hex
 
@@ -113,7 +112,7 @@ async def generate_treatment_plan(body: TreatmentPlanData, request: Request, acc
     token = decodeJWT(access_token)
     user_id = token["user_id"]
 
-    pricing_list = get_pricing(db, user_id);
+    pricing_list = get_pricing(db, user_id)
 
     patientDetails = json.loads(body.patientDetails)
     symptomDetails = json.loads(body.symptomDetails)
