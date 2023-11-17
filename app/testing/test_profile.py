@@ -93,7 +93,6 @@ def cleanup_database(request):
             db[collection_name].drop()
 
 
-
 def test_successful_profile_get(insert_treatment_plan):
     token = insert_treatment_plan
     response = client.get(

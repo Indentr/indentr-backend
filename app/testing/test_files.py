@@ -67,7 +67,6 @@ def cleanup_database(request):
             db[collection_name].drop()
 
 
-
 def test_get_all_user_files(insert_treatment_plan):
     token, letter_id, treatment_plan_document_template = insert_treatment_plan
     response = client.get(
