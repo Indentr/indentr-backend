@@ -81,5 +81,5 @@ docker run -p 8080:8080 indentr-backend
 ## Google cloud
 Deploy to google cloud
 ```bash
-gcloud run deploy indentr-backend --port 8080 --source .
+gcloud run deploy indentr-backend --port 8080 --source . --region=europe-west1
 ```
