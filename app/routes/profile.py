@@ -1,9 +1,13 @@
 import base64
 
-from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from app.database.crud import get_user_details, update_user_image
+from app.database.crud import (
+    get_last_three_letters,
+    get_user_by_id,
+    update_user_details,
+    update_user_image,
+)
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.user import userDetails
 
@@ -11,29 +15,35 @@ router = APIRouter(prefix="/profile", tags=["Profile"])
 
 
 @router.get("/")
-def get_profile(request: Request, access_token=Depends(JWTBearer())):
+def get_profile(access_token=Depends(JWTBearer())):
     """
     Retrieves the user's profile information along with their latest letters.
     """
+    try:
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+        user = get_user_by_id(user_id)
+        letters = get_last_three_letters(user_id)
 
-    db = request.app.state.db
-    token = decodeJWT(access_token)
+        # Convert the image data to base64 if it's in binary format
+        user_img = user.get("img")
+        if user_img:
+            user["img"] = base64.b64encode(user["img"]).decode("utf-8")
 
-    user_id = token["user_id"]
-    user_object = get_user_details(db, user_id)
+        # Convert ObjectId to string in user_object
+        user["_id"] = str(user["_id"])
+        user.pop("password", None)
 
-    letters_collection = db["letters"]
-    letters = list(letters_collection.find({"user_id": ObjectId(user_id)}).sort("_id", -1).limit(3))
+        for letter in letters:
+            created_at = letter["_id"].generation_time.strftime("%Y-%m-%d %H:%M:%S")
+            letter["createdAt"] = created_at
+            letter["_id"] = str(letter["_id"])
+            letter["user_id"] = str(letter["user_id"])
 
-    # Access the 'createdAt' field for each letter and convert it to time date format
-    # Add a createdAt attribute to letter
-    for letter in letters:
-        created_at = letter["_id"].generation_time.strftime("%Y-%m-%d %H:%M:%S")
-        letter["createdAt"] = created_at
-        letter["_id"] = str(letter["_id"])
-        letter["user_id"] = str(letter["user_id"])
+        return {"user": user, "letters": letters}
 
-    return {"user": user_object, "letters": letters}
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
 
 
 @router.post("/saveImg")
@@ -58,9 +68,7 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
         token = decodeJWT(access_token)
         user_id = token["user_id"]
 
-        db = request.app.state.db
-
-        update_user_image(db, image, user_id)
+        update_user_image(image, user_id)
         encoded_image = base64.b64encode(image).decode("utf-8")
         return {"image": encoded_image}
 
@@ -71,7 +79,7 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
 
 
 @router.post("/saveDetails")
-async def save_details(body: userDetails, request: Request, access_token=Depends(JWTBearer())):
+async def save_details(body: userDetails, access_token=Depends(JWTBearer())):
     """
     Saves the user's email, phone number, and address to the database.
     """
@@ -88,13 +96,9 @@ async def save_details(body: userDetails, request: Request, access_token=Depends
         token = decodeJWT(access_token)
         user_id = token["user_id"]
 
-        # Update the user's image in MongoDB
-        dbUsers = request.app.state.db.users
-        dbUsers.update_one({"_id": ObjectId(user_id)}, {"$set": {"email": email, "phone": phone, "address": address}})
-
-        return {"email": email, "phone": phone, "address": address}
+        # Update the user's details in MongoDB
+        user = update_user_details(user_id, email, phone, address)
+        return {"email": user["email"], "phone": user["phone"], "address": user["address"]}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to save details") from e

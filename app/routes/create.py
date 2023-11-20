@@ -3,10 +3,9 @@ import logging
 import time
 import uuid
 
-from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from app.database.crud import get_pricing
+from app.database.crud import create_new_letter, get_pricing
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
     SaveTreatmentPlan,
@@ -26,7 +25,7 @@ log = logging.getLogger(__name__)
 
 
 @router.post("/generate_questions/{form_type}", response_model=list[SymptomResponse])
-async def generate_questions(body: SymptomData, form_type: str, request: Request, access_token=Depends(JWTBearer())):
+async def generate_questions(body: SymptomData, form_type: str, access_token=Depends(JWTBearer())):
     """
     # Generate Follow-Up Questions for Patient Symptoms
     This endpoint generates follow-up questions for each symptom provided by the patient.
@@ -97,7 +96,7 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
 
 
 @router.post("/treatmentPlan", response_model=TreatmentPlanResponse)
-async def generate_treatment_plan(body: TreatmentPlanData, request: Request, access_token=Depends(JWTBearer())):
+async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(JWTBearer())):
     """
     # Generates a treatment plan based on Patient and Symptom Details
     This endpoint generates a treatment plan tailored to the patient's symptoms. The treatment plan is returned as an HTML-formatted string.
@@ -106,11 +105,10 @@ async def generate_treatment_plan(body: TreatmentPlanData, request: Request, acc
     start = time.time()
     request_id = uuid.uuid4().hex
 
-    db = request.app.state.db
     token = decodeJWT(access_token)
     user_id = token["user_id"]
 
-    pricing_list = get_pricing(db, user_id)
+    pricing_list = get_pricing(user_id)
 
     patientDetails = json.loads(body.patientDetails)
     symptomDetails = json.loads(body.symptomDetails)
@@ -194,30 +192,25 @@ async def generate_treatment_plan(body: TreatmentPlanData, request: Request, acc
 
 
 @router.post("/saveTreatmentPlan", response_model=SaveTreatmentPlanResponse)
-def save_treatment_plan(body: SaveTreatmentPlan, request: Request, access_token=Depends(JWTBearer())):
+def save_treatment_plan(body: SaveTreatmentPlan, access_token=Depends(JWTBearer())):
     """
     # Create Treatment Plan
     This endpoint allows the creation and saving of a treatment plan. The provided treatment plan content and patient details are saved to the database.
     """
 
-    start = time.time()
-    request_id = uuid.uuid4().hex
-    log.info(f"Request {request_id} received for saving treatment plan.")
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received for saving treatment plan.")
 
-    patientDetails = body.patientDetails
-    treatmentPlan = body.treatmentPlan
-    db = request.app.state.db
-    token = decodeJWT(access_token)
-    user_id = token["user_id"]
-    letters_collection = db["letters"]
-
-    letter_data = {"consent_letter": treatmentPlan, "patient_info": json.loads(patientDetails), "user_id": ObjectId(user_id)}
-
-    result = letters_collection.insert_one(letter_data)
-
-    if result.inserted_id:
+        patient_details = body.patientDetails
+        treatment_plan = body.treatmentPlan
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+        result = create_new_letter(user_id, treatment_plan, patient_details)
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
-        return {"message": "Letter saved successfully", "letter_id": str(result.inserted_id)}
-    else:
+        return {"message": "Letter saved successfully", "letter_id": str(result)}
+
+    except HTTPException as e:
         log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
-        return {"message": "Failed to insert letter to files"}
+        raise e
