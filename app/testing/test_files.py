@@ -4,12 +4,10 @@ import pytest
 from bson import ObjectId
 from fastapi.testclient import TestClient
 
-from app.constants import TEST_DB_URI
-from app.database.db import connect_to_mongodb
+from app.database.crud import create_new_letter
 from app.main import app
 from app.middleware.jwt import decodeJWT
 
-app.state.db = connect_to_mongodb(TEST_DB_URI)
 client = TestClient(app)
 
 
@@ -28,47 +26,16 @@ def register_and_login():
 @pytest.fixture
 def insert_treatment_plan(register_and_login):
     token, user_id = register_and_login
-    letter_id = "64dceaf941371bcccfaa5978"
-    treatment_plan_document_template = {
-        "_id": ObjectId(letter_id),
-        "consent_letter": "<p>4 Privat Drive,<br>Little Whinging,<br>Surrey,<br>CR3 OBD</p><p></p><p>Dear Harry Potter,</p><p></p><p>Further to your recent appointment at which we discussed your treatment options, I have reviewed your symptoms and would like to propose a treatment plan for your dental concerns.</p><p></p><p>Based on your symptoms, it appears that you are experiencing toothache and have noticed some dark spots on one of your teeth during a routine checkup. After considering your responses to the questions, I recommend the following treatment plan:</p><p></p><p>Treatment for Toothache:</p><ul><li><p>Examination and assessment of the affected tooth</p></li><li><p>X-rays to evaluate the extent of the problem</p></li><li><p>Possible treatment options may include:</p><ul><li><p>Root canal treatment if the tooth can be saved</p></li><li><p>Extraction of the tooth if it cannot be saved</p></li></ul></li><li><p>Prescription of pain relief medication, if necessary</p></li></ul><p></p><p>Treatment for Cavity:</p><ul><li><p>Examination and assessment of the affected tooth</p></li><li><p>X-rays to determine the extent of the cavity</p></li><li><p>Possible treatment options may include:</p><ul><li><p>Removal of the decayed portion of the tooth and placement of a dental filling</p></li><li><p>In more severe cases, a dental crown may be recommended</p></li></ul></li><li><p>Recommendation for improved oral hygiene routine and regular dental checkups</p></li></ul><p></p><p>Please note that the proposed treatment plan is subject to a thorough examination and may be adjusted based on the findings during the appointment. It is important to address these dental concerns to prevent further complications and maintain your oral health.</p><p></p><p>If you have any questions or concerns regarding the proposed treatment plan, please do not hesitate to contact our dental practice. We are here to provide you with the necessary information and support to make informed decisions about your dental care.</p><p></p><p>We look forward to seeing you at your next appointment to discuss the treatment plan in more detail and address any additional questions or concerns you may have.</p><p></p><p>Yours sincerely,</p>",
-        "patient_info": {"forename": "Harry", "surname": "Potter", "dob": "1905-01-01", "gender": "Male", "address": "4 Privat drive"},
-        "user_id": ObjectId(user_id),
-    }
+    # letter_id = "64dceaf941371bcccfaa5978"
+    consent_letter = "<p>4 Privat Drive,<br>Little Whinging,<br>Surrey,<br>CR3 OBD</p><p></p><p>Dear Harry Potter,</p><p></p><p>Further to your recent appointment at which we discussed your treatment options, I have reviewed your symptoms and would like to propose a treatment plan for your dental concerns.</p><p></p><p>Based on your symptoms, it appears that you are experiencing toothache and have noticed some dark spots on one of your teeth during a routine checkup. After considering your responses to the questions, I recommend the following treatment plan:</p><p></p><p>Treatment for Toothache:</p><ul><li><p>Examination and assessment of the affected tooth</p></li><li><p>X-rays to evaluate the extent of the problem</p></li><li><p>Possible treatment options may include:</p><ul><li><p>Root canal treatment if the tooth can be saved</p></li><li><p>Extraction of the tooth if it cannot be saved</p></li></ul></li><li><p>Prescription of pain relief medication, if necessary</p></li></ul><p></p><p>Treatment for Cavity:</p><ul><li><p>Examination and assessment of the affected tooth</p></li><li><p>X-rays to determine the extent of the cavity</p></li><li><p>Possible treatment options may include:</p><ul><li><p>Removal of the decayed portion of the tooth and placement of a dental filling</p></li><li><p>In more severe cases, a dental crown may be recommended</p></li></ul></li><li><p>Recommendation for improved oral hygiene routine and regular dental checkups</p></li></ul><p></p><p>Please note that the proposed treatment plan is subject to a thorough examination and may be adjusted based on the findings during the appointment. It is important to address these dental concerns to prevent further complications and maintain your oral health.</p><p></p><p>If you have any questions or concerns regarding the proposed treatment plan, please do not hesitate to contact our dental practice. We are here to provide you with the necessary information and support to make informed decisions about your dental care.</p><p></p><p>We look forward to seeing you at your next appointment to discuss the treatment plan in more detail and address any additional questions or concerns you may have.</p><p></p><p>Yours sincerely,</p>"
+    patient_details = '{"forename": "Harry", "surname": "Potter", "dob": "1905-01-01", "gender": "Male", "address": "4 Privat drive"}'
 
-    db = app.state.db
-    letters_collection = db["letters"]
-    letters_collection.insert_one(treatment_plan_document_template)
-    return token, letter_id, treatment_plan_document_template
-
-
-# Hook that wipes users collection after each test finishes
-@pytest.fixture(autouse=True)
-def cleanup_database(request):
-    db = app.state.db
-
-    # Get a list of all collections in the database
-    collections = db.list_collection_names()
-
-    # Exclude 'configs' collection from the list
-    collections_to_drop = [collection_name for collection_name in collections if collection_name != "configs"]
-
-    # Drop all collections (except 'configs')
-    for collection_name in collections_to_drop:
-        if collection_name != "system.indexes":  # Skip system.indexes collection
-            db[collection_name].drop()
-
-    # Run all tests
-    yield
-
-    # Drop all collections (except 'configs')
-    for collection_name in collections_to_drop:
-        if collection_name != "system.indexes":  # Skip system.indexes collection
-            db[collection_name].drop()
+    letter_id = create_new_letter(user_id, consent_letter, patient_details)
+    return token, letter_id, consent_letter, patient_details, user_id
 
 
 def test_get_all_user_files(insert_treatment_plan):
-    token, letter_id, treatment_plan_document_template = insert_treatment_plan
+    token, letter_id, consent_letter, patient_details, user_id = insert_treatment_plan
     response = client.get(
         "/files/",
         headers={
@@ -83,7 +50,7 @@ def test_get_all_user_files(insert_treatment_plan):
 
 
 def test_get_treatment_plan(insert_treatment_plan):
-    token, letter_id, treatment_plan_document_template = insert_treatment_plan
+    token, letter_id, consent_letter, patient_details, user_id = insert_treatment_plan
     response = client.get(
         f"/files/{letter_id}",
         headers={
@@ -94,17 +61,15 @@ def test_get_treatment_plan(insert_treatment_plan):
 
     assert response.status_code == 200, response.text
     data = response.json()
+    print("data: ", data)
 
-    # compares the inserted treatment plan against the returned treatment plan
-    treatment_plan_json = json.loads(json.dumps(treatment_plan_document_template, default=str))
-    # only compares certain columns to make sure they match
-    essential_keys = ["_id", "consent_letter", "patient_info", "user_id"]
-    for key in essential_keys:
-        assert data[key] == treatment_plan_json[key]
+    json.loads(patient_details)
+    assert data["_id"] == letter_id
+    assert data["consent_letter"] == consent_letter
 
 
 def test_get_nonexistent_treatment_plan(insert_treatment_plan):
-    token, letter_id, treatment_plan_document_template = insert_treatment_plan
+    token, letter_id, consent_letter, patient_details, user_id = insert_treatment_plan
     non_existent_id = ObjectId()  # generates random objectId
     response = client.get(
         f"/files/{str(non_existent_id)}",
@@ -116,12 +81,18 @@ def test_get_nonexistent_treatment_plan(insert_treatment_plan):
 
     assert response.status_code == 400, response.text
     data = response.json()
-    assert data["detail"] == "Error finding letter"
+    assert data["detail"] == "No letter found"
 
 
 def test_save_treatment_plan(insert_treatment_plan):
-    token, letter_id, treatment_plan_document_template = insert_treatment_plan
-    treatment_plan_document_template["patient_info"]["dob"] = "1905-02-01"
+    token, letter_id, consent_letter, patient_details, user_id = insert_treatment_plan
+    treatment_plan_document_template = {
+        "_id": ObjectId(letter_id),
+        "consent_letter": "<p>4 Privat Drive,<br>Little Whinging,<br>Surrey,<br>CR3 OBD</p><p></p><p>Dear Harry Potter,</p><p></p><p>Further to your recent appointment at which we discussed your treatment options, I have reviewed your symptoms and would like to propose a treatment plan for your dental concerns.</p><p></p><p>Based on your symptoms, it appears that you are experiencing toothache and have noticed some dark spots on one of your teeth during a routine checkup. After considering your responses to the questions, I recommend the following treatment plan:</p><p></p><p>Treatment for Toothache:</p><ul><li><p>Examination and assessment of the affected tooth</p></li><li><p>X-rays to evaluate the extent of the problem</p></li><li><p>Possible treatment options may include:</p><ul><li><p>Root canal treatment if the tooth can be saved</p></li><li><p>Extraction of the tooth if it cannot be saved</p></li></ul></li><li><p>Prescription of pain relief medication, if necessary</p></li></ul><p></p><p>Treatment for Cavity:</p><ul><li><p>Examination and assessment of the affected tooth</p></li><li><p>X-rays to determine the extent of the cavity</p></li><li><p>Possible treatment options may include:</p><ul><li><p>Removal of the decayed portion of the tooth and placement of a dental filling</p></li><li><p>In more severe cases, a dental crown may be recommended</p></li></ul></li><li><p>Recommendation for improved oral hygiene routine and regular dental checkups</p></li></ul><p></p><p>Please note that the proposed treatment plan is subject to a thorough examination and may be adjusted based on the findings during the appointment. It is important to address these dental concerns to prevent further complications and maintain your oral health.</p><p></p><p>If you have any questions or concerns regarding the proposed treatment plan, please do not hesitate to contact our dental practice. We are here to provide you with the necessary information and support to make informed decisions about your dental care.</p><p></p><p>We look forward to seeing you at your next appointment to discuss the treatment plan in more detail and address any additional questions or concerns you may have.</p><p></p><p>Yours sincerely,</p>",
+        "patient_info": {"forename": "Harry", "surname": "Potter", "dob": "1905-02-01", "gender": "Male", "address": "4 Privat drive"},
+        "user_id": ObjectId(user_id),
+    }
+
     response = client.post(
         "/files/saveTreatmentPlan",
         json={"treatmentPlan": str(treatment_plan_document_template), "letterId": letter_id},
@@ -137,11 +108,17 @@ def test_save_treatment_plan(insert_treatment_plan):
 
 
 def test_save_nonexistent_treatment_plan(insert_treatment_plan):
-    token, letter_id, treatment_plan_document_template = insert_treatment_plan
-    treatment_plan_document_template["patient_info"]["dob"] = "1905-02-01"
+    token, letter_id, consent_letter, patient_details, user_id = insert_treatment_plan
+    random_letter_id = ObjectId()
+    treatment_plan_document_template = {
+        "_id": random_letter_id,  # left empty as this will make up random objectId
+        "consent_letter": "<p>4 Privat Drive,<br>Little Whinging,<br>Surrey,<br>CR3 OBD</p><p></p><p>Dear Harry Potter,</p><p></p><p>Further to your recent appointment at which we discussed your treatment options, I have reviewed your symptoms and would like to propose a treatment plan for your dental concerns.</p><p></p><p>Based on your symptoms, it appears that you are experiencing toothache and have noticed some dark spots on one of your teeth during a routine checkup. After considering your responses to the questions, I recommend the following treatment plan:</p><p></p><p>Treatment for Toothache:</p><ul><li><p>Examination and assessment of the affected tooth</p></li><li><p>X-rays to evaluate the extent of the problem</p></li><li><p>Possible treatment options may include:</p><ul><li><p>Root canal treatment if the tooth can be saved</p></li><li><p>Extraction of the tooth if it cannot be saved</p></li></ul></li><li><p>Prescription of pain relief medication, if necessary</p></li></ul><p></p><p>Treatment for Cavity:</p><ul><li><p>Examination and assessment of the affected tooth</p></li><li><p>X-rays to determine the extent of the cavity</p></li><li><p>Possible treatment options may include:</p><ul><li><p>Removal of the decayed portion of the tooth and placement of a dental filling</p></li><li><p>In more severe cases, a dental crown may be recommended</p></li></ul></li><li><p>Recommendation for improved oral hygiene routine and regular dental checkups</p></li></ul><p></p><p>Please note that the proposed treatment plan is subject to a thorough examination and may be adjusted based on the findings during the appointment. It is important to address these dental concerns to prevent further complications and maintain your oral health.</p><p></p><p>If you have any questions or concerns regarding the proposed treatment plan, please do not hesitate to contact our dental practice. We are here to provide you with the necessary information and support to make informed decisions about your dental care.</p><p></p><p>We look forward to seeing you at your next appointment to discuss the treatment plan in more detail and address any additional questions or concerns you may have.</p><p></p><p>Yours sincerely,</p>",
+        "patient_info": {"forename": "Harry", "surname": "Potter", "dob": "1905-02-01", "gender": "Male", "address": "4 Privat drive"},
+        "user_id": ObjectId(user_id),
+    }
     response = client.post(
         "/files/saveTreatmentPlan",
-        json={"treatmentPlan": str(treatment_plan_document_template), "letterId": str(ObjectId())},
+        json={"treatmentPlan": str(treatment_plan_document_template), "letterId": str(random_letter_id)},
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
@@ -150,4 +127,4 @@ def test_save_nonexistent_treatment_plan(insert_treatment_plan):
 
     assert response.status_code == 404, response.text
     data = response.json()
-    assert data["detail"] == "Letter Id not found in database"
+    assert data["detail"] == "No letter found"
