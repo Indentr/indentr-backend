@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 
 # Request model
 class SymptomData(BaseModel):
-    symptomDetails: str = Field(..., example={"0": "description1", "1": "description2"})
+    symptomDetails: str = Field(..., example={"0": "description of symptom 1", "1": "description of symptom 2"})
 
 
 # Response model
@@ -32,6 +32,7 @@ class TreatmentPlanData(BaseModel):
             }
         ],
     )
+    dentistNotes: str
 
 
 # Response model
