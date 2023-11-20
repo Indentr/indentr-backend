@@ -116,6 +116,12 @@ async def generate_treatment_plan(body: TreatmentPlanData, request: Request, acc
 
     patientDetails = json.loads(body.patientDetails)
     symptomDetails = json.loads(body.symptomDetails)
+    dentistNotes = json.loads(body.dentistNotes)
+    print(dentistNotes, type(dentistNotes))
+    dentistNotesText = f"The patient notes, written by the dentist, are as as follows: {dentistNotes}"
+
+    print("---------------------")
+    print(dentistNotesText)
 
     log.info(f"Request {request_id} received for s.")
     log.info(f"Patient dob: {patientDetails['dob']}")
@@ -133,6 +139,8 @@ async def generate_treatment_plan(body: TreatmentPlanData, request: Request, acc
         with the patient.
 
         Please include a section that breaks down the cost of the planned treatments based on the provided dental practice pricing list.
+
+        {dentistNotesText if dentistNotes != "" else ""}
 
         Example dental treatment plan consent letter:
         {example_consent_letter}
@@ -167,6 +175,8 @@ async def generate_treatment_plan(body: TreatmentPlanData, request: Request, acc
         change unnecessary content from example letter so it fits the patient symptoms)
 
     """
+
+    print(prompt)
 
     treatmentPlan = await ask_gpt(prompt, "You're a UK based dentist writing treatment plan letters for patients")
     log.info(f"GPT treatment plan response: {treatmentPlan}")
