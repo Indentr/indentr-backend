@@ -5,18 +5,7 @@ from pydantic import BaseModel
 class SymptomData(BaseModel):
     symptomDetails: str
 
-    model_config = {
-        "json_schema_extra": {
-            "examples": [
-                {
-                    "symptomDetails": {
-                        "0": "description of symptom 1", 
-                        "1": "description of symptom 2"
-                    }
-                }
-            ]
-        }
-    }
+    model_config = {"json_schema_extra": {"examples": [{"symptomDetails": {"0": "description of symptom 1", "1": "description of symptom 2"}}]}}
 
 
 # Response model
@@ -92,11 +81,11 @@ class SaveTreatmentPlan(BaseModel):
                 {
                     "treatmentPlan": "<p>123 Main St,</p><p>City,</p><p>Country,</p><p></p><p>Dear John Doe,</p><p></p><p>[HTML-formatted treatment plan]</p>",
                     "patientDetails": {
-                        "dob": "1111-11-11", 
-                        "forename": "Ryan", 
+                        "dob": "1111-11-11",
+                        "forename": "Ryan",
                         "surname": "Reynolds",
-                        "address": "1 Hollywood, Los Angeles, United States"
-                    }
+                        "address": "1 Hollywood, Los Angeles, United States",
+                    },
                 }
             ]
         }
@@ -108,13 +97,4 @@ class SaveTreatmentPlanResponse(BaseModel):
     message: str
     letter_id: str
 
-    model_config = {
-        "json_schema_extra": {
-            "examples": [
-                {
-                    "html_content": "Letter saved successfully",
-                    "letter_id": "123456789"
-                }
-            ]
-        }
-    }
+    model_config = {"json_schema_extra": {"examples": [{"html_content": "Letter saved successfully", "letter_id": "123456789"}]}}

@@ -1,3 +1,4 @@
+import base64
 import json
 
 from bson import ObjectId
@@ -8,8 +9,8 @@ from werkzeug.security import generate_password_hash
 from app.database.schemas.config import Config
 from app.database.schemas.letter import Letter
 from app.database.schemas.pricing import Pricing
-from app.database.schemas.user import User
 from app.database.schemas.triage import Triage
+from app.database.schemas.user import User
 
 
 # User ---------------------------
@@ -24,7 +25,10 @@ def get_user_by_id(user_id: str):
             user_dict["img"] = base64.b64encode(user_dict["img"]).decode("utf-8")
 
         # Convert ObjectId to string in user_object
-        user_dict["_id"] = str(user_dict["_id"])
+        user_dict["_id"] = str(user.id)
+        practice_id = user_dict.get("practice_id")
+        if practice_id:
+            user_dict["practice_id"] = str(user.practice_id.id)
         user_dict.pop("password", None)
 
         return user_dict
@@ -215,9 +219,6 @@ def update_letter(letter_id, treatment_plan, user_id: str):
     letter.save()
 
 
-
-
-
 # Triage ---------------------------
 def get_last_three_triage_requests(user_id: str):
     try:
@@ -225,17 +226,14 @@ def get_last_three_triage_requests(user_id: str):
         user = User.objects.get(id=ObjectId(user_id))
         practice_id = user.practice_id
 
-        triage_requests = (
-            Triage.objects(practice_id=ObjectId(practice_id))
-            .order_by("-_id").
-            limit(3)
-        )
+        triage_requests = Triage.objects(practice_id=practice_id).order_by("-_id").limit(3)
 
         # Transform the MongoEngine documents to a list of dictionaries
         triage_list = []
         for triage in triage_requests:
             triage_dict = triage.to_mongo().to_dict()
             triage_dict["_id"] = str(triage.id)
+            triage_dict["practice_id"] = str(triage.practice_id.id)
             triage_list.append(triage_dict)
 
         return triage_list
@@ -243,6 +241,3 @@ def get_last_three_triage_requests(user_id: str):
     except DoesNotExist:
         # Handle the case where no letters are found
         return []
-
-
-
