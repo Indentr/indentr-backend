@@ -1,5 +1,7 @@
 from mongoengine import Document, EmbeddedDocument, fields
+
 from app.database.schemas.practice import Practice
+
 
 class TriageResponse(EmbeddedDocument):
     diagnosis = fields.StringField()
@@ -14,5 +16,6 @@ class Triage(Document):
     last_name = fields.StringField()
     dob = fields.StringField()
     email = fields.EmailField()
+    phone_number = fields.StringField()
     practice_id = fields.ReferenceField(Practice)
     triage_response = fields.EmbeddedDocumentField(TriageResponse)

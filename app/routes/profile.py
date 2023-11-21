@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.database.crud import (
     get_last_three_letters,
+    get_last_three_triage_requests,
     get_user_by_id,
     update_user_details,
     update_user_image,
-    get_last_three_triage_requests
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.user import userDetails
@@ -26,6 +26,9 @@ def get_profile(access_token=Depends(JWTBearer())):
         user = get_user_by_id(user_id)
         letters = get_last_three_letters(user_id)
         triage_requests = get_last_three_triage_requests(user_id)
+        print("user", user)
+        print("letters: ", letters)
+        print("triage_requests", triage_requests)
 
         return {"user": user, "letters": letters, "triage_requests": triage_requests}
 
