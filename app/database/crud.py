@@ -213,3 +213,36 @@ def update_letter(letter_id, treatment_plan, user_id: str):
     # Update the consent_letter field
     letter.consent_letter = treatment_plan
     letter.save()
+
+
+
+
+
+# Triage ---------------------------
+def get_last_three_triage_requests(user_id: str):
+    try:
+        # Retrieve the user document to get the associated practice_id
+        user = User.objects.get(id=ObjectId(user_id))
+        practice_id = user.practice_id
+
+        triage_requests = (
+            Triage.objects(practice_id=ObjectId(practice_id))
+            .order_by("-_id").
+            limit(3)
+        )
+
+        # Transform the MongoEngine documents to a list of dictionaries
+        triage_list = []
+        for triage in triage_requests:
+            triage_dict = triage.to_mongo().to_dict()
+            triage_dict["_id"] = str(triage.id)
+            triage_list.append(triage_dict)
+
+        return triage_list
+
+    except DoesNotExist:
+        # Handle the case where no letters are found
+        return []
+
+
+

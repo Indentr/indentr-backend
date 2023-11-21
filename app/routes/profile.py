@@ -7,6 +7,7 @@ from app.database.crud import (
     get_user_by_id,
     update_user_details,
     update_user_image,
+    get_last_three_triage_requests
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.user import userDetails
@@ -24,23 +25,9 @@ def get_profile(access_token=Depends(JWTBearer())):
         user_id = token["user_id"]
         user = get_user_by_id(user_id)
         letters = get_last_three_letters(user_id)
+        triage_requests = get_last_three_triage_requests(user_id)
 
-        # Convert the image data to base64 if it's in binary format
-        user_img = user.get("img")
-        if user_img:
-            user["img"] = base64.b64encode(user["img"]).decode("utf-8")
-
-        # Convert ObjectId to string in user_object
-        user["_id"] = str(user["_id"])
-        user.pop("password", None)
-
-        for letter in letters:
-            created_at = letter["_id"].generation_time.strftime("%Y-%m-%d %H:%M:%S")
-            letter["createdAt"] = created_at
-            letter["_id"] = str(letter["_id"])
-            letter["user_id"] = str(letter["user_id"])
-
-        return {"user": user, "letters": letters}
+        return {"user": user, "letters": letters, "triage_requests": triage_requests}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
