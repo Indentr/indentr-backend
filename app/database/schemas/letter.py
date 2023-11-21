@@ -25,6 +25,5 @@ class Letter(Document):
     consent_letter = StringField()
     patient_info = EmbeddedDocumentField(PatientInfo)
     user_id = fields.ReferenceField(User, required=True)
-    createdAt = DateTimeField(default=datetime.utcnow)
 
     meta = {"collection": "letters"}  # Specify the collection name

@@ -9,16 +9,28 @@ from app.database.schemas.config import Config
 from app.database.schemas.letter import Letter
 from app.database.schemas.pricing import Pricing
 from app.database.schemas.user import User
+from app.database.schemas.triage import Triage
 
 
 # User ---------------------------
-def get_user_by_id(user_id):
+def get_user_by_id(user_id: str):
     try:
         user = User.objects.get(id=ObjectId(user_id))
-        return user.to_mongo().to_dict()
+        user_dict = user.to_mongo().to_dict()
+
+        # Convert the image data to base64 if it's in binary format
+        user_img = user_dict.get("img")
+        if user_img:
+            user_dict["img"] = base64.b64encode(user_dict["img"]).decode("utf-8")
+
+        # Convert ObjectId to string in user_object
+        user_dict["_id"] = str(user_dict["_id"])
+        user_dict.pop("password", None)
+
+        return user_dict
 
     except DoesNotExist:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="User not found") from None
 
 
 def update_user_image(image, user_id):
@@ -28,7 +40,7 @@ def update_user_image(image, user_id):
         user.save()
 
     except DoesNotExist:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="User not found") from None
 
 
 def update_user_details(user_id, email, phone, address):
@@ -39,10 +51,21 @@ def update_user_details(user_id, email, phone, address):
         user.address = address
         user.save()
 
-        return user.to_mongo().to_dict()
+        user_dict = user.to_mongo().to_dict()
+
+        # Convert the image data to base64 if it's in binary format
+        user_img = user_dict.get("img")
+        if user_img:
+            user_dict["img"] = base64.b64encode(user_dict["img"]).decode("utf-8")
+
+        # Convert ObjectId to string in user_object
+        user_dict["_id"] = str(user_dict["_id"])
+        user_dict.pop("password", None)
+
+        return user_dict
 
     except DoesNotExist:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="User not found") from None
 
 
 # Function to find a user by email
@@ -94,7 +117,7 @@ def get_pricing(user_id):
         return pricing.pricing
 
     except DoesNotExist:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="User not found") from None
 
 
 # Letter ---------------------------
@@ -103,6 +126,13 @@ def get_last_three_letters(user_id):
         letters = Letter.objects(user_id=ObjectId(user_id)).order_by("-_id").limit(3)
         # Convert each letter to a dictionary
         letters_dict = [letter.to_mongo().to_dict() for letter in letters]
+
+        for letter in letters_dict:
+            created_at = letter["_id"].generation_time.strftime("%Y-%m-%d %H:%M:%S")
+            letter["createdAt"] = created_at
+            letter["_id"] = str(letter["_id"])
+            letter["user_id"] = str(letter["user_id"])
+
         return letters_dict
 
     except DoesNotExist:
@@ -131,9 +161,9 @@ def get_all_users_letters(user_id: str):
     except DoesNotExist as e:
         # Check if the exception is related to User or Letter
         if "User" in str(e):
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=404, detail="User not found") from None
         elif "Letter" in str(e):
-            raise HTTPException(status_code=404, detail="No letter found")
+            raise HTTPException(status_code=404, detail="No letter found") from None
         else:
             raise e
 
@@ -169,11 +199,11 @@ def create_new_letter(user_id, treatment_plan, patient_details):
         return str(letter.id)
 
     except DoesNotExist:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="User not found") from None
 
 
 # Function to update the consent letter
-def update_letter(letter_id, treatment_plan, user_id):
+def update_letter(letter_id, treatment_plan, user_id: str):
     # Use MongoEngine to find and update the document
     letter = Letter.objects(id=ObjectId(letter_id), user_id=ObjectId(user_id)).first()
 
