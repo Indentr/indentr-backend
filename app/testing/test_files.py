@@ -13,7 +13,19 @@ client = TestClient(app)
 
 @pytest.fixture
 def register_and_login():
-    client.post("/auth/register", json={"name": "John Terry", "email": "johnterry@gmail.com", "password": "password"})
+    client.post(
+        "/auth/register",
+        json={
+            "name": "John Terry",
+            "email": "johnterry@gmail.com",
+            "password": "password",
+            "practice_name": "Willows Dental",
+            "practice_email": "johnterry@willows.com",
+            "practice_url": "https://www.willowsdental.com",
+            "address": "1 Prestatyn, Wales, W1",
+            "phone": "07880788392",
+        },
+    )
     loginResponse = client.post("/auth/login", json={"email": "johnterry@gmail.com", "password": "password"})
     data = loginResponse.json()
     # get the access token and then decode it
@@ -61,7 +73,6 @@ def test_get_treatment_plan(insert_treatment_plan):
 
     assert response.status_code == 200, response.text
     data = response.json()
-    print("data: ", data)
 
     json.loads(patient_details)
     assert data["_id"] == letter_id

@@ -1,16 +1,17 @@
-import base64
-
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.database.crud import (
+    check_if_user_already_exists,
+    create_new_user,
+    delete_member,
+    get_all_practice_members,
     get_last_three_letters,
     get_last_three_triage_requests,
     get_user_by_id,
     update_user_details,
-    update_user_image,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
-from app.models.user import userDetails
+from app.models.user import DeleteUser, UserDetails, UserRegistration
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
@@ -24,52 +25,49 @@ def get_profile(access_token=Depends(JWTBearer())):
         token = decodeJWT(access_token)
         user_id = token["user_id"]
         user = get_user_by_id(user_id)
-        letters = get_last_three_letters(user_id)
-        triage_requests = get_last_three_triage_requests(user_id)
-        print("user", user)
-        print("letters: ", letters)
-        print("triage_requests", triage_requests)
 
-        return {"user": user, "letters": letters, "triage_requests": triage_requests}
+        return {"user": user}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
 
 
-@router.post("/saveImg")
-async def save_img(request: Request, access_token=Depends(JWTBearer())):
+@router.get("/overview")
+def get_overview(access_token=Depends(JWTBearer())):
     """
-    # Upload and Save User Profile Image
-    Allows a user to upload and save an image for their profile.
-    The image data is received as binary data in the request stream.
-    The image is then associated with the user's email and stored in the database.
+    Retrieves the user's profile information along with their latest letters.
     """
-
     try:
-        # Get the image data from the request stream
-        image = b""
-        async for chunk in request.stream():
-            image += chunk
-
-        if not image:
-            raise HTTPException(status_code=400, detail="No image data provided")
-
-        # Extract user's email from JWT token
         token = decodeJWT(access_token)
         user_id = token["user_id"]
+        letters = get_last_three_letters(user_id)
+        triage_requests = get_last_three_triage_requests(user_id)
 
-        update_user_image(image, user_id)
-        encoded_image = base64.b64encode(image).decode("utf-8")
-        return {"image": encoded_image}
+        return {"letters": letters, "triage_requests": triage_requests}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to save image") from e
+
+
+@router.get("/settings")
+def get_account_settings(access_token=Depends(JWTBearer())):
+    """
+    Retrieves the user's profile information along with their latest letters.
+    """
+    try:
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+        user = get_user_by_id(user_id)
+        practice_members = get_all_practice_members(user["practice_id"])
+
+        return {"user": user, "practice_members": practice_members}
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
 
 
 @router.post("/saveDetails")
-async def save_details(body: userDetails, access_token=Depends(JWTBearer())):
+async def save_details(body: UserDetails, access_token=Depends(JWTBearer())):
     """
     Saves the user's email, phone number, and address to the database.
     """
@@ -92,3 +90,39 @@ async def save_details(body: userDetails, access_token=Depends(JWTBearer())):
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
+
+
+@router.post("/register")
+def create_new_account(body: UserRegistration, access_token=Depends(JWTBearer())):
+    """
+    This route handles user registration once a user is already authenticated.
+    The route first checks if the provided email is already in use. If the email is
+    available, it securely hashes the password and creates a new user in the database.
+    """
+
+    try:
+        # Check if the email already exists and registrations are turned on
+        check_if_user_already_exists(body.email)
+
+        new_user = create_new_user(body.name, body.email, body.password, body.practice_id, "Member")
+
+        return {"new_user": new_user, "message": "Registered successfully"}
+
+    except HTTPException as e:
+        raise e
+
+
+@router.post("/delete")
+def delete_member_account(body: DeleteUser, access_token=Depends(JWTBearer())):
+    """
+    This route handles when an account owner wants to delete a sub account from their practice
+    """
+
+    try:
+        # Check if the email already exists and registrations are turned on
+        delete_member(body.member_id, body.practice_id)
+
+        return {"message": "Member deleted successfully"}
+
+    except HTTPException as e:
+        raise e

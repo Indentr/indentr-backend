@@ -3,7 +3,9 @@ from fastapi.exceptions import HTTPException
 from werkzeug.security import check_password_hash
 
 from app.database.crud import (
-    check_user_registration_and_email,
+    check_if_registration_allowed,
+    check_if_user_already_exists,
+    create_new_practice,
     create_new_user,
     get_user_by_email,
 )
@@ -47,9 +49,12 @@ def post_user_registration(body: UserRegisterRequest):
 
     try:
         # Check if the email already exists and registrations are turned on
-        check_user_registration_and_email(body.email)
+        check_if_registration_allowed()
+        check_if_user_already_exists(body.email)
 
-        create_new_user(body.name, body.email, body.password)
+        practice_id = create_new_practice(body.practice_name, body.practice_email, body.practice_url, body.address, body.phone)
+
+        create_new_user(body.name, body.email, body.password, practice_id, "Owner")
 
         return {"message": "Registered successfully"}
 
