@@ -14,7 +14,20 @@ client = TestClient(app)
 
 @pytest.fixture
 def register_test_user():
-    response = client.post("/auth/register", json={"name": "John Terry", "email": "johnterry@gmail.com", "password": "password"})
+    response = client.post(
+        "/auth/register",
+        json={
+            "name": "John Terry",
+            "email": "johnterry@gmail.com",
+            "password": "password",
+            "practice_name": "Willows Dental",
+            "practice_email": "johnterry@willows.com",
+            "practice_url": "https://www.willowsdental.com",
+            "address": "1 Prestatyn, Wales, W1",
+            "phone": "07880788392",
+        },
+    )
+
     return response
 
 
@@ -25,7 +38,19 @@ def test_register_user(register_test_user):
 
 
 def test_register_existing_user(register_test_user):
-    response = client.post("/auth/register", json={"name": "John Terry", "email": "johnterry@gmail.com", "password": "password"})
+    response = client.post(
+        "/auth/register",
+        json={
+            "name": "John Terry",
+            "email": "johnterry@gmail.com",
+            "password": "password",
+            "practice_name": "Willows Dental",
+            "practice_email": "johnterry@willows.com",
+            "practice_url": "https://www.willowsdental.com",
+            "address": "1 Prestatyn, Wales, W1",
+            "phone": "07880788392",
+        },
+    )
 
     assert response.status_code == 400, response.text
     data = response.json()

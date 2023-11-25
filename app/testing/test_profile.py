@@ -1,10 +1,7 @@
-from io import BytesIO
-
 import pytest
 from fastapi.testclient import TestClient
-from PIL import Image
 
-from app.database.crud import create_new_letter
+from app.database.crud import create_new_letter, create_new_practice, create_new_user
 from app.database.schemas.user import User
 from app.main import app
 from app.middleware.jwt import decodeJWT
@@ -14,7 +11,19 @@ client = TestClient(app)
 
 @pytest.fixture
 def register_and_login():
-    client.post("/auth/register", json={"name": "John Terry", "email": "johnterry@gmail.com", "password": "password"})
+    client.post(
+        "/auth/register",
+        json={
+            "name": "John Terry",
+            "email": "johnterry@gmail.com",
+            "password": "password",
+            "practice_name": "Willows Dental",
+            "practice_email": "johnterry@willows.com",
+            "practice_url": "https://www.willowsdental.com",
+            "address": "1 Prestatyn, Wales, W1",
+            "phone": "07880788392",
+        },
+    )
     loginResponse = client.post("/auth/login", json={"email": "johnterry@gmail.com", "password": "password"})
     data = loginResponse.json()
     # get the access token and then decode it
@@ -59,7 +68,7 @@ def test_successful_profile_get(insert_treatment_plan):
 
     assert response.status_code == 200, response.text
     data = response.json()
-    assert len(data["letters"]) == 3
+    assert data["user"]["name"] == "John Terry"
     assert data["user"]["email"] == "johnterry@gmail.com"
 
 
@@ -82,74 +91,82 @@ def test_profile_when_user_is_none(insert_treatment_plan):
     assert data["detail"] == "User not found"
 
 
-def test_save_img(insert_treatment_plan):
+def test_get_overview(insert_treatment_plan):
     token = insert_treatment_plan
-    # Simulate an image file
-    image_data = Image.new("RGB", (100, 100)).tobytes()
-
-    # Upload image data as multipart form data
-    files = {"file": ("image.jpg", BytesIO(image_data), "image/jpeg")}
-
-    response = client.post(
-        "/profile/saveImg",
+    response = client.get(
+        "/profile/overview",
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
         },
-        files=files,
-    )
-
-    assert response.status_code == 200, response.text
-    assert "image" in response.json()
-    assert response.json()["image"]
-
-
-def test_save_when_img_none(insert_treatment_plan):
-    token = insert_treatment_plan
-
-    response = client.post(
-        "/profile/saveImg",
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        },
-        files={},
-    )
-
-    assert response.status_code == 400, response.text
-    data = response.json()
-    assert data["detail"] == "No image data provided"
-
-
-def test_save_details(insert_treatment_plan):
-    token = insert_treatment_plan
-    response = client.post(
-        "/profile/saveDetails",
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        },
-        json={"email": "johnterry@aol.com", "phone": "999", "address": "1 Stamford Bridge London"},
     )
 
     assert response.status_code == 200, response.text
     data = response.json()
-    assert data["email"] == "johnterry@aol.com"
-    assert data["phone"] == "999"
-    assert data["address"] == "1 Stamford Bridge London"
+    assert len(data["letters"]) == 3
+    assert len(data["triage_requests"]) == 0
 
 
-def test_save_details_no_data(insert_treatment_plan):
+def test_get_settings(insert_treatment_plan):
     token = insert_treatment_plan
-    response = client.post(
-        "/profile/saveDetails",
+    response = client.get(
+        "/profile/settings",
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
         },
-        json={"email": "", "phone": "", "address": ""},
     )
 
-    assert response.status_code == 400, response.text
+    assert response.status_code == 200, response.text
     data = response.json()
-    assert data["detail"] == "No data provided"
+    assert data["user"]["name"] == "John Terry"
+    assert data["user"]["email"] == "johnterry@gmail.com"
+    assert len(data["practice_members"]) == 0
+
+
+def test_register_member(insert_treatment_plan):
+    token = insert_treatment_plan
+    practice_id = create_new_practice("Willows Dental", "willows@dental.com", "https://www.willowsdental.com", "1 Prestatyn", "07880788392")
+
+    response = client.post(
+        "/profile/register",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "name": "Spongebob Squarepants",
+            "email": "spongeebob@gmail.com",
+            "password": "gary123",
+            "practice_id": str(practice_id),
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["message"] == "Registered successfully"
+    assert data["new_user"]["name"] == "Spongebob Squarepants"
+    assert data["new_user"]["email"] == "spongeebob@gmail.com"
+    assert data["new_user"]["practice_id"] == practice_id
+
+
+def test_delete_member(insert_treatment_plan):
+    token = insert_treatment_plan
+    practice_id = create_new_practice("Willows Dental", "willows@dental.com", "https://www.willowsdental.com", "1 Prestatyn", "07880788392")
+    new_user = create_new_user("Spongebob Squarepants", "spongeebob@gmail.com", "gary123", practice_id, "Member")
+
+    response = client.post(
+        "/profile/delete",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "member_id": new_user["_id"],
+            "practice_id": new_user["practice_id"],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["message"] == "Member deleted successfully"
