@@ -113,11 +113,8 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
     patientDetails = json.loads(body.patientDetails)
     symptomDetails = json.loads(body.symptomDetails)
     dentistNotes = json.loads(body.dentistNotes)
-    print(dentistNotes, type(dentistNotes))
-    dentistNotesText = f"The patient notes, written by the dentist, are as as follows: {dentistNotes}"
 
-    print("---------------------")
-    print(dentistNotesText)
+    dentistNotesText = f"The patient notes, written by the dentist, are as as follows: {dentistNotes}"
 
     log.info(f"Request {request_id} received for s.")
     log.info(f"Patient dob: {patientDetails['dob']}")
@@ -171,8 +168,6 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
         change unnecessary content from example letter so it fits the patient symptoms)
 
     """
-
-    print(prompt)
 
     treatmentPlan = await ask_gpt(prompt, "You're a UK based dentist writing treatment plan letters for patients")
     log.info(f"GPT treatment plan response: {treatmentPlan}")
