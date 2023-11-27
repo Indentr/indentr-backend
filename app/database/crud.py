@@ -26,8 +26,22 @@ def create_new_practice(practice_name: str, email: str, url: str, address: str, 
     return practice_dict["_id"]
 
 
+def retrieve_practice_by_id(practice_id: str):
+    try:
+        practice = Practice.objects.get(id=practice_id)
+        practice_dict = practice.to_mongo().to_dict()
+
+        practice_dict["_id"] = str(practice.id)
+
+        return practice_dict
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Practice not found") from None
+
+
+
 # User ---------------------------
-def get_user_by_id(user_id: str):
+def retrieve_user_by_id(user_id: str):
     try:
         user = User.objects.get(id=user_id)
         user_dict = user.to_mongo().to_dict()
@@ -64,7 +78,7 @@ def update_user_details(user_id, email):
 
 
 # Function to find a user by email
-def get_user_by_email(email):
+def retrieve_user_by_email(email):
     user = User.objects(email=email).first()
 
     if not user:
@@ -116,7 +130,7 @@ def create_new_user(name, email, password, practice_id, role):
     return user_dict
 
 
-def get_all_practice_members(practice_id: str):
+def retrieve_all_practice_members(practice_id: str):
     # Query all users with the given practice_id
     practice_members = User.objects(practice_id=practice_id, role="Member")
 
@@ -147,7 +161,7 @@ def delete_member(member_id: str, practice_id: str):
 
 
 # Pricing ---------------------------
-def get_pricing(user_id):
+def retrieve_pricing(user_id):
     try:
         user = User.objects.get(id=user_id)
         pricing = Pricing.objects(practice_id=user.practice_id).first()
@@ -163,7 +177,7 @@ def get_pricing(user_id):
 
 
 # Letter ---------------------------
-def get_last_three_letters(user_id):
+def retrieve_last_three_letters(user_id):
     try:
         letters = Letter.objects(user_id=user_id).order_by("-_id").limit(3)
         # Convert each letter to a dictionary
@@ -182,7 +196,7 @@ def get_last_three_letters(user_id):
         return []
 
 
-def get_all_users_letters(user_id: str):
+def retrieve_all_users_letters(user_id: str):
     try:
         User.objects.get(id=user_id)
         # Query letters using MongoEngine
@@ -211,7 +225,7 @@ def get_all_users_letters(user_id: str):
 
 
 # Function to get a specific letter
-def get_user_letter(letter_id, user_id):
+def retrieve_user_letter(letter_id, user_id):
     # Query the letter using MongoEngine
     letter = Letter.objects(id=letter_id, user_id=user_id).first()
 
@@ -258,7 +272,7 @@ def update_letter(letter_id, treatment_plan, user_id: str):
 
 
 # Triage ---------------------------
-def get_last_three_triage_requests(user_id: str):
+def retrieve_last_three_triage_requests(user_id: str):
     try:
         # Retrieve the user document to get the associated practice_id
         user = User.objects.get(id=user_id)

@@ -5,7 +5,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from app.database.crud import create_new_letter, get_pricing
+from app.database.crud import create_new_letter, retrieve_pricing
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
     SaveTreatmentPlan,
@@ -108,7 +108,7 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
     token = decodeJWT(access_token)
     user_id = token["user_id"]
 
-    pricing_list = get_pricing(user_id)
+    pricing_list = retrieve_pricing(user_id)
 
     patientDetails = json.loads(body.patientDetails)
     symptomDetails = json.loads(body.symptomDetails)

@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.constants import JWT_ALGORITHM, SECRET_KEY
-from app.database.crud import get_user_by_email
+from app.database.crud import retrieve_user_by_email
 from app.main import app
 from app.middleware.jwt import decodeJWT
 
@@ -69,7 +69,7 @@ def test_login_user(register_test_user):
     decoded_token = decodeJWT(token)
 
     # get the user id from the db in order to assert access_token is correct
-    user_document = get_user_by_email("johnterry@gmail.com")
+    user_document = retrieve_user_by_email("johnterry@gmail.com")
     user_id = str(user_document["_id"])
     assert decoded_token["user_id"] == user_id
 
