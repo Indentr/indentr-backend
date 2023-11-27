@@ -39,7 +39,6 @@ def retrieve_practice_by_id(practice_id: str):
         raise HTTPException(status_code=404, detail="Practice not found") from None
 
 
-
 # User ---------------------------
 def retrieve_user_by_id(user_id: str):
     try:

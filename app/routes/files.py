@@ -4,7 +4,11 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.database.crud import retrieve_all_users_letters, retrieve_user_letter, update_letter
+from app.database.crud import (
+    retrieve_all_users_letters,
+    retrieve_user_letter,
+    update_letter,
+)
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.file import saveTreatmentPlan
 

@@ -7,9 +7,9 @@ from app.database.crud import (
     retrieve_all_practice_members,
     retrieve_last_three_letters,
     retrieve_last_three_triage_requests,
+    retrieve_practice_by_id,
     retrieve_user_by_id,
     update_user_details,
-    retrieve_practice_by_id
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.user import DeleteUser, UserDetails, UserRegistration
@@ -63,11 +63,7 @@ def get_account_settings(access_token=Depends(JWTBearer())):
         practice = retrieve_practice_by_id(user["practice_id"])
         print(practice)
 
-        return { 
-            "user": user, 
-            "practice_members": practice_members,
-            "practice": practice
-        }
+        return {"user": user, "practice_members": practice_members, "practice": practice}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
