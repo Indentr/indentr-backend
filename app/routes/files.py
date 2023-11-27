@@ -4,7 +4,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.database.crud import get_all_users_letters, get_user_letter, update_letter
+from app.database.crud import retrieve_all_users_letters, retrieve_user_letter, update_letter
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.file import saveTreatmentPlan
 
@@ -21,7 +21,7 @@ def get_files(access_token=Depends(JWTBearer())):
 
     token = decodeJWT(access_token)
     user_id = token["user_id"]
-    letters = get_all_users_letters(user_id)
+    letters = retrieve_all_users_letters(user_id)
 
     return {"letters": letters}
 
@@ -35,7 +35,7 @@ def get_treatment_plan(letter_id: str, access_token=Depends(JWTBearer())):
     try:
         token = decodeJWT(access_token)
         user_id = token["user_id"]
-        letter = get_user_letter(letter_id, user_id)
+        letter = retrieve_user_letter(letter_id, user_id)
         return letter
 
     except HTTPException as e:

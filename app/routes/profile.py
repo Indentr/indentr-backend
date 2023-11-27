@@ -4,11 +4,12 @@ from app.database.crud import (
     check_if_user_already_exists,
     create_new_user,
     delete_member,
-    get_all_practice_members,
-    get_last_three_letters,
-    get_last_three_triage_requests,
-    get_user_by_id,
+    retrieve_all_practice_members,
+    retrieve_last_three_letters,
+    retrieve_last_three_triage_requests,
+    retrieve_user_by_id,
     update_user_details,
+    retrieve_practice_by_id
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.user import DeleteUser, UserDetails, UserRegistration
@@ -24,7 +25,7 @@ def get_profile(access_token=Depends(JWTBearer())):
     try:
         token = decodeJWT(access_token)
         user_id = token["user_id"]
-        user = get_user_by_id(user_id)
+        user = retrieve_user_by_id(user_id)
 
         return {"user": user}
 
@@ -40,8 +41,8 @@ def get_overview(access_token=Depends(JWTBearer())):
     try:
         token = decodeJWT(access_token)
         user_id = token["user_id"]
-        letters = get_last_three_letters(user_id)
-        triage_requests = get_last_three_triage_requests(user_id)
+        letters = retrieve_last_three_letters(user_id)
+        triage_requests = retrieve_last_three_triage_requests(user_id)
 
         return {"letters": letters, "triage_requests": triage_requests}
 
@@ -57,10 +58,16 @@ def get_account_settings(access_token=Depends(JWTBearer())):
     try:
         token = decodeJWT(access_token)
         user_id = token["user_id"]
-        user = get_user_by_id(user_id)
-        practice_members = get_all_practice_members(user["practice_id"])
+        user = retrieve_user_by_id(user_id)
+        practice_members = retrieve_all_practice_members(user["practice_id"])
+        practice = retrieve_practice_by_id(user["practice_id"])
+        print(practice)
 
-        return {"user": user, "practice_members": practice_members}
+        return { 
+            "user": user, 
+            "practice_members": practice_members,
+            "practice": practice
+        }
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException

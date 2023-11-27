@@ -7,7 +7,7 @@ from app.database.crud import (
     check_if_user_already_exists,
     create_new_practice,
     create_new_user,
-    get_user_by_email,
+    retrieve_user_by_email,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT, signJWT
 from app.models.login import UserLoginRequest, UserRegisterRequest
@@ -26,7 +26,7 @@ def post_user_login(body: UserLoginRequest):
     """
 
     try:
-        user_document = get_user_by_email(body.email)
+        user_document = retrieve_user_by_email(body.email)
 
         if user_document and check_password_hash(user_document["password"], body.password):
             user_id = str(user_document["_id"])
