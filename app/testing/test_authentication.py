@@ -4,43 +4,30 @@ import jwt
 import pytest
 from fastapi.testclient import TestClient
 
-from app.constants import JWT_ALGORITHM, SECRET_KEY, TEST_DB_URI
-from app.database.db import connect_to_mongodb
+from app.constants import JWT_ALGORITHM, SECRET_KEY
+from app.database.crud import retrieve_user_by_email
 from app.main import app
 from app.middleware.jwt import decodeJWT
 
-app.state.db = connect_to_mongodb(TEST_DB_URI)
 client = TestClient(app)
-
-
-# Hook that wipes users collection after each test finishes
-@pytest.fixture(autouse=True)
-def cleanup_database(request):
-    db = app.state.db
-
-    # Get a list of all collections in the database
-    collections = db.list_collection_names()
-
-    # Exclude 'configs' collection from the list
-    collections_to_drop = [collection_name for collection_name in collections if collection_name != "configs"]
-
-    # Drop all collections (except 'configs')
-    for collection_name in collections_to_drop:
-        if collection_name != "system.indexes":  # Skip system.indexes collection
-            db[collection_name].drop()
-
-    # Run all tests
-    yield
-
-    # Drop all collections (except 'configs')
-    for collection_name in collections_to_drop:
-        if collection_name != "system.indexes":  # Skip system.indexes collection
-            db[collection_name].drop()
 
 
 @pytest.fixture
 def register_test_user():
-    response = client.post("/auth/register", json={"name": "John Terry", "email": "johnterry@gmail.com", "password": "password"})
+    response = client.post(
+        "/auth/register",
+        json={
+            "name": "John Terry",
+            "email": "johnterry@gmail.com",
+            "password": "password",
+            "practice_name": "Willows Dental",
+            "practice_email": "johnterry@willows.com",
+            "practice_url": "https://www.willowsdental.com",
+            "address": "1 Prestatyn, Wales, W1",
+            "phone": "07880788392",
+        },
+    )
+
     return response
 
 
@@ -51,7 +38,19 @@ def test_register_user(register_test_user):
 
 
 def test_register_existing_user(register_test_user):
-    response = client.post("/auth/register", json={"name": "John Terry", "email": "johnterry@gmail.com", "password": "password"})
+    response = client.post(
+        "/auth/register",
+        json={
+            "name": "John Terry",
+            "email": "johnterry@gmail.com",
+            "password": "password",
+            "practice_name": "Willows Dental",
+            "practice_email": "johnterry@willows.com",
+            "practice_url": "https://www.willowsdental.com",
+            "address": "1 Prestatyn, Wales, W1",
+            "phone": "07880788392",
+        },
+    )
 
     assert response.status_code == 400, response.text
     data = response.json()
@@ -70,19 +69,25 @@ def test_login_user(register_test_user):
     decoded_token = decodeJWT(token)
 
     # get the user id from the db in order to assert access_token is correct
-    db = app.state.db
-    users_collection = db["users"]
-    user_document = users_collection.find_one({"email": "johnterry@gmail.com"})
+    user_document = retrieve_user_by_email("johnterry@gmail.com")
     user_id = str(user_document["_id"])
     assert decoded_token["user_id"] == user_id
 
 
-def test_login_user_access_denied():
+def test_login_when_user_not_exist():
+    response = client.post("/auth/login", json={"email": "johnterry@gmail.com", "password": "incorrectPassword"})
+
+    assert response.status_code == 404, response.text
+    data = response.json()
+    assert data["detail"] == "User not found"
+
+
+def test_login_with_incorrect_password(register_test_user):
     response = client.post("/auth/login", json={"email": "johnterry@gmail.com", "password": "incorrectPassword"})
 
     assert response.status_code == 403, response.text
     data = response.json()
-    assert data["detail"] == "Access denied."
+    assert data["detail"] == "Access denied"
 
 
 def test_authenticate_user(register_test_user):

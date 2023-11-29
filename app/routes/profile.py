@@ -1,77 +1,76 @@
-import base64
+from fastapi import APIRouter, Depends, HTTPException
 
-from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request
-
-from app.database.crud import get_user_details, update_user_image
+from app.database.crud import (
+    check_if_user_already_exists,
+    create_new_user,
+    delete_member,
+    retrieve_all_practice_members,
+    retrieve_last_three_letters,
+    retrieve_last_three_triage_requests,
+    retrieve_practice_by_id,
+    retrieve_user_by_id,
+    update_user_details,
+)
 from app.middleware.jwt import JWTBearer, decodeJWT
-from app.models.user import userDetails
+from app.models.user import DeleteUser, UserDetails, UserRegistration
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
 
 @router.get("/")
-def get_profile(request: Request, access_token=Depends(JWTBearer())):
+def get_profile(access_token=Depends(JWTBearer())):
     """
     Retrieves the user's profile information along with their latest letters.
     """
-
-    db = request.app.state.db
-    token = decodeJWT(access_token)
-
-    user_id = token["user_id"]
-    user_object = get_user_details(db, user_id)
-
-    letters_collection = db["letters"]
-    letters = list(letters_collection.find({"user_id": ObjectId(user_id)}).sort("_id", -1).limit(3))
-
-    # Access the 'createdAt' field for each letter and convert it to time date format
-    # Add a createdAt attribute to letter
-    for letter in letters:
-        created_at = letter["_id"].generation_time.strftime("%Y-%m-%d %H:%M:%S")
-        letter["createdAt"] = created_at
-        letter["_id"] = str(letter["_id"])
-        letter["user_id"] = str(letter["user_id"])
-
-    return {"user": user_object, "letters": letters}
-
-
-@router.post("/saveImg")
-async def save_img(request: Request, access_token=Depends(JWTBearer())):
-    """
-    # Upload and Save User Profile Image
-    Allows a user to upload and save an image for their profile.
-    The image data is received as binary data in the request stream.
-    The image is then associated with the user's email and stored in the database.
-    """
-
     try:
-        # Get the image data from the request stream
-        image = b""
-        async for chunk in request.stream():
-            image += chunk
-
-        if not image:
-            raise HTTPException(status_code=400, detail="No image data provided")
-
-        # Extract user's email from JWT token
         token = decodeJWT(access_token)
         user_id = token["user_id"]
+        user = retrieve_user_by_id(user_id)
 
-        db = request.app.state.db
-
-        update_user_image(db, image, user_id)
-        encoded_image = base64.b64encode(image).decode("utf-8")
-        return {"image": encoded_image}
+        return {"user": user}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to save image") from e
+
+
+@router.get("/overview")
+def get_overview(access_token=Depends(JWTBearer())):
+    """
+    Retrieves the user's profile information along with their latest letters.
+    """
+    try:
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+        letters = retrieve_last_three_letters(user_id)
+        triage_requests = retrieve_last_three_triage_requests(user_id)
+
+        return {"letters": letters, "triage_requests": triage_requests}
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
+@router.get("/settings")
+def get_account_settings(access_token=Depends(JWTBearer())):
+    """
+    Retrieves the user's profile information along with their latest letters.
+    """
+    try:
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+        user = retrieve_user_by_id(user_id)
+        practice_members = retrieve_all_practice_members(user["practice_id"])
+        practice = retrieve_practice_by_id(user["practice_id"])
+        print(practice)
+
+        return {"user": user, "practice_members": practice_members, "practice": practice}
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
 
 
 @router.post("/saveDetails")
-async def save_details(body: userDetails, request: Request, access_token=Depends(JWTBearer())):
+async def save_details(body: UserDetails, access_token=Depends(JWTBearer())):
     """
     Saves the user's email, phone number, and address to the database.
     """
@@ -88,13 +87,45 @@ async def save_details(body: userDetails, request: Request, access_token=Depends
         token = decodeJWT(access_token)
         user_id = token["user_id"]
 
-        # Update the user's image in MongoDB
-        dbUsers = request.app.state.db.users
-        dbUsers.update_one({"_id": ObjectId(user_id)}, {"$set": {"email": email, "phone": phone, "address": address}})
-
-        return {"email": email, "phone": phone, "address": address}
+        # Update the user's details in MongoDB
+        user = update_user_details(user_id, email, phone, address)
+        return {"email": user["email"], "phone": user["phone"], "address": user["address"]}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to save details") from e
+
+
+@router.post("/register")
+def create_new_account(body: UserRegistration, access_token=Depends(JWTBearer())):
+    """
+    This route handles user registration once a user is already authenticated.
+    The route first checks if the provided email is already in use. If the email is
+    available, it securely hashes the password and creates a new user in the database.
+    """
+
+    try:
+        # Check if the email already exists and registrations are turned on
+        check_if_user_already_exists(body.email)
+
+        new_user = create_new_user(body.name, body.email, body.password, body.practice_id, "Member")
+
+        return {"new_user": new_user, "message": "Registered successfully"}
+
+    except HTTPException as e:
+        raise e
+
+
+@router.post("/delete")
+def delete_member_account(body: DeleteUser, access_token=Depends(JWTBearer())):
+    """
+    This route handles when an account owner wants to delete a sub account from their practice
+    """
+
+    try:
+        # Check if the email already exists and registrations are turned on
+        delete_member(body.member_id, body.practice_id)
+
+        return {"message": "Member deleted successfully"}
+
+    except HTTPException as e:
+        raise e

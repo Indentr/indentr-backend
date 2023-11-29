@@ -6,7 +6,7 @@ from starlette.middleware import Middleware
 from starlette_context.middleware import RawContextMiddleware
 
 from app.constants import ALLOWED_ORIGINS, DB_URI
-from app.database.db import connect_to_mongodb
+from app.database.db import connect_to_mongoengine
 from app.routes import auth, create, files, profile
 
 middleware = [Middleware(RawContextMiddleware)]
@@ -37,14 +37,10 @@ app.add_middleware(
 )
 
 
-def get_mongo_db():
-    return connect_to_mongodb(DB_URI)
-
-
 @app.on_event("startup")
 async def startup_event():
-    # When server starts up create a mongodb instance and save to apps state
-    app.state.db = get_mongo_db()
+    # When server starts up establish connection with mongodb
+    connect_to_mongoengine(DB_URI)
 
 
 @app.get("/")
