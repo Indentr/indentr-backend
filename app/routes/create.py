@@ -5,7 +5,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from app.database.crud import create_new_letter, retrieve_pricing
+from app.database.crud import create_new_letter, retrieve_pricing, update_user_tokens
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
     SaveTreatmentPlan,
@@ -34,6 +34,9 @@ async def generate_questions(body: SymptomData, form_type: str, access_token=Dep
     start = time.time()
     request_id = uuid.uuid4().hex
 
+    token = decodeJWT(access_token)
+    user_id = token["user_id"]
+
     symptomDetails = json.loads(body.symptomDetails)
 
     if form_type == "symptom":
@@ -52,7 +55,9 @@ async def generate_questions(body: SymptomData, form_type: str, access_token=Dep
         {selected_prompt}
     """
 
-    original_response = await ask_gpt(prompt, "You're an AI dental assistant")
+    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant")
+
+    update_user_tokens(user_id, tokens)
 
     try:
         symptoms = json.loads(original_response)
@@ -117,7 +122,6 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
     dentistNotesText = f"The patient notes, written by the dentist, are as as follows: {dentistNotes}"
 
     log.info(f"Request {request_id} received for s.")
-    log.info(f"Patient dob: {patientDetails['dob']}")
     log.info(f"treatment plan details: {symptomDetails}")
 
     prompt = f"""
@@ -169,10 +173,10 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
 
     """
 
-    treatmentPlan = await ask_gpt(prompt, "You're a UK based dentist writing treatment plan letters for patients")
-    log.info(f"GPT treatment plan response: {treatmentPlan}")
+    treatmentPlan, tokens = await ask_gpt(prompt, "You're a UK based dentist writing treatment plan letters for patients")
+    update_user_tokens(user_id, tokens)
 
-    log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+    log.info(f"GPT treatment plan response: {treatmentPlan}")
 
     address = patientDetails["address"]
     address_parts = address.split(", ")
@@ -189,11 +193,11 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
     </p>
     <p></p>
     """
-
     # Generate the HTML response
     response_html = header + dear + treatmentPlan
 
-    return {"html_content": response_html}
+    log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+    return {"html_content": response_html, "tokens_consumed": tokens}
 
 
 @router.post("/saveTreatmentPlan", response_model=SaveTreatmentPlanResponse)
@@ -208,12 +212,16 @@ def save_treatment_plan(body: SaveTreatmentPlan, access_token=Depends(JWTBearer(
         request_id = uuid.uuid4().hex
         log.info(f"Request {request_id} received for saving treatment plan.")
 
-        patient_details = body.patientDetails
-        treatment_plan = body.treatmentPlan
         token = decodeJWT(access_token)
         user_id = token["user_id"]
-        result = create_new_letter(user_id, treatment_plan, patient_details)
+
+        patient_details = body.patient_details
+        treatment_plan = body.treatment_plan
+        tokens_consumed = body.tokens_consumed
+
+        result = create_new_letter(user_id, treatment_plan, patient_details, tokens_consumed)
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
+
         return {"message": "Letter saved successfully", "letter_id": str(result)}
 
     except HTTPException as e:

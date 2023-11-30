@@ -26,7 +26,7 @@ async def ask_gpt(prompt: str, system_prompt: str):
         # Log the response from the API
         log.info(f"GPT response:\n{content}\nTokens consumed: {total_tokens}")
 
-        return content
+        return content, total_tokens
     except openai.error.OpenAIError as e:
         # Log the error if the API call fails
         log.error(f"An error occurred: {str(e)}")
