@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.database.crud import (
-    check_if_user_already_exists,
+    retrieve_user_by_email,
     create_new_user,
     delete_member,
     retrieve_all_practice_members,
@@ -105,7 +105,19 @@ def create_new_account(body: UserRegistration, access_token=Depends(JWTBearer())
 
     try:
         # Check if the email already exists and registrations are turned on
-        check_if_user_already_exists(body.email)
+        try:
+            # Attempt to retrieve the user by email
+            existing_user = retrieve_user_by_email(body.email)
+        except HTTPException as e:
+            # Handle the 404 exception if user is not found
+            if e.status_code == 404:
+                existing_user = None
+            else:
+                raise
+
+        # Check if the email already exists
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already in use")
 
         new_user = create_new_user(body.name, body.email, body.password, body.practice_id, "Member")
 
