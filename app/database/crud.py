@@ -1,5 +1,6 @@
 import json
 
+from typing import Optional
 from fastapi import HTTPException
 from mongoengine import DoesNotExist
 from werkzeug.security import generate_password_hash
@@ -175,7 +176,7 @@ def retrieve_pricing(user_id: str):
 
 
 # Letter ---------------------------
-def create_new_letter(user_id: str, treatment_plan: str, patient_details: str, tokens_consumed: int):
+def create_new_letter(user_id: str, treatment_plan: str, patient_details: str, tokens_consumed: Optional[int] = None):
     try:
         user = User.objects.get(id=user_id)
 
