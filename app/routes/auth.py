@@ -3,9 +3,9 @@ from fastapi.exceptions import HTTPException
 from werkzeug.security import check_password_hash
 
 from app.database.crud import (
-    retrieve_allow_user_registrations,
     create_new_practice,
     create_new_user,
+    retrieve_allow_user_registrations,
     retrieve_user_by_email,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT, signJWT

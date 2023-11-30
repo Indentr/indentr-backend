@@ -6,8 +6,8 @@ from mongoengine import (
     Document,
     EmbeddedDocument,
     EmbeddedDocumentField,
-    StringField,
     IntField,
+    StringField,
     fields,
 )
 
