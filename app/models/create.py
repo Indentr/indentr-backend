@@ -65,7 +65,7 @@ class TreatmentPlanResponse(BaseModel):
             "examples": [
                 {
                     "html_content": "<p>123 Main St,</p><p>City,</p><p>Country,</p><p></p><p>Dear John Doe,</p><p></p><p>[HTML-formatted treatment plan]</p>",
-                    "tokens_consumed": 3201
+                    "tokens_consumed": 3201,
                 }
             ]
         }
@@ -89,7 +89,7 @@ class SaveTreatmentPlan(BaseModel):
                         "surname": "Reynolds",
                         "address": "1 Hollywood, Los Angeles, United States",
                     },
-                    "tokens_consumed": 3207
+                    "tokens_consumed": 3207,
                 }
             ]
         }

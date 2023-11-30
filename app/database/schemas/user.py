@@ -1,4 +1,4 @@
-from mongoengine import Document, EmailField, ReferenceField, StringField, IntField
+from mongoengine import Document, EmailField, IntField, ReferenceField, StringField
 
 from app.database.schemas.practice import Practice
 

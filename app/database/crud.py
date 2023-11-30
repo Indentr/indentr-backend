@@ -73,6 +73,7 @@ def delete_member(member_id: str, practice_id: str):
     # Delete the user document
     user_to_delete.delete()
 
+
 def retrieve_allow_user_registrations():
     # Check if user registrations are allowed
     configs_doc = Config.objects.first()
@@ -128,6 +129,7 @@ def retrieve_all_practice_members(practice_id: str):
 
     return members_dict_list
 
+
 def update_user_details(user_id: str, email: str):
     try:
         user = User.objects.get(id=user_id)
@@ -149,17 +151,11 @@ def update_user_details(user_id: str, email: str):
 def update_user_tokens(user_id: str, tokens: int):
     try:
         user = User.objects.get(id=user_id)
-        user.tokens_consumed += tokens 
+        user.tokens_consumed += tokens
         user.save()
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="User not found") from None
-
-
-
-
-
-
 
 
 # Pricing ---------------------------
@@ -178,21 +174,13 @@ def retrieve_pricing(user_id: str):
         raise HTTPException(status_code=404, detail="User not found") from None
 
 
-
-
-
 # Letter ---------------------------
-def create_new_letter(user_id:str, treatment_plan: str, patient_details: str, tokens_consumed: int):
+def create_new_letter(user_id: str, treatment_plan: str, patient_details: str, tokens_consumed: int):
     try:
         user = User.objects.get(id=user_id)
 
         # Create a new Letter document
-        letter = Letter(
-            consent_letter=treatment_plan, 
-            patient_info=json.loads(patient_details), 
-            user_id=user, 
-            tokens_consumed=tokens_consumed
-        )
+        letter = Letter(consent_letter=treatment_plan, patient_info=json.loads(patient_details), user_id=user, tokens_consumed=tokens_consumed)
 
         # Save the new letter to the database
         letter.save()
@@ -201,7 +189,6 @@ def create_new_letter(user_id:str, treatment_plan: str, patient_details: str, to
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="User not found") from None
-
 
 
 def retrieve_last_three_letters(user_id: str):
@@ -280,8 +267,6 @@ def update_letter(letter_id, treatment_plan, user_id: str):
     # Update the consent_letter field
     letter.consent_letter = treatment_plan
     letter.save()
-
-
 
 
 # Triage ---------------------------

@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.database.crud import (
-    retrieve_user_by_email,
     create_new_user,
     delete_member,
     retrieve_all_practice_members,
     retrieve_last_three_letters,
     retrieve_last_three_triage_requests,
     retrieve_practice_by_id,
+    retrieve_user_by_email,
     retrieve_user_by_id,
     update_user_details,
 )
