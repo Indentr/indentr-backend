@@ -40,73 +40,7 @@ def retrieve_practice_by_id(practice_id: str):
 
 
 # User ---------------------------
-def retrieve_user_by_id(user_id: str):
-    try:
-        user = User.objects.get(id=user_id)
-        user_dict = user.to_mongo().to_dict()
-
-        # Convert ObjectId to string in user_object
-        user_dict["_id"] = str(user.id)
-        practice_id = user_dict.get("practice_id")
-        if practice_id:
-            user_dict["practice_id"] = str(user.practice_id.id)
-        user_dict.pop("password", None)
-
-        return user_dict
-
-    except DoesNotExist:
-        raise HTTPException(status_code=404, detail="User not found") from None
-
-
-def update_user_details(user_id, email):
-    try:
-        user = User.objects.get(id=user_id)
-        user.email = email
-        user.save()
-
-        user_dict = user.to_mongo().to_dict()
-
-        # Convert ObjectId to string in user_object
-        user_dict["_id"] = str(user_dict["_id"])
-        user_dict.pop("password", None)
-
-        return user_dict
-
-    except DoesNotExist:
-        raise HTTPException(status_code=404, detail="User not found") from None
-
-
-# Function to find a user by email
-def retrieve_user_by_email(email):
-    user = User.objects(email=email).first()
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    return user.to_mongo().to_dict()
-
-
-def check_if_registration_allowed():
-    # Check if user registrations are allowed
-    configs_doc = Config.objects.first()
-
-    if not configs_doc:
-        raise HTTPException(status_code=404, detail="Config document not found.")
-
-    if not configs_doc.allow_registrations:
-        raise HTTPException(status_code=403, detail="User registrations are not allowed at the moment.")
-
-
-# Function to check if user email exists
-def check_if_user_already_exists(email):
-    # Check if the email already exists
-    existing_user = User.objects(email=email).first()
-
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email already in use")
-
-
-def create_new_user(name, email, password, practice_id, role):
+def create_new_user(name: str, email: str, password: str, practice_id: str, role: str):
     # Check if provided role is valid
     if role not in User.ROLES:
         raise ValueError(f"Invalid role: {role}")
@@ -129,6 +63,53 @@ def create_new_user(name, email, password, practice_id, role):
     return user_dict
 
 
+def delete_member(member_id: str, practice_id: str):
+    # Check that the user's practice_id matches the practice_id being passed and the role is Member
+    user_to_delete = User.objects(id=member_id, practice_id=practice_id, role="Member").first()
+
+    if not user_to_delete:
+        raise HTTPException(status_code=404, detail="No member with that id found in practice")
+
+    # Delete the user document
+    user_to_delete.delete()
+
+def retrieve_allow_user_registrations():
+    # Check if user registrations are allowed
+    configs_doc = Config.objects.first()
+    if not configs_doc:
+        raise HTTPException(status_code=404, detail="Config document not found.")
+
+    return configs_doc.allow_registrations
+
+
+def retrieve_user_by_id(user_id: str):
+    try:
+        user = User.objects.get(id=user_id)
+        user_dict = user.to_mongo().to_dict()
+
+        # Convert ObjectId to string in user_object
+        user_dict["_id"] = str(user.id)
+        practice_id = user_dict.get("practice_id")
+        if practice_id:
+            user_dict["practice_id"] = str(user.practice_id.id)
+        user_dict.pop("password", None)
+
+        return user_dict
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="User not found") from None
+
+
+# Function to find a user by email
+def retrieve_user_by_email(email: str):
+    user = User.objects(email=email).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return user.to_mongo().to_dict()
+
+
 def retrieve_all_practice_members(practice_id: str):
     # Query all users with the given practice_id
     practice_members = User.objects(practice_id=practice_id, role="Member")
@@ -147,20 +128,42 @@ def retrieve_all_practice_members(practice_id: str):
 
     return members_dict_list
 
+def update_user_details(user_id: str, email: str):
+    try:
+        user = User.objects.get(id=user_id)
+        user.email = email
+        user.save()
 
-def delete_member(member_id: str, practice_id: str):
-    # Check that the user's practice_id matches the practice_id being passed and the role is Member
-    user_to_delete = User.objects(id=member_id, practice_id=practice_id, role="Member").first()
+        user_dict = user.to_mongo().to_dict()
 
-    if not user_to_delete:
-        raise HTTPException(status_code=404, detail="No member with that id found in practice")
+        # Convert ObjectId to string in user_object
+        user_dict["_id"] = str(user_dict["_id"])
+        user_dict.pop("password", None)
 
-    # Delete the user document
-    user_to_delete.delete()
+        return user_dict
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="User not found") from None
+
+
+def update_user_tokens(user_id: str, tokens: int):
+    try:
+        user = User.objects.get(id=user_id)
+        user.tokens_consumed += tokens 
+        user.save()
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="User not found") from None
+
+
+
+
+
+
 
 
 # Pricing ---------------------------
-def retrieve_pricing(user_id):
+def retrieve_pricing(user_id: str):
     try:
         user = User.objects.get(id=user_id)
         pricing = Pricing.objects(practice_id=user.practice_id).first()
@@ -175,8 +178,33 @@ def retrieve_pricing(user_id):
         raise HTTPException(status_code=404, detail="User not found") from None
 
 
+
+
+
 # Letter ---------------------------
-def retrieve_last_three_letters(user_id):
+def create_new_letter(user_id:str, treatment_plan: str, patient_details: str, tokens_consumed: int):
+    try:
+        user = User.objects.get(id=user_id)
+
+        # Create a new Letter document
+        letter = Letter(
+            consent_letter=treatment_plan, 
+            patient_info=json.loads(patient_details), 
+            user_id=user, 
+            tokens_consumed=tokens_consumed
+        )
+
+        # Save the new letter to the database
+        letter.save()
+
+        return str(letter.id)
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="User not found") from None
+
+
+
+def retrieve_last_three_letters(user_id: str):
     try:
         letters = Letter.objects(user_id=user_id).order_by("-_id").limit(3)
         # Convert each letter to a dictionary
@@ -241,22 +269,6 @@ def retrieve_user_letter(letter_id, user_id):
     return letter_dict
 
 
-def create_new_letter(user_id, treatment_plan, patient_details):
-    try:
-        user = User.objects.get(id=user_id)
-
-        # Create a new Letter document
-        letter = Letter(consent_letter=treatment_plan, patient_info=json.loads(patient_details), user_id=user)
-
-        # Save the new letter to the database
-        letter.save()
-
-        return str(letter.id)
-
-    except DoesNotExist:
-        raise HTTPException(status_code=404, detail="User not found") from None
-
-
 # Function to update the consent letter
 def update_letter(letter_id, treatment_plan, user_id: str):
     # Use MongoEngine to find and update the document
@@ -268,6 +280,8 @@ def update_letter(letter_id, treatment_plan, user_id: str):
     # Update the consent_letter field
     letter.consent_letter = treatment_plan
     letter.save()
+
+
 
 
 # Triage ---------------------------
