@@ -1,6 +1,6 @@
 import json
-
 from typing import Optional
+
 from fastapi import HTTPException
 from mongoengine import DoesNotExist
 from werkzeug.security import generate_password_hash
