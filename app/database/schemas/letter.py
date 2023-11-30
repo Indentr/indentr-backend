@@ -6,6 +6,7 @@ from mongoengine import (
     Document,
     EmbeddedDocument,
     EmbeddedDocumentField,
+    IntField,
     StringField,
     fields,
 )
@@ -26,5 +27,6 @@ class Letter(Document):
     patient_info = EmbeddedDocumentField(PatientInfo)
     user_id = fields.ReferenceField(User, required=True)
     createdAt = DateTimeField(default=datetime.utcnow)
+    tokens_consumed = IntField(default=0)
 
     meta = {"collection": "letters"}  # Specify the collection name

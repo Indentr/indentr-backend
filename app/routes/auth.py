@@ -3,10 +3,9 @@ from fastapi.exceptions import HTTPException
 from werkzeug.security import check_password_hash
 
 from app.database.crud import (
-    check_if_registration_allowed,
-    check_if_user_already_exists,
     create_new_practice,
     create_new_user,
+    retrieve_allow_user_registrations,
     retrieve_user_by_email,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT, signJWT
@@ -48,9 +47,23 @@ def post_user_registration(body: UserRegisterRequest):
     """
 
     try:
-        # Check if the email already exists and registrations are turned on
-        check_if_registration_allowed()
-        check_if_user_already_exists(body.email)
+        # Check if user registrations are turned on
+        if not retrieve_allow_user_registrations():
+            raise HTTPException(status_code=403, detail="User registrations are not allowed at the moment.")
+
+        try:
+            # Attempt to retrieve the user by email
+            existing_user = retrieve_user_by_email(body.email)
+        except HTTPException as e:
+            # Handle the 404 exception if user is not found
+            if e.status_code == 404:
+                existing_user = None
+            else:
+                raise
+
+        # Check if the email already exists
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already in use")
 
         practice_id = create_new_practice(body.practice_name, body.practice_email, body.practice_url, body.address, body.phone)
 

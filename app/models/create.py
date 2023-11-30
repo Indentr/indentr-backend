@@ -58,12 +58,14 @@ class TreatmentPlanData(BaseModel):
 # Response model
 class TreatmentPlanResponse(BaseModel):
     html_content: str
+    tokens_consumed: int
 
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
-                    "html_content": "<p>123 Main St,</p><p>City,</p><p>Country,</p><p></p><p>Dear John Doe,</p><p></p><p>[HTML-formatted treatment plan]</p>"
+                    "html_content": "<p>123 Main St,</p><p>City,</p><p>Country,</p><p></p><p>Dear John Doe,</p><p></p><p>[HTML-formatted treatment plan]</p>",
+                    "tokens_consumed": 3201,
                 }
             ]
         }
@@ -72,8 +74,9 @@ class TreatmentPlanResponse(BaseModel):
 
 # Request model
 class SaveTreatmentPlan(BaseModel):
-    treatmentPlan: str
-    patientDetails: str
+    treatment_plan: str
+    patient_details: str
+    tokens_consumed: int
 
     model_config = {
         "json_schema_extra": {
@@ -86,6 +89,7 @@ class SaveTreatmentPlan(BaseModel):
                         "surname": "Reynolds",
                         "address": "1 Hollywood, Los Angeles, United States",
                     },
+                    "tokens_consumed": 3207,
                 }
             ]
         }
