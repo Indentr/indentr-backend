@@ -130,6 +130,18 @@ def retrieve_all_practice_members(practice_id: str):
 
     return members_dict_list
 
+# takes in a practice_id in order to search for all users with the same practice_id
+def retrieve_practice_users_token_consumption(practice_id: str):
+    practice_users_token_consumption = User.objects(practice_id=practice_id).only('name', 'tokens_consumed')
+
+    users_tokens_dict_list = []
+    for user in practice_users_token_consumption:
+        user_dict = user.to_mongo().to_dict()
+        user_dict["_id"] = str(user.id)
+        users_tokens_dict_list.append(user_dict)
+
+    return users_tokens_dict_list
+
 
 def update_user_details(user_id: str, email: str):
     try:
