@@ -2,8 +2,9 @@ import json
 import logging
 import time
 import uuid
+import base64
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 
 from app.database.crud import create_new_letter, retrieve_pricing, update_user_tokens
 from app.middleware.jwt import JWTBearer, decodeJWT
@@ -15,6 +16,7 @@ from app.models.create import (
     TreatmentPlanData,
     TreatmentPlanResponse,
 )
+from pydantic import BaseModel
 from app.prompts import dentist_notes_prompt, symptoms_details_prompt
 from app.services.openAI import ask_gpt, ask_gpt_image
 from app.treatmentPlans.implantLetter import example_consent_letter
@@ -72,7 +74,6 @@ async def generate_questions(body: SymptomData, form_type: str, access_token=Dep
 
     return symptoms
 
-
 @router.post("/analyse-image")
 async def save_img(request: Request, access_token=Depends(JWTBearer())):
     """
@@ -99,7 +100,32 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to save image") from e
 
+class AudioData(BaseModel):
+    audioData: str  # Field to receive base64 encoded audio data
 
+@router.post("/uploadAudio")
+async def upload_audio(audioData: AudioData, access_token=Depends(JWTBearer())):
+    print("Upload audio route called")
+
+    try:
+        # Decode the base64 string to bytes
+        audio_bytes = base64.b64decode(audioData.audioData)
+
+        # Generate a file name
+        file_location = f"audio_uploads/{uuid.uuid4().hex}.wav"
+
+        # Save the decoded audio
+        with open(file_location, "wb") as file:
+            file.write(audio_bytes)
+
+        # Process the file as needed
+        # For example, analyze the audio, transcribe, etc.
+
+        return {"message": "File uploaded successfully (msg from server)", "filename": file_location}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+        
 @router.post("/treatmentPlan", response_model=TreatmentPlanResponse)
 async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(JWTBearer())):
     """
@@ -199,7 +225,6 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
     return {"html_content": response_html, "tokens_consumed": tokens}
 
-
 @router.post("/saveTreatmentPlan", response_model=SaveTreatmentPlanResponse)
 def save_treatment_plan(body: SaveTreatmentPlan, access_token=Depends(JWTBearer())):
     """
@@ -227,3 +252,5 @@ def save_treatment_plan(body: SaveTreatmentPlan, access_token=Depends(JWTBearer(
     except HTTPException as e:
         log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
         raise e
+
+
