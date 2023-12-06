@@ -7,7 +7,6 @@ import os
 import shutil
 
 from google.cloud import speech
-
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form
 
 from app.database.crud import create_new_letter, retrieve_pricing, update_user_tokens
@@ -26,11 +25,13 @@ from app.services.openAI import ask_gpt, ask_gpt_image
 from app.treatmentPlans.implantLetter import example_consent_letter
 
 
-# Instantiates a client
+# Instantiates a client for google speech to text
 client = speech.SpeechClient()
 
+#initiates api router
 router = APIRouter(prefix="/create", tags=["Create"])
 
+#initiates logger
 log = logging.getLogger(__name__)
 
 
