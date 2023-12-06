@@ -6,6 +6,7 @@ import base64
 import os
 import shutil
 
+from google.cloud import speech
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form
 
@@ -23,6 +24,10 @@ from pydantic import BaseModel
 from app.prompts import dentist_notes_prompt, symptoms_details_prompt
 from app.services.openAI import ask_gpt, ask_gpt_image
 from app.treatmentPlans.implantLetter import example_consent_letter
+
+
+# Instantiates a client
+client = speech.SpeechClient()
 
 router = APIRouter(prefix="/create", tags=["Create"])
 
@@ -118,7 +123,7 @@ async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(J
             print(f"Created directory: {upload_directory}")
 
         # Generate a file name
-        file_location = f"{upload_directory}/{uuid.uuid4().hex}.wav"
+        file_location = f"{upload_directory}/{uuid.uuid4().hex}.webm"
         print(f"Generated file location: {file_location}")
 
         # Save the uploaded file
@@ -130,13 +135,34 @@ async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(J
         # Remember to close the file
         await audioFile.close()
 
+        # Instantiates a client
+        client = speech.SpeechClient()
+
+        # Loads the audio into memory
+        with open(file_location, "rb") as audio_file:
+            content = audio_file.read()
+            audio = speech.RecognitionAudio(content=content)
+
+        config = speech.RecognitionConfig(
+            #encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+            language_code="en-US",
+        )
+
+        # Detects speech in the audio file
+        response = client.recognize(config=config, audio=audio)
+
+        print("Speech recognition response:", response)
+
+        transcripts = [result.alternatives[0].transcript for result in response.results]
+        print("Transcripts:", transcripts)
+
         print(f"Processing completed for file: {file_location}")
-        return {"message": "File uploaded successfully (msg from server)", "filename": file_location}
+        return {"message": "File uploaded and processed successfully", "filename": file_location, "transcripts": transcripts}
 
     except Exception as e:
         print(f"An error occurred during file processing: {str(e)}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-        
+
 @router.post("/treatmentPlan", response_model=TreatmentPlanResponse)
 async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(JWTBearer())):
     """
