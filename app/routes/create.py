@@ -3,8 +3,11 @@ import logging
 import time
 import uuid
 import base64
+import os
+import shutil
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
+
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form
 
 from app.database.crud import create_new_letter, retrieve_pricing, update_user_tokens
 from app.middleware.jwt import JWTBearer, decodeJWT
@@ -100,30 +103,38 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to save image") from e
 
-class AudioData(BaseModel):
-    audioData: str  # Field to receive base64 encoded audio data
-
 @router.post("/uploadAudio")
-async def upload_audio(audioData: AudioData, access_token=Depends(JWTBearer())):
+async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(JWTBearer())):
     print("Upload audio route called")
 
     try:
-        # Decode the base64 string to bytes
-        audio_bytes = base64.b64decode(audioData.audioData)
+        # Print received file information for debugging
+        print(f"Received file: {audioFile.filename}, Content type: {audioFile.content_type}")
+
+        # Check and create 'audio_uploads' directory if it doesn't exist
+        upload_directory = "audio_uploads"
+        if not os.path.exists(upload_directory):
+            os.makedirs(upload_directory)
+            print(f"Created directory: {upload_directory}")
 
         # Generate a file name
-        file_location = f"audio_uploads/{uuid.uuid4().hex}.wav"
+        file_location = f"{upload_directory}/{uuid.uuid4().hex}.wav"
+        print(f"Generated file location: {file_location}")
 
-        # Save the decoded audio
+        # Save the uploaded file
         with open(file_location, "wb") as file:
-            file.write(audio_bytes)
+            contents = await audioFile.read()  # Read the file contents
+            file.write(contents)
+            print(f"File saved successfully at {file_location}")
 
-        # Process the file as needed
-        # For example, analyze the audio, transcribe, etc.
+        # Remember to close the file
+        await audioFile.close()
 
+        print(f"Processing completed for file: {file_location}")
         return {"message": "File uploaded successfully (msg from server)", "filename": file_location}
 
     except Exception as e:
+        print(f"An error occurred during file processing: {str(e)}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
         
 @router.post("/treatmentPlan", response_model=TreatmentPlanResponse)
