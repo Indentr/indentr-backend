@@ -5,3 +5,5 @@ __pycache__
 static/requests/*
 log.log
 .ini
+authentication
+audio_uploads
