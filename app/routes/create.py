@@ -157,8 +157,26 @@ async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(J
         transcripts = [result.alternatives[0].transcript for result in response.results]
         print("Transcripts:", transcripts)
 
+        prompt = prompt = f"""
+
+        transcript: {transcripts}
+
+        given the above transcript, please formatt it into a well layed out and concise 
+        set of dental notes to be saved on the dentist's system.
+        Bare in mind that it is an audio transcription so some of the words maybe incorrectly 
+        recorded, do your best to guess what the correct sentence would have been. eg upper last 3 probably
+        means upper left 3.
+
+        """
+
+        formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes")
+        
+
+        print("ai response to transcipt: ", formatted_notes)
+
         print(f"Processing completed for file: {file_location}")
-        return {"message": "File uploaded and processed successfully", "filename": file_location, "transcripts": transcripts}
+        return {"message": "File uploaded and processed successfully", "filename": file_location, 
+                "transcripts": transcripts, "formatted_notes": formatted_notes}
 
     except Exception as e:
         print(f"An error occurred during file processing: {str(e)}")
