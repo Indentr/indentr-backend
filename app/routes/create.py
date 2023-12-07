@@ -1,13 +1,11 @@
 import json
 import logging
+import os
 import time
 import uuid
-import base64
-import os
-import shutil
 
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
 from google.cloud import speech
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form
 
 from app.database.crud import create_new_letter, retrieve_pricing, update_user_tokens
 from app.middleware.jwt import JWTBearer, decodeJWT
@@ -19,19 +17,17 @@ from app.models.create import (
     TreatmentPlanData,
     TreatmentPlanResponse,
 )
-from pydantic import BaseModel
 from app.prompts import dentist_notes_prompt, symptoms_details_prompt
 from app.services.openAI import ask_gpt, ask_gpt_image
 from app.treatmentPlans.implantLetter import example_consent_letter
 
-
 # Instantiates a client for google speech to text
 client = speech.SpeechClient()
 
-#initiates api router
+# initiates api router
 router = APIRouter(prefix="/create", tags=["Create"])
 
-#initiates logger
+# initiates logger
 log = logging.getLogger(__name__)
 
 
@@ -83,6 +79,7 @@ async def generate_questions(body: SymptomData, form_type: str, access_token=Dep
 
     return symptoms
 
+
 @router.post("/analyse-image")
 async def save_img(request: Request, access_token=Depends(JWTBearer())):
     """
@@ -109,6 +106,7 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to save image") from e
 
+
 @router.post("/uploadAudio")
 async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(JWTBearer())):
     print("Upload audio route called")
@@ -117,35 +115,17 @@ async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(J
         # Print received file information for debugging
         print(f"Received file: {audioFile.filename}, Content type: {audioFile.content_type}")
 
-        # Check and create 'audio_uploads' directory if it doesn't exist
-        upload_directory = "audio_uploads"
-        if not os.path.exists(upload_directory):
-            os.makedirs(upload_directory)
-            print(f"Created directory: {upload_directory}")
-
-        # Generate a file name
-        file_location = f"{upload_directory}/{uuid.uuid4().hex}.webm"
-        print(f"Generated file location: {file_location}")
-
-        # Save the uploaded file
-        with open(file_location, "wb") as file:
-            contents = await audioFile.read()  # Read the file contents
-            file.write(contents)
-            print(f"File saved successfully at {file_location}")
-
-        # Remember to close the file
-        await audioFile.close()
+        # Read the file contents into a memory buffer
+        audio_content = await audioFile.read()
 
         # Instantiates a client
         client = speech.SpeechClient()
 
-        # Loads the audio into memory
-        with open(file_location, "rb") as audio_file:
-            content = audio_file.read()
-            audio = speech.RecognitionAudio(content=content)
+        # Loads the audio from the buffer
+        audio = speech.RecognitionAudio(content=audio_content)
 
         config = speech.RecognitionConfig(
-            #encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+            # encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
             language_code="en-US",
         )
 
@@ -161,26 +141,27 @@ async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(J
 
         transcript: {transcripts}
 
-        given the above transcript, please formatt it into a well layed out and concise 
+        given the above transcript, please formatt it into a well layed out and concise
         set of dental notes to be saved on the dentist's system.
-        Bare in mind that it is an audio transcription so some of the words maybe incorrectly 
+        Bare in mind that it is an audio transcription so some of the words maybe incorrectly
         recorded, do your best to guess what the correct sentence would have been. eg upper last 3 probably
         means upper left 3.
 
         """
 
         formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes")
-        
 
         print("ai response to transcipt: ", formatted_notes)
 
-        print(f"Processing completed for file: {file_location}")
-        return {"message": "File uploaded and processed successfully", "filename": file_location, 
-                "transcripts": transcripts, "formatted_notes": formatted_notes}
+        return {
+            "transcripts": transcripts,
+            "formatted_notes": formatted_notes,
+        }
 
     except Exception as e:
         print(f"An error occurred during file processing: {str(e)}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
 
 @router.post("/treatmentPlan", response_model=TreatmentPlanResponse)
 async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(JWTBearer())):
@@ -281,6 +262,7 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
     return {"html_content": response_html, "tokens_consumed": tokens}
 
+
 @router.post("/saveTreatmentPlan", response_model=SaveTreatmentPlanResponse)
 def save_treatment_plan(body: SaveTreatmentPlan, access_token=Depends(JWTBearer())):
     """
@@ -308,5 +290,3 @@ def save_treatment_plan(body: SaveTreatmentPlan, access_token=Depends(JWTBearer(
     except HTTPException as e:
         log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
         raise e
-
-
