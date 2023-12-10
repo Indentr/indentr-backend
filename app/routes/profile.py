@@ -70,7 +70,7 @@ def get_account_settings(access_token=Depends(JWTBearer())):
 
 
 @router.get("/billing")
-def get_account_settings(access_token=Depends(JWTBearer())):
+def get_account_settings_billing(access_token=Depends(JWTBearer())):
     """
     Retrieves the user's profile information along with their latest letters.
     """
