@@ -1,9 +1,10 @@
 import json
 import logging
+import os
 import time
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
 
 from app.database.crud import create_new_letter, retrieve_pricing, update_user_tokens
 from app.middleware.jwt import JWTBearer, decodeJWT
@@ -16,11 +17,14 @@ from app.models.create import (
     TreatmentPlanResponse,
 )
 from app.prompts import dentist_notes_prompt, symptoms_details_prompt
+from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt, ask_gpt_image
 from app.treatmentPlans.implantLetter import example_consent_letter
 
+# initiates api router
 router = APIRouter(prefix="/create", tags=["Create"])
 
+# initiates logger
 log = logging.getLogger(__name__)
 
 
@@ -98,6 +102,63 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
         raise e  # Reraise the HTTPException
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to save image") from e
+
+
+@router.post("/uploadAudio")
+async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(JWTBearer())):
+    print("Upload audio route called")
+
+    try:
+        # Print received file information for debugging
+        print(f"Received file: {audioFile.filename}, Content type: {audioFile.content_type}")
+
+        # Read the file contents into a memory buffer
+        audio_content = await audioFile.read()
+
+        # Print received file information for debugging
+        print(f"Received file: {audioFile.filename}, Content type: {audioFile.content_type}")
+
+        # Generate a unique file name using UUID with .webm extension
+        unique_filename = str(uuid.uuid4()) + ".webm"
+
+        # Save the audio file in the specified directory
+        file_path = os.path.join("audio_uploads", unique_filename)
+        with open(file_path, "wb") as f:
+            f.write(audio_content)
+
+        response = await dpg_speech_to_text(file_path)
+
+        print("Speech recognition response:", response)
+
+        transcripts = response["results"]["channels"][0]["alternatives"][0]["transcript"]
+        print("Transcripts:", transcripts)
+
+        prompt = prompt = f"""
+
+        Objective: Convert the below dental dictation transcript into professional, concise but comprehensive
+        dental notes for patient record inclusion:
+
+        transcript: {transcripts}
+
+        Important points: Bare in mind that it is an ai generated audio transcription so some of the words
+        maybe incorrectly recorded, do your best to guess what the correct sentence would have been.
+        eg upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
+         in words that do not appear to fit the context will mean Upper left 3
+
+        """
+
+        formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes")
+
+        print("ai response to transcipt: ", formatted_notes)
+
+        return {
+            "transcripts": transcripts,
+            "formatted_notes": formatted_notes,
+        }
+
+    except Exception as e:
+        print(f"An error occurred during file processing: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}") from e
 
 
 @router.post("/treatmentPlan", response_model=TreatmentPlanResponse)

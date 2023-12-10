@@ -7,9 +7,9 @@ from app.database.crud import (
     retrieve_last_three_letters,
     retrieve_last_three_triage_requests,
     retrieve_practice_by_id,
+    retrieve_practice_users_token_consumption,
     retrieve_user_by_email,
     retrieve_user_by_id,
-    retrieve_practice_users_token_consumption,
     update_user_details,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
@@ -70,7 +70,7 @@ def get_account_settings(access_token=Depends(JWTBearer())):
 
 
 @router.get("/billing")
-def get_account_settings(access_token=Depends(JWTBearer())):
+def get_account_settings_billing(access_token=Depends(JWTBearer())):
     """
     Retrieves the user's profile information along with their latest letters.
     """
@@ -80,7 +80,7 @@ def get_account_settings(access_token=Depends(JWTBearer())):
         user = retrieve_user_by_id(user_id)
         practice_users_token_consumption = retrieve_practice_users_token_consumption(user["practice_id"])
 
-        return { "tokens_consumed": practice_users_token_consumption }
+        return {"tokens_consumed": practice_users_token_consumption}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
