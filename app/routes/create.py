@@ -6,7 +6,13 @@ import uuid
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
 
-from app.database.crud import create_new_letter, retrieve_pricing, update_user_tokens
+from app.database.crud import (
+    create_new_letter, 
+    retrieve_pricing, 
+    update_user_tokens,
+    retrieve_patient_by_email
+)
+
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
     SaveTreatmentPlan,
@@ -60,7 +66,10 @@ async def generate_questions(body: SymptomData, form_type: str, access_token=Dep
     """
 
     original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant")
-
+    print("original response: ", original_response)
+    # Split the string at '[' and ']'
+    # cleaned_json_string = original_response[7:-3]
+    # print("split response: ", cleaned_json_string)
     update_user_tokens(user_id, tokens)
 
     try:
@@ -182,7 +191,7 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
 
     dentistNotesText = f"The patient notes, written by the dentist, are as as follows: {dentistNotes}"
 
-    log.info(f"Request {request_id} received for s.")
+    log.info(f"Request {request_id} received.")
     log.info(f"treatment plan details: {symptomDetails}")
 
     prompt = f"""
@@ -280,7 +289,9 @@ def save_treatment_plan(body: SaveTreatmentPlan, access_token=Depends(JWTBearer(
         treatment_plan = body.treatment_plan
         tokens_consumed = body.tokens_consumed
 
-        result = create_new_letter(user_id, treatment_plan, patient_details, tokens_consumed)
+        patient = retrieve_patient_by_email(patient_details.email)
+
+        result = create_new_letter(user_id, treatment_plan, patient, tokens_consumed)
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
 
         return {"message": "Letter saved successfully", "letter_id": str(result)}
