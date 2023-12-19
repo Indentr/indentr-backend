@@ -88,7 +88,6 @@ class SaveTreatmentPlan(BaseModel):
                         "forename": "Ryan",
                         "surname": "Reynolds",
                         "address": "1 Hollywood, Los Angeles, United States",
-                        "email": "ryanreynolds1@gmail.com"
                     },
                     "tokens_consumed": 3207,
                 }

@@ -6,21 +6,26 @@ from mongoengine import (
     Document,
     EmbeddedDocument,
     EmbeddedDocumentField,
-    ReferenceField,
     IntField,
     StringField,
     fields,
 )
 
 from app.database.schemas.user import User
-from app.database.schemas.patient import Patient
 
+
+class PatientInfo(EmbeddedDocument):
+    forename = StringField()
+    surname = StringField()
+    dob = DateField()
+    gender = StringField()
+    address = StringField()
 
 
 class Letter(Document):
     consent_letter = StringField()
-    patient_id = ReferenceField(Patient, required=True)
-    user_id = ReferenceField(User, required=True)
+    patient_info = EmbeddedDocumentField(PatientInfo)
+    user_id = fields.ReferenceField(User, required=True)
     createdAt = DateTimeField(default=datetime.utcnow)
     tokens_consumed = IntField(default=0)
 
