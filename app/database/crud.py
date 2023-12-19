@@ -11,6 +11,7 @@ from app.database.schemas.practice import Practice
 from app.database.schemas.pricing import Pricing
 from app.database.schemas.triage import Triage
 from app.database.schemas.user import User
+from app.database.schemas.patient import Patient
 
 
 # Practice ------------------------
@@ -189,12 +190,17 @@ def retrieve_pricing(user_id: str):
 
 
 # Letter ---------------------------
-def create_new_letter(user_id: str, treatment_plan: str, patient_details: str, tokens_consumed: Optional[int] = None):
+def create_new_letter(user_id: str, treatment_plan: str, patient: Patient, tokens_consumed: Optional[int] = None):
     try:
         user = User.objects.get(id=user_id)
 
         # Create a new Letter document
-        letter = Letter(consent_letter=treatment_plan, patient_info=json.loads(patient_details), user_id=user, tokens_consumed=tokens_consumed)
+        letter = Letter(
+            consent_letter=treatment_plan, 
+            patient_id=patient, 
+            user_id=user, 
+            tokens_consumed=tokens_consumed
+        )
 
         # Save the new letter to the database
         letter.save()
@@ -305,3 +311,18 @@ def retrieve_last_three_triage_requests(user_id: str):
     except DoesNotExist:
         # Handle the case where no letters are found
         return []
+
+
+
+
+
+# Patient ------------------------------
+def retrieve_patient_by_email(email: str):
+    try:
+        # Retrieve the patient document based on email
+        patient = Patient.objects.get(email=email)
+
+        return patient.to_mongo().to_dict()
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Patient not found") from None
