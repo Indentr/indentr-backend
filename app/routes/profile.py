@@ -6,11 +6,11 @@ from app.database.crud import (
     retrieve_all_practice_members,
     retrieve_last_three_letters,
     retrieve_last_three_triage_requests,
+    retrieve_patients_by_ids,
     retrieve_practice_by_id,
     retrieve_practice_users_token_consumption,
     retrieve_user_by_email,
     retrieve_user_by_id,
-    retrieve_patients_by_ids,
     update_user_details,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT

@@ -1,20 +1,15 @@
 from datetime import datetime
 
 from mongoengine import (
-    DateField,
     DateTimeField,
     Document,
-    EmbeddedDocument,
-    EmbeddedDocumentField,
-    ReferenceField,
     IntField,
+    ReferenceField,
     StringField,
-    fields,
 )
 
-from app.database.schemas.user import User
 from app.database.schemas.patient import Patient
-
+from app.database.schemas.user import User
 
 
 class Letter(Document):

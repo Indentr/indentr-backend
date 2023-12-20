@@ -1,16 +1,9 @@
-from datetime import datetime
-
 from mongoengine import (
     DateField,
-    DateTimeField,
     Document,
-    EmbeddedDocument,
-    EmbeddedDocumentField,
+    EmailField,
     ReferenceField,
-    IntField,
     StringField,
-    fields,
-    EmailField
 )
 
 from app.database.schemas.practice import Practice

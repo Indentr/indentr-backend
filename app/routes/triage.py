@@ -1,17 +1,17 @@
 import json
 import logging
-import os
 import time
 import uuid
-from fastapi import APIRouter, Depends, HTTPException
+
+from fastapi import APIRouter, HTTPException
 
 from app.database.crud import (
+    create_new_patient,
     create_triage_request,
+    retrieve_patient_by_email,
     retrieve_practice_by_id,
-    retrieve_patient_by_email
 )
-from app.middleware.jwt import JWTBearer, decodeJWT
-from app.models.triage import GenerateQuestions, CreatePatientRequest
+from app.models.triage import CreatePatientRequest, GenerateQuestions
 from app.services.openAI import ask_gpt
 
 router = APIRouter(prefix="/triage", tags=["Triage"])
@@ -26,13 +26,12 @@ def check_practice_id_valid(practice_id: str):
     Checks if a practice_id is valid.
     """
     try:
-        practice = retrieve_practice_by_id(practice_id)
+        retrieve_practice_by_id(practice_id)
 
         return {"success": True}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
-
 
 
 @router.post("/generate-questions")
@@ -56,18 +55,24 @@ async def generate_triage_questions(body: GenerateQuestions):
                 raise HTTPException(status_code=404, detail="Email not associated with practice")
 
         except HTTPException as e:
-            raise HTTPException(status_code=404, detail="Email not associated with practice")
+            raise HTTPException(status_code=404, detail="Email not associated with practice") from e
 
     else:
         # if the patient is new then add them to the db but without a practice
         try:
             # check if the patient already exists within the system
             patient = retrieve_patient_by_email(patient_details["email"])
-            
-        except HTTPException as e:
-            # if the patient doesn't exist then add them to the db
-            create_new_patient(patient_details["forename"], patient_details["surname"], patient_details["dob"], patient_details["gender"], patient_details["address"], patient_details["email"])
 
+        except HTTPException:
+            # if the patient doesn't exist then add them to the db
+            create_new_patient(
+                patient_details["forename"],
+                patient_details["surname"],
+                patient_details["dob"],
+                patient_details["gender"],
+                patient_details["address"],
+                patient_details["email"],
+            )
 
     log.info(f"Request {request_id} received for triage symptom questions.")
 
@@ -106,7 +111,6 @@ async def generate_triage_questions(body: GenerateQuestions):
     return questions
 
 
-
 @router.post("/create-patient-request")
 async def create_patient_request(body: CreatePatientRequest):
     """
@@ -115,13 +119,13 @@ async def create_patient_request(body: CreatePatientRequest):
     The response is then saved to the triage table in mongoDB.
     """
 
-    start = time.time()
+    time.time()
     request_id = uuid.uuid4().hex
 
     patient_details = json.loads(body.patient_details)
     practice_id = json.loads(body.practice_id)
     symptom_details = json.loads(body.symptom_details)
-    
+
     log.info(f"Request {request_id} received for creating a patient triage request.")
 
     prompt = f"""
@@ -154,6 +158,3 @@ async def create_patient_request(body: CreatePatientRequest):
     create_triage_request(practice_id, patient_details["email"], response["diagnosis"], response["overview"], response["severity"])
 
     return {"success": True}
-
-
-

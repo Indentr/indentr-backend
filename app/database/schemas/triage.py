@@ -1,13 +1,7 @@
-from mongoengine import (
-    Document, 
-    EmbeddedDocument,
-    ReferenceField,
-    fields
-)
+from mongoengine import Document, ReferenceField, fields
 
-from app.database.schemas.practice import Practice
 from app.database.schemas.patient import Patient
-from app.database.schemas.user import User
+from app.database.schemas.practice import Practice
 
 
 class Triage(Document):

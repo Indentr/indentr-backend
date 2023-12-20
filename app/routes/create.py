@@ -8,22 +8,21 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
 
 from app.database.crud import (
     create_new_letter,
-    create_new_patient, 
-    retrieve_pricing, 
-    retrieve_user_by_id,
+    create_new_patient,
     retrieve_patient_by_email,
+    retrieve_pricing,
+    retrieve_user_by_id,
     update_user_tokens,
 )
-
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
+    PatientDetails,
     SaveTreatmentPlan,
     SaveTreatmentPlanResponse,
     SymptomData,
     SymptomResponse,
     TreatmentPlanData,
     TreatmentPlanResponse,
-    PatientDetails
 )
 from app.prompts import dentist_notes_prompt, symptoms_details_prompt
 from app.services.deepgram import dpg_speech_to_text
@@ -37,13 +36,11 @@ router = APIRouter(prefix="/create", tags=["Create"])
 log = logging.getLogger(__name__)
 
 
-
-
 @router.post("/save-patient-details")
 async def save_patient_details(body: PatientDetails, access_token=Depends(JWTBearer())):
     """
     # Saves the patient details to the DB
-    This endpoint saves patient details to the DB based on the users practice_id.    
+    This endpoint saves patient details to the DB based on the users practice_id.
     """
     try:
         start = time.time()
@@ -59,8 +56,15 @@ async def save_patient_details(body: PatientDetails, access_token=Depends(JWTBea
         patient_details = json.loads(body.patientDetails)
         print("patient_details: ", patient_details)
 
-        create_new_patient(patient_details["forename"], patient_details["surname"], patient_details["dob"], patient_details["gender"], patient_details["address"], patient_details["email"], user["practice_id"])
-
+        create_new_patient(
+            patient_details["forename"],
+            patient_details["surname"],
+            patient_details["dob"],
+            patient_details["gender"],
+            patient_details["address"],
+            patient_details["email"],
+            user["practice_id"],
+        )
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
 
@@ -69,7 +73,6 @@ async def save_patient_details(body: PatientDetails, access_token=Depends(JWTBea
     except HTTPException as e:
         log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
         raise e
-
 
 
 @router.post("/generate_questions/{form_type}", response_model=list[SymptomResponse])
