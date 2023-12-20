@@ -189,7 +189,7 @@ async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(J
         Important points: Bare in mind that it is an ai generated audio transcription so some of the words
         maybe incorrectly recorded, do your best to guess what the correct sentence would have been.
         eg upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
-         in words that do not appear to fit the context will mean Upper left 3
+        in words that do not appear to fit the context will mean Upper left 3
 
         """
 
@@ -323,8 +323,6 @@ def save_treatment_plan(body: SaveTreatmentPlan, access_token=Depends(JWTBearer(
         user_id = token["user_id"]
 
         patient_details = json.loads(body.patient_details)
-        print("patient_details: ", patient_details)
-        print(patient_details["email"])
         treatment_plan = body.treatment_plan
         tokens_consumed = body.tokens_consumed
 
