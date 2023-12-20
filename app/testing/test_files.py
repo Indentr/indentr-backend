@@ -1,4 +1,3 @@
-import json
 
 import pytest
 from bson import ObjectId
@@ -57,7 +56,6 @@ def insert_treatment_plan(register_and_login):
         patient_details["address"],
         patient_details["email"],
     )
-
 
     letter_id = create_new_letter(user_id, consent_letter, patient["_id"])
     return token, letter_id, consent_letter, patient_details, user_id

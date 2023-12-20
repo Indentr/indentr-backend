@@ -281,7 +281,7 @@ def retrieve_all_users_letters(user_id: str):
     try:
         # Query letters using MongoEngine
         letters = Letter.objects(user_id=user_id).order_by("-createdAt")
-    
+
     except DoesNotExist as e:
         # Check if the exception is related to User or Letter
         if "User" in str(e):
@@ -304,7 +304,6 @@ def retrieve_all_users_letters(user_id: str):
         letters_list.append(letter_dict)
 
     return letters_list
-
 
 
 # Function to get a specific letter

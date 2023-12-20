@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.database.crud import (
     retrieve_all_users_letters,
-    retrieve_user_letter,
     retrieve_patients_by_ids,
+    retrieve_user_letter,
     update_letter,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
