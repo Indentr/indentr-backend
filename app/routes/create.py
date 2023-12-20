@@ -1,10 +1,9 @@
 import json
 import logging
-import os
 import time
 import uuid
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.database.crud import (
     create_new_letter,
@@ -25,7 +24,6 @@ from app.models.create import (
     TreatmentPlanResponse,
 )
 from app.prompts import dentist_notes_prompt, symptoms_details_prompt
-from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt, ask_gpt_image
 from app.treatmentPlans.implantLetter import example_consent_letter
 
