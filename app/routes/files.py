@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.database.crud import (
     retrieve_all_users_letters,
     retrieve_user_letter,
+    retrieve_patients_by_ids,
     update_letter,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
@@ -26,7 +27,12 @@ def get_files(access_token=Depends(JWTBearer())):
     token = decodeJWT(access_token)
     user_id = token["user_id"]
     letters = retrieve_all_users_letters(user_id)
+    letter_patient_ids = [letter.get("patient_id") for letter in letters]
+    letter_patients = retrieve_patients_by_ids(letter_patient_ids)
+    for index, request in enumerate(letters):
+        request["patient_details"] = letter_patients[index]
 
+    print("letters", letters)
     return {"letters": letters}
 
 

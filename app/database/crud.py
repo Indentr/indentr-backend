@@ -210,7 +210,7 @@ def retrieve_patients_by_ids(ids: List[str]):
             patient = Patient.objects.get(id=patient_id)
             patient_dict = patient.to_mongo().to_dict()
             patient_dict["_id"] = str(patient_dict["_id"])
-            if patient_dict["practice_id"]:
+            if "practice_id" in patient_dict:
                 patient_dict["practice_id"] = str(patient_dict["practice_id"])
 
             patients.append(patient_dict)
@@ -241,10 +241,10 @@ def retrieve_pricing(user_id: str):
 # Letter ---------------------------
 def create_new_letter(user_id: str, treatment_plan: str, patient_id: str, tokens_consumed: Optional[int] = None):
     try:
-        user = User.objects.get(id=user_id)
+        # user = User.objects.get(id=user_id)
 
         # Create a new Letter document
-        letter = Letter(consent_letter=treatment_plan, patient_id=patient_id, user_id=user, tokens_consumed=tokens_consumed)
+        letter = Letter(consent_letter=treatment_plan, patient_id=patient_id, user_id=user_id, tokens_consumed=tokens_consumed)
 
         # Save the new letter to the database
         letter.save()
@@ -270,11 +270,7 @@ def retrieve_last_three_letters(user_id: str):
         letter_dict["createdAt"] = created_at
         letter_dict["_id"] = str(letter.id)
         letter_dict["user_id"] = str(letter.user_id.id)
-        patient_details = letter_dict["patient_id"]
-        patient_details["_id"] = str(patient_details["_id"])
-        if "practice_id" in patient_details:
-            patient_details["practice_id"] = str(patient_details["practice_id"])
-        letter_dict["patient_details"] = patient_details
+        letter_dict["patient_id"] = str(letter.patient_id.id)
 
         letters_list.append(letter_dict)
 
@@ -283,27 +279,9 @@ def retrieve_last_three_letters(user_id: str):
 
 def retrieve_all_users_letters(user_id: str):
     try:
-        User.objects.get(id=user_id)
         # Query letters using MongoEngine
         letters = Letter.objects(user_id=user_id).order_by("-createdAt")
-        # Transform the MongoEngine documents to a list of dictionaries
-        letters_list = []
-        for letter in letters:
-            created_at = letter.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
-            letter_dict = letter.to_mongo().to_dict()
-            letter_dict["createdAt"] = created_at
-            letter_dict["_id"] = str(letter_dict["_id"])
-            letter_dict["user_id"] = str(letter_dict["user_id"])
-
-            patient_details = letter_dict["patient_id"]
-            if "practice_id" in patient_details:
-                patient_details["practice_id"] = str(patient_details["practice_id"])
-            letter_dict["patient_details"] = patient_details
-
-            letters_list.append(letter_dict)
-
-        return letters_list
-
+    
     except DoesNotExist as e:
         # Check if the exception is related to User or Letter
         if "User" in str(e):
@@ -312,6 +290,21 @@ def retrieve_all_users_letters(user_id: str):
             raise HTTPException(status_code=404, detail="No letter found") from None
         else:
             raise e
+
+    # Transform the MongoEngine documents to a list of dictionaries
+    letters_list = []
+    print("letters: ", letters)
+    for letter in letters:
+        created_at = letter.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
+        letter_dict = letter.to_mongo().to_dict()
+        letter_dict["createdAt"] = created_at
+        letter_dict["_id"] = str(letter_dict["_id"])
+        letter_dict["user_id"] = str(letter_dict["user_id"])
+        letter_dict["patient_id"] = str(letter_dict["patient_id"])
+        letters_list.append(letter_dict)
+
+    return letters_list
+
 
 
 # Function to get a specific letter
@@ -328,13 +321,7 @@ def retrieve_user_letter(letter_id, user_id):
     letter_dict["createdAt"] = created_at
     letter_dict["_id"] = str(letter.id)
     letter_dict["user_id"] = str(letter.user_id.id)
-    # letter_dict["patient_id"] = str(letter.patient_id.id)
-
-    patient_details = letter_dict["patient_id"]
-    if "practice_id" in patient_details:
-        patient_details["practice_id"] = str(patient_details["practice_id"])
-
-    letter_dict["patient_details"] = patient_details
+    letter_dict["patient_id"] = str(letter.patient_id.id)
 
     return letter_dict
 

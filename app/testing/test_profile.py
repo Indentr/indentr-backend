@@ -75,7 +75,7 @@ def insert_treatment_plan(register_and_login):
             )
         )
     for _i in range(0, 4):
-        create_new_letter(user_id, consent_letter, patients[_i])
+        create_new_letter(user_id, consent_letter, patients[_i]["_id"])
 
     return token
 
