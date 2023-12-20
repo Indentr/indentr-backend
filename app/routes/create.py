@@ -7,10 +7,12 @@ import uuid
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
 
 from app.database.crud import (
-    create_new_letter, 
+    create_new_letter,
+    create_new_patient, 
     retrieve_pricing, 
+    retrieve_user_by_id,
+    retrieve_patient_by_email,
     update_user_tokens,
-    retrieve_patient_by_email
 )
 
 from app.middleware.jwt import JWTBearer, decodeJWT
@@ -21,6 +23,7 @@ from app.models.create import (
     SymptomResponse,
     TreatmentPlanData,
     TreatmentPlanResponse,
+    PatientDetails
 )
 from app.prompts import dentist_notes_prompt, symptoms_details_prompt
 from app.services.deepgram import dpg_speech_to_text
@@ -32,6 +35,41 @@ router = APIRouter(prefix="/create", tags=["Create"])
 
 # initiates logger
 log = logging.getLogger(__name__)
+
+
+
+
+@router.post("/save-patient-details")
+async def save_patient_details(body: PatientDetails, access_token=Depends(JWTBearer())):
+    """
+    # Saves the patient details to the DB
+    This endpoint saves patient details to the DB based on the users practice_id.    
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received for saving patient details.")
+
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+        user = retrieve_user_by_id(user_id)
+
+        print("user: ", user)
+
+        patient_details = json.loads(body.patientDetails)
+        print("patient_details: ", patient_details)
+
+        create_new_patient(patient_details["forename"], patient_details["surname"], patient_details["dob"], patient_details["gender"], patient_details["address"], patient_details["email"], user["practice_id"])
+
+
+        log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
+
+        return {"message": "Patient details saved successfully"}
+
+    except HTTPException as e:
+        log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
+        raise e
+
 
 
 @router.post("/generate_questions/{form_type}", response_model=list[SymptomResponse])
@@ -66,24 +104,20 @@ async def generate_questions(body: SymptomData, form_type: str, access_token=Dep
     """
 
     original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant")
-    print("original response: ", original_response)
-    # Split the string at '[' and ']'
-    # cleaned_json_string = original_response[7:-3]
-    # print("split response: ", cleaned_json_string)
     update_user_tokens(user_id, tokens)
 
     try:
-        symptoms = json.loads(original_response)
+        questions = json.loads(original_response)
     except json.JSONDecodeError as e:
         # Handle the case where json.loads fails, still send GPT response back as error message
         error_detail = f"Error decoding GPT response: {str(e)}"
         raise HTTPException(status_code=500, detail=error_detail) from e
 
-    log.info(f"GPT symptoms response: {symptoms}")
+    log.info(f"GPT symptoms response: {questions}")
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
-    return symptoms
+    return questions
 
 
 @router.post("/analyse-image")
@@ -285,13 +319,15 @@ def save_treatment_plan(body: SaveTreatmentPlan, access_token=Depends(JWTBearer(
         token = decodeJWT(access_token)
         user_id = token["user_id"]
 
-        patient_details = body.patient_details
+        patient_details = json.loads(body.patient_details)
+        print("patient_details: ", patient_details)
+        print(patient_details["email"])
         treatment_plan = body.treatment_plan
         tokens_consumed = body.tokens_consumed
 
-        patient = retrieve_patient_by_email(patient_details.email)
+        patient = retrieve_patient_by_email(patient_details["email"])
 
-        result = create_new_letter(user_id, treatment_plan, patient, tokens_consumed)
+        result = create_new_letter(user_id, treatment_plan, patient["_id"], tokens_consumed)
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
 
         return {"message": "Letter saved successfully", "letter_id": str(result)}

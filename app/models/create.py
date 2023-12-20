@@ -1,11 +1,41 @@
 from pydantic import BaseModel
 
 
+
+# Request model
+class PatientDetails(BaseModel):
+    patientDetails: str
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{
+                "patientDetails": {
+                    "forename": "Ryan",
+                    "surname": "Reynolds",
+                    "dob": "1111-11-11",
+                    "gender": "Male",
+                    "address": "1 Hollywood, Los Angeles, United States",
+                    "email": 'ryanreynolds1@gmail.com'
+                },
+            }]
+        }
+    }
+
+
 # Request model
 class SymptomData(BaseModel):
     symptomDetails: str
 
-    model_config = {"json_schema_extra": {"examples": [{"symptomDetails": {"0": "description of symptom 1", "1": "description of symptom 2"}}]}}
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{
+                "symptomDetails": {
+                    "0": "description of symptom 1", 
+                    "1": "description of symptom 2"
+                }
+            }]
+        }
+    }
 
 
 # Response model
@@ -31,6 +61,7 @@ class TreatmentPlanData(BaseModel):
                         "forename": "Ryan",
                         "surname": "Reynolds",
                         "address": "1 Hollywood, Los Angeles, United States",
+                        "email": 'ryanreynolds1@gmail.com'
                     },
                     "symptomDetails": [
                         {
@@ -84,10 +115,6 @@ class SaveTreatmentPlan(BaseModel):
                 {
                     "treatmentPlan": "<p>123 Main St,</p><p>City,</p><p>Country,</p><p></p><p>Dear John Doe,</p><p></p><p>[HTML-formatted treatment plan]</p>",
                     "patientDetails": {
-                        "dob": "1111-11-11",
-                        "forename": "Ryan",
-                        "surname": "Reynolds",
-                        "address": "1 Hollywood, Los Angeles, United States",
                         "email": "ryanreynolds1@gmail.com"
                     },
                     "tokens_consumed": 3207,
