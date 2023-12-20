@@ -1,5 +1,4 @@
-import json
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import HTTPException
 from mongoengine import DoesNotExist
@@ -7,6 +6,7 @@ from werkzeug.security import generate_password_hash
 
 from app.database.schemas.config import Config
 from app.database.schemas.letter import Letter
+from app.database.schemas.patient import Patient
 from app.database.schemas.practice import Practice
 from app.database.schemas.pricing import Pricing
 from app.database.schemas.triage import Triage
@@ -172,6 +172,56 @@ def update_user_tokens(user_id: str, tokens: int):
         raise HTTPException(status_code=404, detail="User not found") from None
 
 
+# Patient ----------------------------
+def create_new_patient(forename: str, surname: str, dob: str, gender: str, address: str, email: str, practice_id: Optional[str] = None):
+    # Create a new instance of the Patient document with the provided patient details
+    new_patient = Patient(forename=forename, surname=surname, dob=dob, gender=gender, address=address, email=email, practice_id=practice_id)
+
+    # Save the new patient instance to the database
+    new_patient.save()
+
+    patient_dict = new_patient.to_mongo().to_dict()
+    patient_dict["_id"] = str(patient_dict["_id"])
+    if "practice_id" in patient_dict:
+        patient_dict["practice_id"] = str(patient_dict["practice_id"])
+
+    return patient_dict
+
+
+def retrieve_patient_by_email(email: str):
+    try:
+        # Retrieve the patient document based on email
+        patient = Patient.objects.get(email=email)
+        patient_dict = patient.to_mongo().to_dict()
+        if patient_dict["practice_id"]:
+            patient_dict["practice_id"] = str(patient_dict["practice_id"])
+
+        return patient_dict
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Patient not found") from None
+
+
+def retrieve_patients_by_ids(ids: List[str]):
+    patients = []
+    for patient_id in ids:
+        try:
+            # Retrieve the patient document based on patient_id
+            patient = Patient.objects.get(id=patient_id)
+            patient_dict = patient.to_mongo().to_dict()
+            patient_dict["_id"] = str(patient_dict["_id"])
+            if patient_dict["practice_id"]:
+                patient_dict["practice_id"] = str(patient_dict["practice_id"])
+
+            patients.append(patient_dict)
+
+        except DoesNotExist:
+            # Handle the case when a patient with the given patient_id is not found
+            pass
+
+    return patients
+
+
 # Pricing ---------------------------
 def retrieve_pricing(user_id: str):
     try:
@@ -189,12 +239,12 @@ def retrieve_pricing(user_id: str):
 
 
 # Letter ---------------------------
-def create_new_letter(user_id: str, treatment_plan: str, patient_details: str, tokens_consumed: Optional[int] = None):
+def create_new_letter(user_id: str, treatment_plan: str, patient_id: str, tokens_consumed: Optional[int] = None):
     try:
         user = User.objects.get(id=user_id)
 
         # Create a new Letter document
-        letter = Letter(consent_letter=treatment_plan, patient_info=json.loads(patient_details), user_id=user, tokens_consumed=tokens_consumed)
+        letter = Letter(consent_letter=treatment_plan, patient_id=patient_id, user_id=user, tokens_consumed=tokens_consumed)
 
         # Save the new letter to the database
         letter.save()
@@ -208,35 +258,47 @@ def create_new_letter(user_id: str, treatment_plan: str, patient_details: str, t
 def retrieve_last_three_letters(user_id: str):
     try:
         letters = Letter.objects(user_id=user_id).order_by("-_id").limit(3)
-        # Convert each letter to a dictionary
-        letters_dict = [letter.to_mongo().to_dict() for letter in letters]
-
-        for letter in letters_dict:
-            created_at = letter["_id"].generation_time.strftime("%Y-%m-%d %H:%M:%S")
-            letter["createdAt"] = created_at
-            letter["_id"] = str(letter["_id"])
-            letter["user_id"] = str(letter["user_id"])
-
-        return letters_dict
+        letters_list = []
 
     except DoesNotExist:
         # Handle the case where no letters are found
         return []
+
+    for letter in letters:
+        created_at = letter.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
+        letter_dict = letter.to_mongo().to_dict()
+        letter_dict["createdAt"] = created_at
+        letter_dict["_id"] = str(letter.id)
+        letter_dict["user_id"] = str(letter.user_id.id)
+        patient_details = letter_dict["patient_id"]
+        patient_details["_id"] = str(patient_details["_id"])
+        if "practice_id" in patient_details:
+            patient_details["practice_id"] = str(patient_details["practice_id"])
+        letter_dict["patient_details"] = patient_details
+
+        letters_list.append(letter_dict)
+
+    return letters_list
 
 
 def retrieve_all_users_letters(user_id: str):
     try:
         User.objects.get(id=user_id)
         # Query letters using MongoEngine
-        letters = Letter.objects(user_id=user_id).order_by("patient_info__last_name")
+        letters = Letter.objects(user_id=user_id).order_by("-createdAt")
         # Transform the MongoEngine documents to a list of dictionaries
         letters_list = []
         for letter in letters:
             created_at = letter.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
             letter_dict = letter.to_mongo().to_dict()
             letter_dict["createdAt"] = created_at
-            letter_dict["_id"] = str(letter.id)
-            letter_dict["user_id"] = str(letter.user_id.id)
+            letter_dict["_id"] = str(letter_dict["_id"])
+            letter_dict["user_id"] = str(letter_dict["user_id"])
+
+            patient_details = letter_dict["patient_id"]
+            if "practice_id" in patient_details:
+                patient_details["practice_id"] = str(patient_details["practice_id"])
+            letter_dict["patient_details"] = patient_details
 
             letters_list.append(letter_dict)
 
@@ -266,6 +328,13 @@ def retrieve_user_letter(letter_id, user_id):
     letter_dict["createdAt"] = created_at
     letter_dict["_id"] = str(letter.id)
     letter_dict["user_id"] = str(letter.user_id.id)
+    # letter_dict["patient_id"] = str(letter.patient_id.id)
+
+    patient_details = letter_dict["patient_id"]
+    if "practice_id" in patient_details:
+        patient_details["practice_id"] = str(patient_details["practice_id"])
+
+    letter_dict["patient_details"] = patient_details
 
     return letter_dict
 
@@ -284,6 +353,21 @@ def update_letter(letter_id, treatment_plan, user_id: str):
 
 
 # Triage ---------------------------
+def create_triage_request(practice_id: str, email: str, diagnosis: str, overview: str, severity: str):
+    # Try to find the patient by email within the practice
+    try:
+        patient = Patient.objects.get(email=email, practice_id=practice_id)
+
+        # Create a new triage request document for existing patient
+        new_triage = Triage(practice_id=practice_id, patient_id=patient, diagnosis=diagnosis, general_overview=overview, severity=severity)
+
+    except Patient.DoesNotExist:
+        # Create a new triage request for new patient
+        new_triage = Triage(practice_id=practice_id, diagnosis=diagnosis, general_overview=overview, severity=severity)
+
+    new_triage.save()
+
+
 def retrieve_last_three_triage_requests(user_id: str):
     try:
         # Retrieve the user document to get the associated practice_id
@@ -298,6 +382,8 @@ def retrieve_last_three_triage_requests(user_id: str):
             triage_dict = triage.to_mongo().to_dict()
             triage_dict["_id"] = str(triage.id)
             triage_dict["practice_id"] = str(triage.practice_id.id)
+            if triage_dict["patient_id"]:
+                triage_dict["patient_id"] = str(triage_dict["patient_id"])
             triage_list.append(triage_dict)
 
         return triage_list

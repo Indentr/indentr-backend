@@ -1,21 +1,14 @@
-from mongoengine import Document, EmbeddedDocument, fields
+from mongoengine import Document, ReferenceField, fields
 
+from app.database.schemas.patient import Patient
 from app.database.schemas.practice import Practice
 
 
-class TriageResponse(EmbeddedDocument):
+class Triage(Document):
+    practice_id = ReferenceField(Practice, required=True)
+    patient_id = ReferenceField(Patient)
     diagnosis = fields.StringField()
     general_overview = fields.StringField()
     severity = fields.IntField()
-    time_urgency = fields.StringField()
-    patient_instructions = fields.StringField()
 
-
-class Triage(Document):
-    forename = fields.StringField()
-    surname = fields.StringField()
-    dob = fields.StringField()
-    email = fields.EmailField()
-    phone_number = fields.StringField()
-    practice_id = fields.ReferenceField(Practice)
-    triage_response = fields.EmbeddedDocumentField(TriageResponse)
+    meta = {"collection": "triage_responses"}

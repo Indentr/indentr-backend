@@ -6,6 +6,7 @@ from app.database.crud import (
     retrieve_all_practice_members,
     retrieve_last_three_letters,
     retrieve_last_three_triage_requests,
+    retrieve_patients_by_ids,
     retrieve_practice_by_id,
     retrieve_practice_users_token_consumption,
     retrieve_user_by_email,
@@ -44,6 +45,11 @@ def get_overview(access_token=Depends(JWTBearer())):
         user_id = token["user_id"]
         letters = retrieve_last_three_letters(user_id)
         triage_requests = retrieve_last_three_triage_requests(user_id)
+        patient_ids = [triage_request.get("patient_id") for triage_request in retrieve_last_three_triage_requests(user_id)]
+        patients = retrieve_patients_by_ids(patient_ids)
+
+        for index, request in enumerate(triage_requests):
+            request["patient_details"] = patients[index]
 
         return {"letters": letters, "triage_requests": triage_requests}
 
