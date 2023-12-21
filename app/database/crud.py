@@ -343,13 +343,16 @@ def create_triage_request(practice_id: str, email: str, diagnosis: str, overview
     # Try to find the patient by email within the practice
     try:
         patient = Patient.objects.get(email=email, practice_id=practice_id)
-
-        # Create a new triage request document for existing patient
-        new_triage = Triage(practice_id=practice_id, patient_id=patient, diagnosis=diagnosis, general_overview=overview, severity=severity)
-
     except Patient.DoesNotExist:
         # Create a new triage request for new patient
-        new_triage = Triage(practice_id=practice_id, diagnosis=diagnosis, general_overview=overview, severity=severity)
+        try:
+            patient = Patient.objects.get(email=email)
+        except Patient.DoesNotExist:
+            raise HTTPException(status_code=404, detail="No patient exists with that email")
+
+
+    # Create a new triage request document for existing patient
+    new_triage = Triage(practice_id=practice_id, patient_id=patient, diagnosis=diagnosis, general_overview=overview, severity=severity)
 
     new_triage.save()
 
@@ -368,7 +371,7 @@ def retrieve_last_three_triage_requests(user_id: str):
             triage_dict = triage.to_mongo().to_dict()
             triage_dict["_id"] = str(triage.id)
             triage_dict["practice_id"] = str(triage.practice_id.id)
-            if triage_dict["patient_id"]:
+            if "patient_id" in triage_dict:
                 triage_dict["patient_id"] = str(triage_dict["patient_id"])
             triage_list.append(triage_dict)
 
