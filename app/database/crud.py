@@ -347,9 +347,8 @@ def create_triage_request(practice_id: str, email: str, diagnosis: str, overview
         # Create a new triage request for new patient
         try:
             patient = Patient.objects.get(email=email)
-        except Patient.DoesNotExist:
-            raise HTTPException(status_code=404, detail="No patient exists with that email")
-
+        except Patient.DoesNotExist as err:
+            raise HTTPException(status_code=404, detail="No patient exists with that email") from err
 
     # Create a new triage request document for existing patient
     new_triage = Triage(practice_id=practice_id, patient_id=patient, diagnosis=diagnosis, general_overview=overview, severity=severity)
