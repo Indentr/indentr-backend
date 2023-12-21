@@ -193,7 +193,7 @@ def retrieve_patient_by_email(email: str):
         # Retrieve the patient document based on email
         patient = Patient.objects.get(email=email)
         patient_dict = patient.to_mongo().to_dict()
-        if patient_dict["practice_id"]:
+        if "practice_id" in patient_dict:
             patient_dict["practice_id"] = str(patient_dict["practice_id"])
 
         return patient_dict
