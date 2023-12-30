@@ -271,7 +271,11 @@ def retrieve_last_three_letters(user_id: str):
         letter_dict["createdAt"] = created_at
         letter_dict["_id"] = str(letter.id)
         letter_dict["user_id"] = str(letter.user_id.id)
-        letter_dict["patient_id"] = str(letter.patient_id.id)
+        patient_details = letter.patient_id.to_mongo().to_dict()
+        patient_details["_id"] = str(letter.patient_id.id)
+        patient_details["practice_id"] = str(letter.patient_id.practice_id)
+        letter_dict["patient_details"] = patient_details
+        del letter_dict["patient_id"]
 
         letters_list.append(letter_dict)
 
@@ -281,7 +285,11 @@ def retrieve_last_three_letters(user_id: str):
 def retrieve_all_users_letters(user_id: str):
     try:
         # Query letters using MongoEngine
-        letters = Letter.objects(user_id=user_id).order_by("-createdAt")
+        letters = (
+            Letter.objects(user_id=user_id)
+            .order_by("-createdAt")
+            .select_related()
+        )
 
     except DoesNotExist as e:
         # Check if the exception is related to User or Letter
@@ -294,14 +302,18 @@ def retrieve_all_users_letters(user_id: str):
 
     # Transform the MongoEngine documents to a list of dictionaries
     letters_list = []
-    print("letters: ", letters)
     for letter in letters:
         created_at = letter.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
         letter_dict = letter.to_mongo().to_dict()
         letter_dict["createdAt"] = created_at
         letter_dict["_id"] = str(letter_dict["_id"])
         letter_dict["user_id"] = str(letter_dict["user_id"])
-        letter_dict["patient_id"] = str(letter_dict["patient_id"])
+        patient_details = letter.patient_id.to_mongo().to_dict()
+        patient_details["_id"] = str(letter.patient_id.id)
+        patient_details["practice_id"] = str(letter.patient_id.practice_id)
+        letter_dict["patient_details"] = patient_details
+        del letter_dict["patient_id"]
+
         letters_list.append(letter_dict)
 
     return letters_list
