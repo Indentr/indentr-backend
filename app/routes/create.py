@@ -49,10 +49,7 @@ async def save_patient_details(body: PatientDetails, access_token=Depends(JWTBea
         user_id = token["user_id"]
         user = retrieve_user_by_id(user_id)
 
-        print("user: ", user)
-
         patient_details = json.loads(body.patientDetails)
-        print("patient_details: ", patient_details)
 
         create_new_patient(
             patient_details["forename"],

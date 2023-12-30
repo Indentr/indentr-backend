@@ -1,3 +1,8 @@
+import json
+import logging
+import time
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.database.crud import (
@@ -17,6 +22,9 @@ from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.user import DeleteUser, UserDetails, UserRegistration
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
+
+# initiates logger
+log = logging.getLogger(__name__)
 
 
 @router.get("/")
@@ -41,20 +49,17 @@ def get_overview(access_token=Depends(JWTBearer())):
     Retrieves the user's profile information along with their latest letters.
     """
     try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.debug(f"Request {request_id} received for getting last 3 triage_requests and letters.")
+
         token = decodeJWT(access_token)
         user_id = token["user_id"]
 
         letters = retrieve_last_three_letters(user_id)
-        letter_patient_ids = [letter.get("patient_id") for letter in letters]
-        letter_patients = retrieve_patients_by_ids(letter_patient_ids)
-        for index, request in enumerate(letters):
-            request["patient_details"] = letter_patients[index]
-
         triage_requests = retrieve_last_three_triage_requests(user_id)
-        triage_patient_ids = [triage_request.get("patient_id") for triage_request in triage_requests]
-        triage_patients = retrieve_patients_by_ids(triage_patient_ids)
-        for index, request in enumerate(triage_requests):
-            request["patient_details"] = triage_patients[index]
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
         return {"letters": letters, "triage_requests": triage_requests}
 

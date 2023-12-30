@@ -2,17 +2,30 @@ import json
 import logging
 import time
 import uuid
+from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
 from app.database.crud import (
     create_new_patient,
     create_triage_request,
+    delete_triage_requests,
     retrieve_patient_by_email,
     retrieve_practice_by_id,
+    retrieve_user_by_id,
+    retrieve_all_triage_requests,
+    retrieve_patients_by_ids,
+    retrieve_triage_request,
+    update_triage_requests_opened
 )
-from app.models.triage import CreatePatientRequest, GenerateQuestions
+from app.models.triage import (
+    CreatePatientRequest, 
+    GenerateQuestions, 
+    ToggleTriageOpenedRequest,
+    DeleteTriageRequests
+)
 from app.services.openAI import ask_gpt
+from app.middleware.jwt import JWTBearer, decodeJWT
 
 router = APIRouter(prefix="/triage", tags=["Triage"])
 
@@ -77,7 +90,7 @@ async def generate_triage_questions(body: GenerateQuestions):
     log.info(f"Request {request_id} received for triage symptom questions.")
 
     prompt = f"""
-        Patient's symptom: {patient_details["symptom"]}
+        Patient's symptom: {patient_details["appointment_reason"]}
 
         Please ask the patient three follow-up questions.
         The questions show aim to gather more information from the patient so the dentist has all the necessary information in terms of severity of condition etc.
@@ -103,6 +116,7 @@ async def generate_triage_questions(body: GenerateQuestions):
     except json.JSONDecodeError as e:
         # Handle the case where json.loads fails, still send GPT response back as error message
         error_detail = f"Error decoding GPT response: {str(e)}"
+        log.debug(f"Request {request_id} failed in {round((time.time() - start), 2)} seconds.")
         raise HTTPException(status_code=500, detail=error_detail) from e
 
     log.info(f"GPT questions response: {questions}")
@@ -119,7 +133,7 @@ async def create_patient_request(body: CreatePatientRequest):
     The response is then saved to the triage table in mongoDB.
     """
 
-    time.time()
+    start = time.time()
     request_id = uuid.uuid4().hex
 
     patient_details = json.loads(body.patient_details)
@@ -134,7 +148,7 @@ async def create_patient_request(body: CreatePatientRequest):
 
         Based on the patients patients response I need you to give a response to the following:
         1. A diagnosis title, a very short title of like 5 words max
-        2. A general overview of the problem (max 100 words)
+        2. A general overview of the problem, a dentist will be reading this so you don't have to explain what anything means. If the diagnosis is unclear then say so.
         3. A severity score out of 10 (10 being absolutely must see a dentist in the next hour or they will die, 1 being tooth hurts slightly)
 
         Your responses to the following must be formatted as JSON, as shown below:
@@ -155,6 +169,131 @@ async def create_patient_request(body: CreatePatientRequest):
         error_detail = f"Error decoding GPT response: {str(e)}"
         raise HTTPException(status_code=500, detail=error_detail) from e
 
-    create_triage_request(practice_id, patient_details["email"], response["diagnosis"], response["overview"], response["severity"])
+    create_triage_request(practice_id, patient_details["email"], response["diagnosis"], response["overview"], response["severity"], patient_details["requested_date"], symptom_details)
 
     return {"success": True}
+
+
+
+@router.get("/get-requests/")
+async def get_all_triage_requests(access_token=Depends(JWTBearer())):
+    """
+    # Gets all practice's triage requests
+    Finds the practice id based on user's access token.
+    Returns all triage requests for that practice
+    """
+
+    start = time.time()
+    request_id = uuid.uuid4().hex
+
+    log.debug(f"Request {request_id} received for getting all practice's triage requests.")
+
+    token = decodeJWT(access_token)
+    user_id = token["user_id"]
+
+    user = retrieve_user_by_id(user_id)
+    practice_id = user["practice_id"]
+
+    triage_requests = retrieve_all_triage_requests(practice_id)
+
+    log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+    return {"triage_requests": triage_requests}
+
+
+
+
+@router.get("/get-request/{triage_id}")
+async def get_triage_request(triage_id: str, access_token=Depends(JWTBearer())):
+    """
+    # Gets a triage request based on id.
+    Returns triage request
+    """
+
+    start = time.time()
+    request_id = uuid.uuid4().hex
+
+    log.debug(f"Request {request_id} received for getting all practice's triage requests.")
+
+    token = decodeJWT(access_token)
+    user_id = token["user_id"]
+
+    user = retrieve_user_by_id(user_id)
+    practice_id = user["practice_id"]
+
+    triage_request = retrieve_triage_request(triage_id, practice_id)
+
+    log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+    return {"triage_request": triage_request}
+
+
+
+
+@router.post("/toggle-unread/")
+async def toggle_triage_request_opened(body: ToggleTriageOpenedRequest, access_token=Depends(JWTBearer())):
+    """
+    # Toggles selected triage requests to be opened/closed
+    Finds the practice id based on user's access token.
+    Sets all selected triage requests to be opened or closed
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.debug(f"Request {request_id} received for toggling triage requests to be opened/closed.")
+
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+
+        user = retrieve_user_by_id(user_id)
+        practice_id = user["practice_id"]
+
+        triage_requests = body.selected_requests.split(',')
+        opened = json.loads(body.opened)
+
+        update_triage_requests_opened(triage_requests, opened, practice_id)
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {"success": True}
+
+    except HTTPException as e:
+        raise e
+
+
+
+
+
+@router.post("/delete-requests/")
+async def delete_selected_triage_requests(body: DeleteTriageRequests, access_token=Depends(JWTBearer())):
+    """
+    # Deletes the selected triage requests
+    Finds the practice id based on user's access token.
+    Deletes all selected triage requests
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.debug(f"Request {request_id} received for toggling triage requests to be opened/closed.")
+
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+
+        user = retrieve_user_by_id(user_id)
+        practice_id = user["practice_id"]
+
+        triage_requests = body.selected_requests.split(',')
+
+        delete_triage_requests(triage_requests, practice_id)
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {"success": True}
+
+    except HTTPException as e:
+        raise e
+
+
+
