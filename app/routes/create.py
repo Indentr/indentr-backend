@@ -15,6 +15,7 @@ from app.database.crud import (
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
+    PatientSearch,
     PatientDetails,
     SaveTreatmentPlan,
     SaveTreatmentPlanResponse,
@@ -32,6 +33,37 @@ router = APIRouter(prefix="/create", tags=["Create"])
 
 # initiates logger
 log = logging.getLogger(__name__)
+
+
+
+
+@router.post("/search-patients")
+async def save_patient_details(body: PatientSearch, access_token=Depends(JWTBearer())):
+    """
+    # Searches the practice's list of patients for a match
+    Uses the mongodb search functionality to get top 3/4 closest patient matches.
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received for saving patient details.")
+
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+        practice_id = token["practice_id"]
+
+        search_param = json.loads(body.search_param)
+
+        # perform mongodb search function call here
+
+        
+        log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
+
+        return {"message": "Patient details saved successfully"}
+
+    except HTTPException as e:
+        log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
+        raise e
 
 
 @router.post("/save-patient-details")
