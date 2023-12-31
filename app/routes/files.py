@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.database.crud import (
     retrieve_all_users_letters,
-    retrieve_patients_by_ids,
     retrieve_user_letter,
     update_letter,
 )

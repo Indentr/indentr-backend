@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from typing import List, Optional
 
 
 # Request model
@@ -35,12 +34,9 @@ class CreatePatientRequest(BaseModel):
     symptom_details: str
 
 
-
-
 class ToggleTriageOpenedRequest(BaseModel):
     selected_requests: str
     opened: str
-
 
 
 class DeleteTriageRequests(BaseModel):

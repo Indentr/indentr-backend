@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 from typing import List, Optional
+
 from fastapi import HTTPException
 from mongoengine import DoesNotExist
 from werkzeug.security import generate_password_hash
@@ -285,11 +286,7 @@ def retrieve_last_three_letters(user_id: str):
 def retrieve_all_users_letters(user_id: str):
     try:
         # Query letters using MongoEngine
-        letters = (
-            Letter.objects(user_id=user_id)
-            .order_by("-createdAt")
-            .select_related()
-        )
+        letters = Letter.objects(user_id=user_id).order_by("-createdAt").select_related()
 
     except DoesNotExist as e:
         # Check if the exception is related to User or Letter
@@ -365,23 +362,22 @@ def create_triage_request(practice_id: str, email: str, diagnosis: str, overview
             raise HTTPException(status_code=404, detail="No patient exists with that email") from err
 
     if requested_date:
-        requested_date = datetime.strptime(requested_date, '%Y-%m-%d')
+        requested_date = datetime.strptime(requested_date, "%Y-%m-%d")
     else:
         requested_date = None
 
     # Create a new triage request document for existing patient
     new_triage = Triage(
-        practice_id=practice_id, 
-        patient_id=patient, 
-        diagnosis=diagnosis, 
-        general_overview=overview, 
-        severity=severity, 
-        requested_date=requested_date, 
-        GPT_QA=json.dumps(GPT_QA)
+        practice_id=practice_id,
+        patient_id=patient,
+        diagnosis=diagnosis,
+        general_overview=overview,
+        severity=severity,
+        requested_date=requested_date,
+        GPT_QA=json.dumps(GPT_QA),
     )
 
     new_triage.save()
-
 
 
 def delete_triage_requests(triage_requests: List[str], practice_id: str):
@@ -389,8 +385,8 @@ def delete_triage_requests(triage_requests: List[str], practice_id: str):
         # Delete the specified Triage objects
         Triage.objects(id__in=triage_requests, practice_id=practice_id).delete()
 
-    except Exception as e:
-        raise HTTPException(status_code=400, detail="Failed to delete triage requests with that practice id")
+    except Exception as err:
+        raise HTTPException(status_code=400, detail="Failed to delete triage requests with that practice id") from err
 
 
 def retrieve_triage_request(triage_id: str, practice_id: str):
@@ -415,8 +411,6 @@ def retrieve_triage_request(triage_id: str, practice_id: str):
     return triage_dict
 
 
-
-
 def retrieve_all_triage_requests(practice_id: str):
     try:
         triage_requests = (
@@ -432,11 +426,7 @@ def retrieve_all_triage_requests(practice_id: str):
             triage_dict = triage.to_mongo().to_dict()
             triage_dict["_id"] = str(triage.id)
             triage_dict["practice_id"] = str(triage.practice_id.id)
-            patient_details = {
-                "_id": str(triage.patient_id.id),
-                "forename": triage.patient_id.forename,
-                "surname": triage.patient_id.surname
-            }
+            patient_details = {"_id": str(triage.patient_id.id), "forename": triage.patient_id.forename, "surname": triage.patient_id.surname}
             triage_dict["patient_details"] = patient_details
             del triage_dict["patient_id"]
 
@@ -469,11 +459,7 @@ def retrieve_last_three_triage_requests(user_id: str):
             triage_dict = triage.to_mongo().to_dict()
             triage_dict["_id"] = str(triage.id)
             triage_dict["practice_id"] = str(triage.practice_id.id)
-            patient_details = {
-                "_id": str(triage.patient_id.id),
-                "forename": triage.patient_id.forename,
-                "surname": triage.patient_id.surname
-            }
+            patient_details = {"_id": str(triage.patient_id.id), "forename": triage.patient_id.forename, "surname": triage.patient_id.surname}
             triage_dict["patient_details"] = patient_details
             del triage_dict["patient_id"]
 
@@ -484,7 +470,6 @@ def retrieve_last_three_triage_requests(user_id: str):
     except DoesNotExist:
         # Handle the case where no letters are found
         return []
-
 
 
 def update_triage_requests_opened(triage_requests: List[str], opened: bool, practice_id: str):
