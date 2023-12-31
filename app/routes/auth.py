@@ -29,7 +29,8 @@ def post_user_login(body: UserLoginRequest):
 
         if user_document and check_password_hash(user_document["password"], body.password):
             user_id = str(user_document["_id"])
-            return signJWT(user_id)
+            practice_id = str(user_document["practice_id"])
+            return signJWT(user_id, practice_id)
         else:
             raise HTTPException(status_code=403, detail="Access denied")
 
@@ -83,5 +84,6 @@ def authenticate_user(access_token=Depends(JWTBearer())):
 
     token = decodeJWT(access_token)
     user_id = token["user_id"]
+    practice_id = token["user_id"]
 
-    return signJWT(user_id)
+    return signJWT(user_id, practice_id)

@@ -12,8 +12,12 @@ def token_response(token: str):
     return {"access_token": token}
 
 
-def signJWT(user_id: str) -> Dict[str, str]:
-    payload = {"user_id": user_id, "expires": time.time() + (3600 * 24)}
+def signJWT(user_id: str, practice_id: str) -> Dict[str, str]:
+    payload = {
+        "user_id": user_id, 
+        "practice_id": practice_id,
+        "expires": time.time() + (3600 * 24),
+    }
     token = jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGORITHM)
 
     return token_response(token)
