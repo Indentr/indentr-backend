@@ -1,9 +1,11 @@
+import base64
 import json
 import logging
 import os
 import time
 import uuid
 
+from bson import ObjectId
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
 
 from app.constants import DB_URI
@@ -14,6 +16,8 @@ from app.database.crud import (
     retrieve_patient_by_email,
     retrieve_pricing,
     update_user_tokens,
+    create_audio_note,
+    create_new_letter,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
@@ -183,56 +187,69 @@ async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(J
     print("Upload audio route called")
 
     try:
-        # Print received file information for debugging
         print(f"Received file: {audioFile.filename}, Content type: {audioFile.content_type}")
 
         # Read the file contents into a memory buffer
         audio_content = await audioFile.read()
 
-        # Print received file information for debugging
-        print(f"Received file: {audioFile.filename}, Content type: {audioFile.content_type}")
-
         # Generate a unique file name using UUID with .webm extension
         unique_filename = str(uuid.uuid4()) + ".webm"
 
-        # Save the audio file in the specified directory
-        file_path = os.path.join("audio_uploads", unique_filename)
+        # Save the audio file in a temporary directory
+        file_path = os.path.join("tmp/audio_uploads", unique_filename)
         with open(file_path, "wb") as f:
             f.write(audio_content)
 
+        # Speech to text conversion
         response = await dpg_speech_to_text(file_path)
-
-        print("Speech recognition response:", response)
-
         transcripts = response["results"]["channels"][0]["alternatives"][0]["transcript"]
         print("Transcripts:", transcripts)
 
+
+        # AI formatting of dental voice notes
         prompt = f"""
 
         Objective: Convert the below dental dictation transcript into professional, concise but comprehensive
         dental notes for patient record inclusion:
 
-        transcript: {transcripts}
+        START OF TRANSCRIPT
+
+        {transcripts}
+        
+        END OF TRANSCRIPT
 
         Important points: Bare in mind that it is an ai generated audio transcription so some of the words
         maybe incorrectly recorded, do your best to guess what the correct sentence would have been.
         eg upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
         in words that do not appear to fit the context will mean Upper left 3
 
+        if the audio transcript is empty or unusable then please do not try to guess. just reply that 
+        the transcript is unusable/empty.
+        
         """
-
         formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes")
+        print("AI response to transcript: ", formatted_notes)
 
-        print("ai response to transcipt: ", formatted_notes)
+        # Convert the audio content to Base64 and save to database
+        audio_base64 = base64.b64encode(audio_content).decode()
+        audio_note_id = create_audio_note("6581b1441219947f5e324b35", audio_base64, transcripts, formatted_notes)
+        if not audio_note_id:
+            raise Exception("Failed to save audio note to database")
+        else:
+            print("saved note to database ")
 
+        # Delete the temporary audio file
+        os.remove(file_path)
+
+        # Convert ObjectId to string for JSON serialization
         return {
+            "audio_note_id": str(audio_note_id) if isinstance(audio_note_id, ObjectId) else audio_note_id,
             "transcripts": transcripts,
             "formatted_notes": formatted_notes,
         }
 
     except Exception as e:
         print(f"An error occurred during file processing: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}") from e
 
 
 @router.post("/treatmentPlan", response_model=TreatmentPlanResponse)
