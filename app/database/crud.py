@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from fastapi import HTTPException
-from mongoengine import DoesNotExist
+from mongoengine import DoesNotExist, NotUniqueError
 from werkzeug.security import generate_password_hash
 
 from app.database.schemas.config import Config
@@ -176,18 +176,28 @@ def update_user_tokens(user_id: str, tokens: int):
 
 # Patient ----------------------------
 def create_new_patient(forename: str, surname: str, dob: str, gender: str, address: str, email: str, practice_id: Optional[str] = None):
-    # Create a new instance of the Patient document with the provided patient details
-    new_patient = Patient(forename=forename, surname=surname, dob=dob, gender=gender, address=address, email=email, practice_id=practice_id)
+    try:
+        # Check if a patient with the same email already exists
+        existing_patient = Patient.objects(email=email).first()
+        if existing_patient:
+            raise HTTPException(status_code=400, detail="Patient with this email already exists")
 
-    # Save the new patient instance to the database
-    new_patient.save()
+        # Create a new instance of the Patient document with the provided patient details
+        new_patient = Patient(forename=forename, surname=surname, dob=dob, gender=gender, address=address, email=email, practice_id=practice_id)
 
-    patient_dict = new_patient.to_mongo().to_dict()
-    patient_dict["_id"] = str(patient_dict["_id"])
-    if "practice_id" in patient_dict:
-        patient_dict["practice_id"] = str(patient_dict["practice_id"])
+        # Save the new patient instance to the database
+        new_patient.save()
 
-    return patient_dict
+        patient_dict = new_patient.to_mongo().to_dict()
+        patient_dict["_id"] = str(patient_dict["_id"])
+        if "practice_id" in patient_dict:
+            patient_dict["practice_id"] = str(patient_dict["practice_id"])
+
+        return patient_dict
+
+    except NotUniqueError:
+        # Handle the case where a patient with the same email already exists
+        raise HTTPException(status_code=400, detail="Patient with this email already exists") from None
 
 
 def retrieve_patient_by_email(email: str):

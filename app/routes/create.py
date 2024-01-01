@@ -1,21 +1,24 @@
 import json
 import logging
+import os
 import time
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
 
+from app.constants import DB_URI
+from app.database.atlas_search import mongo_patient_autocomplete
 from app.database.crud import (
     create_new_letter,
     create_new_patient,
     retrieve_patient_by_email,
     retrieve_pricing,
-    retrieve_user_by_id,
     update_user_tokens,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
     PatientDetails,
+    PatientSearch,
     SaveTreatmentPlan,
     SaveTreatmentPlanResponse,
     SymptomData,
@@ -24,6 +27,7 @@ from app.models.create import (
     TreatmentPlanResponse,
 )
 from app.prompts import dentist_notes_prompt, symptoms_details_prompt
+from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt, ask_gpt_image
 from app.treatmentPlans.implantLetter import example_consent_letter
 
@@ -32,6 +36,35 @@ router = APIRouter(prefix="/create", tags=["Create"])
 
 # initiates logger
 log = logging.getLogger(__name__)
+
+
+@router.post("/search-patients")
+async def search_patients(body: PatientSearch, access_token=Depends(JWTBearer())):
+    """
+    # Searches the practice's list of patients for a match
+    Uses the mongodb search functionality to get top 3/4 closest patient matches.
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received for saving patient details.")
+
+        token = decodeJWT(access_token)
+        token["user_id"]
+        practice_id = token["practice_id"]
+
+        search_param = body.search_param
+
+        # perform mongodb search function call here
+        result = mongo_patient_autocomplete(DB_URI, search_param, practice_id)
+
+        log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
+
+        return result
+
+    except HTTPException as e:
+        log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
+        raise e
 
 
 @router.post("/save-patient-details")
@@ -46,8 +79,8 @@ async def save_patient_details(body: PatientDetails, access_token=Depends(JWTBea
         log.info(f"Request {request_id} received for saving patient details.")
 
         token = decodeJWT(access_token)
-        user_id = token["user_id"]
-        user = retrieve_user_by_id(user_id)
+        token["user_id"]
+        practice_id = token["practice_id"]
 
         patient_details = json.loads(body.patientDetails)
 
@@ -58,7 +91,7 @@ async def save_patient_details(body: PatientDetails, access_token=Depends(JWTBea
             patient_details["gender"],
             patient_details["address"],
             patient_details["email"],
-            user["practice_id"],
+            practice_id,
         )
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
@@ -145,61 +178,61 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
         raise HTTPException(status_code=500, detail="Failed to save image") from e
 
 
-# @router.post("/uploadAudio")
-# async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(JWTBearer())):
-#     print("Upload audio route called")
+@router.post("/uploadAudio")
+async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(JWTBearer())):
+    print("Upload audio route called")
 
-#     try:
-#         # Print received file information for debugging
-#         print(f"Received file: {audioFile.filename}, Content type: {audioFile.content_type}")
+    try:
+        # Print received file information for debugging
+        print(f"Received file: {audioFile.filename}, Content type: {audioFile.content_type}")
 
-#         # Read the file contents into a memory buffer
-#         audio_content = await audioFile.read()
+        # Read the file contents into a memory buffer
+        audio_content = await audioFile.read()
 
-#         # Print received file information for debugging
-#         print(f"Received file: {audioFile.filename}, Content type: {audioFile.content_type}")
+        # Print received file information for debugging
+        print(f"Received file: {audioFile.filename}, Content type: {audioFile.content_type}")
 
-#         # Generate a unique file name using UUID with .webm extension
-#         unique_filename = str(uuid.uuid4()) + ".webm"
+        # Generate a unique file name using UUID with .webm extension
+        unique_filename = str(uuid.uuid4()) + ".webm"
 
-#         # Save the audio file in the specified directory
-#         file_path = os.path.join("audio_uploads", unique_filename)
-#         with open(file_path, "wb") as f:
-#             f.write(audio_content)
+        # Save the audio file in the specified directory
+        file_path = os.path.join("audio_uploads", unique_filename)
+        with open(file_path, "wb") as f:
+            f.write(audio_content)
 
-#         response = await dpg_speech_to_text(file_path)
+        response = await dpg_speech_to_text(file_path)
 
-#         print("Speech recognition response:", response)
+        print("Speech recognition response:", response)
 
-#         transcripts = response["results"]["channels"][0]["alternatives"][0]["transcript"]
-#         print("Transcripts:", transcripts)
+        transcripts = response["results"]["channels"][0]["alternatives"][0]["transcript"]
+        print("Transcripts:", transcripts)
 
-#         prompt = prompt = f"""
+        prompt = f"""
 
-#         Objective: Convert the below dental dictation transcript into professional, concise but comprehensive
-#         dental notes for patient record inclusion:
+        Objective: Convert the below dental dictation transcript into professional, concise but comprehensive
+        dental notes for patient record inclusion:
 
-#         transcript: {transcripts}
+        transcript: {transcripts}
 
-#         Important points: Bare in mind that it is an ai generated audio transcription so some of the words
-#         maybe incorrectly recorded, do your best to guess what the correct sentence would have been.
-#         eg upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
-#         in words that do not appear to fit the context will mean Upper left 3
+        Important points: Bare in mind that it is an ai generated audio transcription so some of the words
+        maybe incorrectly recorded, do your best to guess what the correct sentence would have been.
+        eg upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
+        in words that do not appear to fit the context will mean Upper left 3
 
-#         """
+        """
 
-#         formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes")
+        formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes")
 
-#         print("ai response to transcipt: ", formatted_notes)
+        print("ai response to transcipt: ", formatted_notes)
 
-#         return {
-#             "transcripts": transcripts,
-#             "formatted_notes": formatted_notes,
-#         }
+        return {
+            "transcripts": transcripts,
+            "formatted_notes": formatted_notes,
+        }
 
-#     except Exception as e:
-#         print(f"An error occurred during file processing: {str(e)}")
-#         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}") from e
+    except Exception as e:
+        print(f"An error occurred during file processing: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}") from e
 
 
 @router.post("/treatmentPlan", response_model=TreatmentPlanResponse)
