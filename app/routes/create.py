@@ -13,6 +13,7 @@ from app.database.crud import (
     retrieve_user_by_id,
     update_user_tokens,
 )
+from app.database.atlas_search import mongo_patient_autocomplete
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
     PatientSearch,
@@ -24,6 +25,7 @@ from app.models.create import (
     TreatmentPlanData,
     TreatmentPlanResponse,
 )
+from app.constants import DB_URI
 from app.prompts import dentist_notes_prompt, symptoms_details_prompt
 from app.services.openAI import ask_gpt, ask_gpt_image
 from app.treatmentPlans.implantLetter import example_consent_letter
@@ -38,7 +40,7 @@ log = logging.getLogger(__name__)
 
 
 @router.post("/search-patients")
-async def save_patient_details(body: PatientSearch, access_token=Depends(JWTBearer())):
+async def search_patients(body: PatientSearch, access_token=Depends(JWTBearer())):
     """
     # Searches the practice's list of patients for a match
     Uses the mongodb search functionality to get top 3/4 closest patient matches.
@@ -52,14 +54,14 @@ async def save_patient_details(body: PatientSearch, access_token=Depends(JWTBear
         user_id = token["user_id"]
         practice_id = token["practice_id"]
 
-        search_param = json.loads(body.search_param)
+        search_param = body.search_param
 
         # perform mongodb search function call here
-
+        result = mongo_patient_autocomplete(DB_URI, search_param, practice_id)
         
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
 
-        return {"message": "Patient details saved successfully"}
+        return result
 
     except HTTPException as e:
         log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
@@ -79,12 +81,9 @@ async def save_patient_details(body: PatientDetails, access_token=Depends(JWTBea
 
         token = decodeJWT(access_token)
         user_id = token["user_id"]
-        user = retrieve_user_by_id(user_id)
-
-        print("user: ", user)
+        practice_id = token["practice_id"]
 
         patient_details = json.loads(body.patientDetails)
-        print("patient_details: ", patient_details)
 
         create_new_patient(
             patient_details["forename"],
@@ -93,7 +92,7 @@ async def save_patient_details(body: PatientDetails, access_token=Depends(JWTBea
             patient_details["gender"],
             patient_details["address"],
             patient_details["email"],
-            user["practice_id"],
+            practice_id,
         )
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
