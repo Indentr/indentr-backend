@@ -396,7 +396,7 @@ def delete_triage_requests(triage_requests: List[str], practice_id: str):
         Triage.objects(id__in=triage_requests, practice_id=practice_id).delete()
 
     except Exception as err:
-        raise HTTPException(status_code=400, detail="Failed to delete triage requests with that practice id") from err
+        raise HTTPException(status_code=400, detail="Error deleting triage requests") from err
 
 
 def retrieve_triage_request(triage_id: str, practice_id: str):

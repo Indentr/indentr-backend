@@ -91,8 +91,8 @@ def get_account_settings_billing(access_token=Depends(JWTBearer())):
     try:
         token = decodeJWT(access_token)
         user_id = token["user_id"]
-        user = retrieve_user_by_id(user_id)
-        practice_users_token_consumption = retrieve_practice_users_token_consumption(user["practice_id"])
+        practice_id = token["practice_id"]
+        practice_users_token_consumption = retrieve_practice_users_token_consumption(practice_id)
 
         return {"tokens_consumed": practice_users_token_consumption}
 
