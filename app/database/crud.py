@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from mongoengine import DoesNotExist
 from werkzeug.security import generate_password_hash
 
+from app.database.schemas.audio_note import AudioNote
 from app.database.schemas.config import Config
 from app.database.schemas.letter import Letter
 from app.database.schemas.practice import Practice
@@ -305,3 +306,14 @@ def retrieve_last_three_triage_requests(user_id: str):
     except DoesNotExist:
         # Handle the case where no letters are found
         return []
+
+
+# save new audio note
+def create_audio_note(patient_id: str, audio_base64: str, transcript: str, formatted_notes: str):
+    try:
+        audio_note = AudioNote(patient_id=patient_id, audio=audio_base64, transcript=transcript, formatted_notes=formatted_notes)
+        audio_note.save()
+        return audio_note.id  # Return the ID of the saved document
+    except Exception as e:
+        print(f"An error occurred while creating the audio note: {e}")
+        return None
