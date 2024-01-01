@@ -150,11 +150,11 @@ async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(J
 
         # Convert the audio content to Base64 and save to database
         audio_base64 = base64.b64encode(audio_content).decode()
-        audio_note_id = create_audio_note("test", audio_base64, transcripts, formatted_notes)
+        audio_note_id = create_audio_note("6581b1441219947f5e324b35", audio_base64, transcripts, formatted_notes)
         if not audio_note_id:
             raise Exception("Failed to save audio note to database")
         else:
-            print("saved note to database ")
+            print("saved note to database ")ß
 
         # Delete the temporary audio file
         os.remove(file_path)
