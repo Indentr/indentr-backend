@@ -1,3 +1,5 @@
+import json
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import HTTPException
@@ -280,7 +282,11 @@ def retrieve_last_three_letters(user_id: str):
         letter_dict["createdAt"] = created_at
         letter_dict["_id"] = str(letter.id)
         letter_dict["user_id"] = str(letter.user_id.id)
-        letter_dict["patient_id"] = str(letter.patient_id.id)
+        patient_details = letter.patient_id.to_mongo().to_dict()
+        patient_details["_id"] = str(letter.patient_id.id)
+        patient_details["practice_id"] = str(letter.patient_id.practice_id)
+        letter_dict["patient_details"] = patient_details
+        del letter_dict["patient_id"]
 
         letters_list.append(letter_dict)
 
@@ -290,7 +296,7 @@ def retrieve_last_three_letters(user_id: str):
 def retrieve_all_users_letters(user_id: str):
     try:
         # Query letters using MongoEngine
-        letters = Letter.objects(user_id=user_id).order_by("-createdAt")
+        letters = Letter.objects(user_id=user_id).order_by("-createdAt").select_related()
 
     except DoesNotExist as e:
         # Check if the exception is related to User or Letter
@@ -303,14 +309,18 @@ def retrieve_all_users_letters(user_id: str):
 
     # Transform the MongoEngine documents to a list of dictionaries
     letters_list = []
-    print("letters: ", letters)
     for letter in letters:
         created_at = letter.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
         letter_dict = letter.to_mongo().to_dict()
         letter_dict["createdAt"] = created_at
         letter_dict["_id"] = str(letter_dict["_id"])
         letter_dict["user_id"] = str(letter_dict["user_id"])
-        letter_dict["patient_id"] = str(letter_dict["patient_id"])
+        patient_details = letter.patient_id.to_mongo().to_dict()
+        patient_details["_id"] = str(letter.patient_id.id)
+        patient_details["practice_id"] = str(letter.patient_id.practice_id)
+        letter_dict["patient_details"] = patient_details
+        del letter_dict["patient_id"]
+
         letters_list.append(letter_dict)
 
     return letters_list
@@ -349,21 +359,94 @@ def update_letter(letter_id, treatment_plan, user_id: str):
 
 
 # Triage ---------------------------
-def create_triage_request(practice_id: str, email: str, diagnosis: str, overview: str, severity: str):
+def create_triage_request(practice_id: str, email: str, diagnosis: str, overview: str, severity: str, requested_date: str, GPT_QA: str):
     # Try to find the patient by email within the practice
     try:
         patient = Patient.objects.get(email=email, practice_id=practice_id)
     except Patient.DoesNotExist:
-        # Create a new triage request for new patient
+        # if the patient doesn't exist within the practice
+        # Check if the patient already exists within our system
         try:
             patient = Patient.objects.get(email=email)
         except Patient.DoesNotExist as err:
             raise HTTPException(status_code=404, detail="No patient exists with that email") from err
 
+    if requested_date:
+        requested_date = datetime.strptime(requested_date, "%Y-%m-%d")
+    else:
+        requested_date = None
+
     # Create a new triage request document for existing patient
-    new_triage = Triage(practice_id=practice_id, patient_id=patient, diagnosis=diagnosis, general_overview=overview, severity=severity)
+    new_triage = Triage(
+        practice_id=practice_id,
+        patient_id=patient,
+        diagnosis=diagnosis,
+        general_overview=overview,
+        severity=severity,
+        requested_date=requested_date,
+        GPT_QA=json.dumps(GPT_QA),
+    )
 
     new_triage.save()
+
+
+def delete_triage_requests(triage_requests: List[str], practice_id: str):
+    try:
+        # Delete the specified Triage objects
+        Triage.objects(id__in=triage_requests, practice_id=practice_id).delete()
+
+    except Exception as err:
+        raise HTTPException(status_code=400, detail="Failed to delete triage requests with that practice id") from err
+
+
+def retrieve_triage_request(triage_id: str, practice_id: str):
+    triage = Triage.objects(id=triage_id, practice_id=practice_id).first()
+
+    if not triage:
+        raise HTTPException(status_code=404, detail="Triage request not found")
+
+    # Update the 'opened' field to True
+    triage.update(set__opened=True)
+
+    triage_dict = triage.to_mongo().to_dict()
+    triage_dict["_id"] = str(triage.id)
+    triage_dict["practice_id"] = str(triage.practice_id.id)
+    patient_details = triage.patient_id.to_mongo().to_dict()
+    patient_details["_id"] = str(patient_details["_id"])
+    if "practice_id" in patient_details:
+        patient_details["practice_id"] = str(patient_details["practice_id"])
+    triage_dict["patient_details"] = patient_details
+    del triage_dict["patient_id"]
+
+    return triage_dict
+
+
+def retrieve_all_triage_requests(practice_id: str):
+    try:
+        triage_requests = (
+            Triage.objects(practice_id=practice_id)
+            .only("opened", "severity", "diagnosis", "patient_id", "practice_id")
+            .order_by("-_id")
+            .select_related()
+        )
+
+        # Transform the MongoEngine documents to a list of dictionaries
+        triage_list = []
+        for triage in triage_requests:
+            triage_dict = triage.to_mongo().to_dict()
+            triage_dict["_id"] = str(triage.id)
+            triage_dict["practice_id"] = str(triage.practice_id.id)
+            patient_details = {"_id": str(triage.patient_id.id), "forename": triage.patient_id.forename, "surname": triage.patient_id.surname}
+            triage_dict["patient_details"] = patient_details
+            del triage_dict["patient_id"]
+
+            triage_list.append(triage_dict)
+
+        return triage_list
+
+    except DoesNotExist:
+        # Handle the case where no letters are found
+        return []
 
 
 def retrieve_last_three_triage_requests(user_id: str):
@@ -372,7 +455,13 @@ def retrieve_last_three_triage_requests(user_id: str):
         user = User.objects.get(id=user_id)
         practice_id = user.practice_id
 
-        triage_requests = Triage.objects(practice_id=practice_id).order_by("-_id").limit(3)
+        triage_requests = (
+            Triage.objects(practice_id=practice_id)
+            .only("opened", "severity", "diagnosis", "patient_id", "practice_id")
+            .order_by("-_id")
+            .limit(3)
+            .select_related()
+        )
 
         # Transform the MongoEngine documents to a list of dictionaries
         triage_list = []
@@ -380,8 +469,10 @@ def retrieve_last_three_triage_requests(user_id: str):
             triage_dict = triage.to_mongo().to_dict()
             triage_dict["_id"] = str(triage.id)
             triage_dict["practice_id"] = str(triage.practice_id.id)
-            if "patient_id" in triage_dict:
-                triage_dict["patient_id"] = str(triage_dict["patient_id"])
+            patient_details = {"_id": str(triage.patient_id.id), "forename": triage.patient_id.forename, "surname": triage.patient_id.surname}
+            triage_dict["patient_details"] = patient_details
+            del triage_dict["patient_id"]
+
             triage_list.append(triage_dict)
 
         return triage_list
@@ -389,3 +480,13 @@ def retrieve_last_three_triage_requests(user_id: str):
     except DoesNotExist:
         # Handle the case where no letters are found
         return []
+
+
+def update_triage_requests_opened(triage_requests: List[str], opened: bool, practice_id: str):
+    try:
+        # Find and update the specified Triage objects in one go
+        Triage.objects(id__in=triage_requests, practice_id=practice_id).update(set__opened=opened)
+
+    except DoesNotExist as e:
+        # Handle the case where a Triage object is not found
+        raise HTTPException(status_code=404, detail=str(e)) from None
