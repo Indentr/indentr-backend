@@ -23,9 +23,16 @@ def get_files(access_token=Depends(JWTBearer())):
     This endpoint allows authenticated users to retrieve all of their treatment plans.
     """
 
+    start = time.time()
+    request_id = uuid.uuid4().hex
+
+    log.debug(f"Request {request_id} received for getting all users consent letters.")
+
     token = decodeJWT(access_token)
     user_id = token["user_id"]
     letters = retrieve_all_users_letters(user_id)
+
+    log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
     return {"letters": letters}
 

@@ -8,14 +8,21 @@ import uuid
 from bson import ObjectId
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
 
+from app.constants import DB_URI
+from app.database.atlas_search import mongo_patient_autocomplete
 from app.database.crud import (
-    create_audio_note,
     create_new_letter,
+    create_new_patient,
+    retrieve_patient_by_email,
     retrieve_pricing,
     update_user_tokens,
+    create_audio_note,
+    create_new_letter,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
+    PatientDetails,
+    PatientSearch,
     SaveTreatmentPlan,
     SaveTreatmentPlanResponse,
     SymptomData,
@@ -33,6 +40,71 @@ router = APIRouter(prefix="/create", tags=["Create"])
 
 # initiates logger
 log = logging.getLogger(__name__)
+
+
+@router.post("/search-patients")
+async def search_patients(body: PatientSearch, access_token=Depends(JWTBearer())):
+    """
+    # Searches the practice's list of patients for a match
+    Uses the mongodb search functionality to get top 3/4 closest patient matches.
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received for saving patient details.")
+
+        token = decodeJWT(access_token)
+        token["user_id"]
+        practice_id = token["practice_id"]
+
+        search_param = body.search_param
+
+        # perform mongodb search function call here
+        result = mongo_patient_autocomplete(DB_URI, search_param, practice_id)
+
+        log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
+
+        return result
+
+    except HTTPException as e:
+        log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
+        raise e
+
+
+@router.post("/save-patient-details")
+async def save_patient_details(body: PatientDetails, access_token=Depends(JWTBearer())):
+    """
+    # Saves the patient details to the DB
+    This endpoint saves patient details to the DB based on the users practice_id.
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received for saving patient details.")
+
+        token = decodeJWT(access_token)
+        token["user_id"]
+        practice_id = token["practice_id"]
+
+        patient_details = json.loads(body.patientDetails)
+
+        create_new_patient(
+            patient_details["forename"],
+            patient_details["surname"],
+            patient_details["dob"],
+            patient_details["gender"],
+            patient_details["address"],
+            patient_details["email"],
+            practice_id,
+        )
+
+        log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
+
+        return {"message": "Patient details saved successfully"}
+
+    except HTTPException as e:
+        log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
+        raise e
 
 
 @router.post("/generate_questions/{form_type}", response_model=list[SymptomResponse])
@@ -67,21 +139,20 @@ async def generate_questions(body: SymptomData, form_type: str, access_token=Dep
     """
 
     original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant")
-
     update_user_tokens(user_id, tokens)
 
     try:
-        symptoms = json.loads(original_response)
+        questions = json.loads(original_response)
     except json.JSONDecodeError as e:
         # Handle the case where json.loads fails, still send GPT response back as error message
         error_detail = f"Error decoding GPT response: {str(e)}"
         raise HTTPException(status_code=500, detail=error_detail) from e
 
-    log.info(f"GPT symptoms response: {symptoms}")
+    log.info(f"GPT symptoms response: {questions}")
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
-    return symptoms
+    return questions
 
 
 @router.post("/analyse-image")
@@ -134,16 +205,27 @@ async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(J
         transcripts = response["results"]["channels"][0]["alternatives"][0]["transcript"]
         print("Transcripts:", transcripts)
 
+
         # AI formatting of dental voice notes
         prompt = f"""
+
         Objective: Convert the below dental dictation transcript into professional, concise but comprehensive
         dental notes for patient record inclusion:
 
         START OF TRANSCRIPT
 
         {transcripts}
-
+        
         END OF TRANSCRIPT
+
+        Important points: Bare in mind that it is an ai generated audio transcription so some of the words
+        maybe incorrectly recorded, do your best to guess what the correct sentence would have been.
+        eg upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
+        in words that do not appear to fit the context will mean Upper left 3
+
+        if the audio transcript is empty or unusable then please do not try to guess. just reply that 
+        the transcript is unusable/empty.
+        
         """
         formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes")
         print("AI response to transcript: ", formatted_notes)
@@ -191,7 +273,7 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
 
     dentistNotesText = f"The patient notes, written by the dentist, are as as follows: {dentistNotes}"
 
-    log.info(f"Request {request_id} received for s.")
+    log.info(f"Request {request_id} received.")
     log.info(f"treatment plan details: {symptomDetails}")
 
     prompt = f"""
@@ -285,11 +367,13 @@ def save_treatment_plan(body: SaveTreatmentPlan, access_token=Depends(JWTBearer(
         token = decodeJWT(access_token)
         user_id = token["user_id"]
 
-        patient_details = body.patient_details
+        patient_details = json.loads(body.patient_details)
         treatment_plan = body.treatment_plan
         tokens_consumed = body.tokens_consumed
 
-        result = create_new_letter(user_id, treatment_plan, patient_details, tokens_consumed)
+        patient = retrieve_patient_by_email(patient_details["email"])
+
+        result = create_new_letter(user_id, treatment_plan, patient["_id"], tokens_consumed)
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
 
         return {"message": "Letter saved successfully", "letter_id": str(result)}

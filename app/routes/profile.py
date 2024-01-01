@@ -1,3 +1,7 @@
+import logging
+import time
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.database.crud import (
@@ -16,6 +20,9 @@ from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.user import DeleteUser, UserDetails, UserRegistration
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
+
+# initiates logger
+log = logging.getLogger(__name__)
 
 
 @router.get("/")
@@ -40,10 +47,17 @@ def get_overview(access_token=Depends(JWTBearer())):
     Retrieves the user's profile information along with their latest letters.
     """
     try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.debug(f"Request {request_id} received for getting last 3 triage_requests and letters.")
+
         token = decodeJWT(access_token)
         user_id = token["user_id"]
+
         letters = retrieve_last_three_letters(user_id)
         triage_requests = retrieve_last_three_triage_requests(user_id)
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
         return {"letters": letters, "triage_requests": triage_requests}
 
@@ -76,9 +90,9 @@ def get_account_settings_billing(access_token=Depends(JWTBearer())):
     """
     try:
         token = decodeJWT(access_token)
-        user_id = token["user_id"]
-        user = retrieve_user_by_id(user_id)
-        practice_users_token_consumption = retrieve_practice_users_token_consumption(user["practice_id"])
+        token["user_id"]
+        practice_id = token["practice_id"]
+        practice_users_token_consumption = retrieve_practice_users_token_consumption(practice_id)
 
         return {"tokens_consumed": practice_users_token_consumption}
 
