@@ -122,7 +122,7 @@ async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(J
         unique_filename = str(uuid.uuid4()) + ".webm"
 
         # Save the audio file in the specified directory
-        file_path = os.path.join("audio_uploads", unique_filename)
+        file_path = os.path.join("tmp/audio_uploads", unique_filename)
         with open(file_path, "wb") as f:
             f.write(audio_content)
 
@@ -133,23 +133,35 @@ async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(J
         transcripts = response["results"]["channels"][0]["alternatives"][0]["transcript"]
         print("Transcripts:", transcripts)
 
-        prompt = prompt = f"""
+        prompt = f"""
 
         Objective: Convert the below dental dictation transcript into professional, concise but comprehensive
         dental notes for patient record inclusion:
 
-        transcript: {transcripts}
+        START OF TRANSCRIPT
 
-        Important points: Bare in mind that it is an ai generated audio transcription so some of the words
+        "" {transcripts} ""
+
+        END OF TRANSCRIPT
+
+        Important points: Bare in mind that it is an ai audio transcription so some of the words
         maybe incorrectly recorded, do your best to guess what the correct sentence would have been.
         eg upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
-         in words that do not appear to fit the context will mean Upper left 3
+        in words that do not appear to fit the context will mean Upper left 3
+
+        the notes do not need to contain any details such as: patient name, signature etc. as they will be
+        saved to a patient record that already has those details
+
+        If the transcript is empty, or unusable, please do not make up notes. Explain thath the transcript was unusable
+        instead
 
         """
 
         formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes")
 
         print("ai response to transcipt: ", formatted_notes)
+
+        os.remove(file_path)
 
         return {
             "transcripts": transcripts,
