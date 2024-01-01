@@ -154,7 +154,7 @@ async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(J
         if not audio_note_id:
             raise Exception("Failed to save audio note to database")
         else:
-            print("saved note to database ")ß
+            print("saved note to database ")
 
         # Delete the temporary audio file
         os.remove(file_path)
