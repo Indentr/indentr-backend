@@ -13,7 +13,6 @@ from app.database.crud import (
     retrieve_patient_by_email,
     retrieve_practice_by_id,
     retrieve_triage_request,
-    retrieve_user_by_id,
     update_triage_requests_opened,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
@@ -194,7 +193,6 @@ async def get_all_triage_requests(access_token=Depends(JWTBearer())):
     log.debug(f"Request {request_id} received for getting all practice's triage requests.")
 
     token = decodeJWT(access_token)
-    user_id = token["user_id"]
     practice_id = token["practice_id"]
 
     triage_requests = retrieve_all_triage_requests(practice_id)
@@ -217,7 +215,6 @@ async def get_triage_request(triage_id: str, access_token=Depends(JWTBearer())):
     log.debug(f"Request {request_id} received for getting all practice's triage requests.")
 
     token = decodeJWT(access_token)
-    user_id = token["user_id"]
     practice_id = token["practice_id"]
 
     triage_request = retrieve_triage_request(triage_id, practice_id)
@@ -241,7 +238,6 @@ async def toggle_triage_request_opened(body: ToggleTriageOpenedRequest, access_t
         log.debug(f"Request {request_id} received for toggling triage requests to be opened/closed.")
 
         token = decodeJWT(access_token)
-        user_id = token["user_id"]
         practice_id = token["practice_id"]
 
         triage_requests = json.loads(body.selected_requests)
@@ -271,7 +267,6 @@ async def delete_selected_triage_requests(body: DeleteTriageRequests, access_tok
         log.debug(f"Request {request_id} received for toggling triage requests to be opened/closed.")
 
         token = decodeJWT(access_token)
-        user_id = token["user_id"]
         practice_id = token["practice_id"]
 
         triage_requests = json.loads(body.selected_requests)
