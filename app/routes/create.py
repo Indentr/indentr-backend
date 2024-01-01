@@ -207,7 +207,7 @@ async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(J
         transcripts = response["results"]["channels"][0]["alternatives"][0]["transcript"]
         print("Transcripts:", transcripts)
 
-        prompt = prompt = f"""
+        prompt = f"""
 
         Objective: Convert the below dental dictation transcript into professional, concise but comprehensive
         dental notes for patient record inclusion:
