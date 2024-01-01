@@ -5,19 +5,19 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from app.constants import DB_URI
+from app.database.atlas_search import mongo_patient_autocomplete
 from app.database.crud import (
     create_new_letter,
     create_new_patient,
     retrieve_patient_by_email,
     retrieve_pricing,
-    retrieve_user_by_id,
     update_user_tokens,
 )
-from app.database.atlas_search import mongo_patient_autocomplete
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
-    PatientSearch,
     PatientDetails,
+    PatientSearch,
     SaveTreatmentPlan,
     SaveTreatmentPlanResponse,
     SymptomData,
@@ -25,7 +25,6 @@ from app.models.create import (
     TreatmentPlanData,
     TreatmentPlanResponse,
 )
-from app.constants import DB_URI
 from app.prompts import dentist_notes_prompt, symptoms_details_prompt
 from app.services.openAI import ask_gpt, ask_gpt_image
 from app.treatmentPlans.implantLetter import example_consent_letter
@@ -35,8 +34,6 @@ router = APIRouter(prefix="/create", tags=["Create"])
 
 # initiates logger
 log = logging.getLogger(__name__)
-
-
 
 
 @router.post("/search-patients")
@@ -51,14 +48,14 @@ async def search_patients(body: PatientSearch, access_token=Depends(JWTBearer())
         log.info(f"Request {request_id} received for saving patient details.")
 
         token = decodeJWT(access_token)
-        user_id = token["user_id"]
+        token["user_id"]
         practice_id = token["practice_id"]
 
         search_param = body.search_param
 
         # perform mongodb search function call here
         result = mongo_patient_autocomplete(DB_URI, search_param, practice_id)
-        
+
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
 
         return result
@@ -80,7 +77,7 @@ async def save_patient_details(body: PatientDetails, access_token=Depends(JWTBea
         log.info(f"Request {request_id} received for saving patient details.")
 
         token = decodeJWT(access_token)
-        user_id = token["user_id"]
+        token["user_id"]
         practice_id = token["practice_id"]
 
         patient_details = json.loads(body.patientDetails)

@@ -1,20 +1,12 @@
 from pydantic import BaseModel
 
 
-
 # Request model
 class PatientSearch(BaseModel):
     search_param: str
 
-    model_config = {
-        "json_schema_extra": {
-            "examples": [
-                {
-                    "search_param": "janedoe@gmail.com"
-                }
-            ]
-        }
-    }
+    model_config = {"json_schema_extra": {"examples": [{"search_param": "janedoe@gmail.com"}]}}
+
 
 # Request model
 class PatientDetails(BaseModel):
@@ -36,7 +28,6 @@ class PatientDetails(BaseModel):
             ]
         }
     }
-
 
 
 # Request model
