@@ -482,6 +482,7 @@ def retrieve_last_three_triage_requests(user_id: str):
         # Handle the case where no letters are found
         return []
 
+
 # save new audio note
 def create_audio_note(patient_id: str, audio_base64: str, transcript: str, formatted_notes: str):
     try:
@@ -492,6 +493,7 @@ def create_audio_note(patient_id: str, audio_base64: str, transcript: str, forma
         print(f"An error occurred while creating the audio note: {e}")
         return None
 
+
 def update_triage_requests_opened(triage_requests: List[str], opened: bool, practice_id: str):
     try:
         # Find and update the specified Triage objects in one go
@@ -500,4 +502,3 @@ def update_triage_requests_opened(triage_requests: List[str], opened: bool, prac
     except DoesNotExist as e:
         # Handle the case where a Triage object is not found
         raise HTTPException(status_code=404, detail=str(e)) from None
-

@@ -11,13 +11,12 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
 from app.constants import DB_URI
 from app.database.atlas_search import mongo_patient_autocomplete
 from app.database.crud import (
+    create_audio_note,
     create_new_letter,
     create_new_patient,
     retrieve_patient_by_email,
     retrieve_pricing,
     update_user_tokens,
-    create_audio_note,
-    create_new_letter,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
@@ -205,7 +204,6 @@ async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(J
         transcripts = response["results"]["channels"][0]["alternatives"][0]["transcript"]
         print("Transcripts:", transcripts)
 
-
         # AI formatting of dental voice notes
         prompt = f"""
 
@@ -215,7 +213,7 @@ async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(J
         START OF TRANSCRIPT
 
         {transcripts}
-        
+
         END OF TRANSCRIPT
 
         Important points: Bare in mind that it is an ai generated audio transcription so some of the words
@@ -223,9 +221,9 @@ async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(J
         eg upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
         in words that do not appear to fit the context will mean Upper left 3
 
-        if the audio transcript is empty or unusable then please do not try to guess. just reply that 
+        if the audio transcript is empty or unusable then please do not try to guess. just reply that
         the transcript is unusable/empty.
-        
+
         """
         formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes")
         print("AI response to transcript: ", formatted_notes)
