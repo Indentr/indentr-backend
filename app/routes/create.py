@@ -6,7 +6,7 @@ import time
 import uuid
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
 from app.constants import DB_URI
 from app.database.atlas_search import mongo_patient_autocomplete
@@ -182,11 +182,14 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
 
 
 @router.post("/uploadAudio")
-async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(JWTBearer())):
+async def upload_audio(audioFile: UploadFile = File(...), patientEmail: str = Form(...), access_token=Depends(JWTBearer())):
     print("Upload audio route called")
 
     try:
         print(f"Received file: {audioFile.filename}, Content type: {audioFile.content_type}")
+
+        patient = retrieve_patient_by_email(patientEmail)
+        patientID = patient["_id"]
 
         # Read the file contents into a memory buffer
         audio_content = await audioFile.read()
@@ -230,7 +233,7 @@ async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(J
 
         # Convert the audio content to Base64 and save to database
         audio_base64 = base64.b64encode(audio_content).decode()
-        audio_note_id = create_audio_note("6581b1441219947f5e324b35", audio_base64, transcripts, formatted_notes)
+        audio_note_id = create_audio_note(patientID, audio_base64, transcripts, formatted_notes)
         if not audio_note_id:
             raise Exception("Failed to save audio note to database")
         else:

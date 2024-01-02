@@ -1,3 +1,4 @@
+from fastapi import UploadFile
 from pydantic import BaseModel
 
 
@@ -127,3 +128,9 @@ class SaveTreatmentPlanResponse(BaseModel):
     letter_id: str
 
     model_config = {"json_schema_extra": {"examples": [{"html_content": "Letter saved successfully", "letter_id": "123456789"}]}}
+
+
+# Request model
+class SaveAudioNotes(BaseModel):
+    audioFile: UploadFile
+    patientEmail: str
