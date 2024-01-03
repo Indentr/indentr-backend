@@ -224,8 +224,12 @@ async def upload_audio(audioFile: UploadFile = File(...), patientEmail: str = Fo
         eg upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
         in words that do not appear to fit the context will mean Upper left 3
 
-        if the audio transcript is empty or unusable then please do not try to guess. just reply that
-        the transcript is unusable/empty.
+        do not include sections for patient information e.g. patient name     as this notes record will be saved to
+        a patient file anyway
+
+        It is critical that you do not make up sections that are not mentioned in the transcript if the audio
+        transcript is empty or unusable then please do not try to guess. just reply that the transcript is unusable/empty.
+
 
         """
         formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes")
