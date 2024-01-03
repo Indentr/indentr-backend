@@ -13,16 +13,16 @@ from app.database.crud import (
     retrieve_patient_by_email,
     retrieve_practice_by_id,
     retrieve_triage_request,
+    update_patients_practice_id,
     update_triage_requests_opened,
-    update_patients_practice_id
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.triage import (
+    AddPatientToPractice,
     CreatePatientRequest,
     DeleteTriageRequests,
     GenerateQuestions,
     ToggleTriageOpenedRequest,
-    AddPatientToPractice,
 )
 from app.services.openAI import ask_gpt
 
@@ -280,9 +280,6 @@ async def delete_selected_triage_requests(body: DeleteTriageRequests, access_tok
 
     except HTTPException as e:
         raise e
-
-
-
 
 
 @router.post("/add-patient-to-practice/")
