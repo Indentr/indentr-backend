@@ -14,6 +14,7 @@ from app.database.crud import (
     retrieve_practice_by_id,
     retrieve_triage_request,
     update_triage_requests_opened,
+    update_patients_practice_id
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.triage import (
@@ -21,6 +22,7 @@ from app.models.triage import (
     DeleteTriageRequests,
     GenerateQuestions,
     ToggleTriageOpenedRequest,
+    AddPatientToPractice,
 )
 from app.services.openAI import ask_gpt
 
@@ -257,8 +259,7 @@ async def toggle_triage_request_opened(body: ToggleTriageOpenedRequest, access_t
 async def delete_selected_triage_requests(body: DeleteTriageRequests, access_token=Depends(JWTBearer())):
     """
     # Deletes the selected triage requests
-    Finds the practice id based on user's access token.
-    Deletes all selected triage requests
+
     """
     try:
         start = time.time()
@@ -276,6 +277,34 @@ async def delete_selected_triage_requests(body: DeleteTriageRequests, access_tok
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
         return {"success": True}
+
+    except HTTPException as e:
+        raise e
+
+
+
+
+
+@router.post("/add-patient-to-practice/")
+async def add_new_patient_to_practice(body: AddPatientToPractice, access_token=Depends(JWTBearer())):
+    """
+    # Assigns a new patient to be part of a dental practice
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.debug(f"Request {request_id} received for adding a new patient to a practice.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+        patient_id = json.loads(body.patient_id)
+
+        update_patients_practice_id(patient_id, practice_id)
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {"success": True, "message": "Added patient to practice!"}
 
     except HTTPException as e:
         raise e
