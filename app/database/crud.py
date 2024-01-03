@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 from typing import List, Optional
 
+from bson import ObjectId
 from fastapi import HTTPException
 from mongoengine import DoesNotExist, NotUniqueError
 from werkzeug.security import generate_password_hash
@@ -233,6 +234,16 @@ def retrieve_patients_by_ids(ids: List[str]):
             pass
 
     return patients
+
+
+def update_patients_practice_id(patient_id: str, practice_id: str):
+    try:
+        patient = Patient.objects.get(id=patient_id)
+        patient.practice_id = ObjectId(practice_id)
+        patient.save()
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Patient not found") from None
 
 
 # Pricing ---------------------------
