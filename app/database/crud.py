@@ -281,7 +281,8 @@ def create_new_letter(user_id: str, treatment_plan: str, patient_id: str, tokens
 
 def retrieve_last_three_letters(user_id: str):
     try:
-        letters = Letter.objects(user_id=user_id).order_by("-_id").limit(3)
+        letters = Letter.objects(user_id=user_id).only("consent_letter", "patient_id", "createdAt").order_by("-_id").limit(3)
+
         letters_list = []
 
     except DoesNotExist:
@@ -293,10 +294,14 @@ def retrieve_last_three_letters(user_id: str):
         letter_dict = letter.to_mongo().to_dict()
         letter_dict["createdAt"] = created_at
         letter_dict["_id"] = str(letter.id)
-        letter_dict["user_id"] = str(letter.user_id.id)
         patient_details = letter.patient_id.to_mongo().to_dict()
-        patient_details["_id"] = str(letter.patient_id.id)
-        patient_details["practice_id"] = str(letter.patient_id.practice_id)
+        del patient_details["_id"]
+        if "practice_id" in patient_details:
+            del patient_details["practice_id"]
+        del patient_details["dob"]
+        del patient_details["gender"]
+        del patient_details["address"]
+        del patient_details["email"]
         letter_dict["patient_details"] = patient_details
         del letter_dict["patient_id"]
 
@@ -308,7 +313,7 @@ def retrieve_last_three_letters(user_id: str):
 def retrieve_all_users_letters(user_id: str):
     try:
         # Query letters using MongoEngine
-        letters = Letter.objects(user_id=user_id).order_by("-createdAt").select_related()
+        letters = Letter.objects(user_id=user_id).only("consent_letter", "patient_id", "createdAt").order_by("-createdAt").select_related()
 
     except DoesNotExist as e:
         # Check if the exception is related to User or Letter
@@ -326,10 +331,14 @@ def retrieve_all_users_letters(user_id: str):
         letter_dict = letter.to_mongo().to_dict()
         letter_dict["createdAt"] = created_at
         letter_dict["_id"] = str(letter_dict["_id"])
-        letter_dict["user_id"] = str(letter_dict["user_id"])
         patient_details = letter.patient_id.to_mongo().to_dict()
-        patient_details["_id"] = str(letter.patient_id.id)
-        patient_details["practice_id"] = str(letter.patient_id.practice_id)
+        del patient_details["_id"]
+        if "practice_id" in patient_details:
+            del patient_details["practice_id"]
+        del patient_details["dob"]
+        del patient_details["gender"]
+        del patient_details["address"]
+        del patient_details["email"]
         letter_dict["patient_details"] = patient_details
         del letter_dict["patient_id"]
 
