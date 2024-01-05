@@ -20,8 +20,8 @@ from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
     PatientDetails,
     PatientSearch,
-    SaveTreatmentPlan,
-    SaveTreatmentPlanResponse,
+    SaveFile,
+    SaveFileResponse,
     SymptomData,
     SymptomResponse,
     TreatmentPlanData,
@@ -346,8 +346,8 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
     return {"html_content": response_html, "tokens_consumed": tokens}
 
 
-@router.post("/saveTreatmentPlan", response_model=SaveTreatmentPlanResponse)
-def save_treatment_plan(body: SaveTreatmentPlan, access_token=Depends(JWTBearer())):
+@router.post("/save-file", response_model=SaveFileResponse)
+def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
     """
     # Create Treatment Plan
     This endpoint allows the creation and saving of a treatment plan. The provided treatment plan content and patient details are saved to the database.
@@ -362,7 +362,7 @@ def save_treatment_plan(body: SaveTreatmentPlan, access_token=Depends(JWTBearer(
         user_id = token["user_id"]
 
         patient_details = json.loads(body.patient_details)
-        treatment_plan = body.treatment_plan
+        treatment_plan = json.loads(body.treatment_plan)
         tokens_consumed = body.tokens_consumed
 
         patient = retrieve_patient_by_email(patient_details["email"])

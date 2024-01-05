@@ -104,7 +104,7 @@ class TreatmentPlanResponse(BaseModel):
 
 
 # Request model
-class SaveTreatmentPlan(BaseModel):
+class SaveFile(BaseModel):
     treatment_plan: str
     patient_details: str
     tokens_consumed: int
@@ -123,7 +123,7 @@ class SaveTreatmentPlan(BaseModel):
 
 
 # Response model
-class SaveTreatmentPlanResponse(BaseModel):
+class SaveFileResponse(BaseModel):
     message: str
     letter_id: str
 

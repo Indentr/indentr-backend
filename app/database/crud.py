@@ -264,12 +264,12 @@ def retrieve_pricing(user_id: str):
 
 
 # Letter ---------------------------
-def create_new_letter(user_id: str, treatment_plan: str, patient_id: str, tokens_consumed: Optional[int] = None):
+def create_new_letter(user_id: str, text: str, patient_id: str, tokens_consumed: Optional[int] = None):
     try:
         # user = User.objects.get(id=user_id)
 
         # Create a new Letter document
-        letter = Letter(consent_letter=treatment_plan, patient_id=patient_id, user_id=user_id, tokens_consumed=tokens_consumed)
+        letter = Letter(consent_letter=text, patient_id=patient_id, user_id=user_id, tokens_consumed=tokens_consumed)
 
         # Save the new letter to the database
         letter.save()
@@ -368,7 +368,7 @@ def retrieve_user_letter(letter_id, user_id):
 
 
 # Function to update the consent letter
-def update_letter(letter_id, treatment_plan, user_id: str):
+def update_letter(letter_id, text, user_id: str):
     # Use MongoEngine to find and update the document
     letter = Letter.objects(id=letter_id, user_id=user_id).first()
 
@@ -376,7 +376,7 @@ def update_letter(letter_id, treatment_plan, user_id: str):
         raise HTTPException(status_code=404, detail="No letter found")
 
     # Update the consent_letter field
-    letter.consent_letter = treatment_plan
+    letter.consent_letter = text
     letter.save()
 
 
@@ -527,3 +527,80 @@ def create_audio_note(patient_id: str, user_id: str, practice_id: str, audio_byt
     except Exception as e:
         print(f"An error occurred while creating the audio note: {e}")
         return None
+
+
+def retrieve_all_users_notes(user_id: str):
+    try:
+        # Query letters using MongoEngine
+        notes = AudioNote.objects(user_id=user_id).only("patient_id", "formatted_notes", "createdAt").order_by("-createdAt").select_related()
+
+    except DoesNotExist as e:
+        # Check if the exception is related to User or Letter
+        if "User" in str(e):
+            raise HTTPException(status_code=404, detail="User not found") from None
+        elif "Letter" in str(e):
+            raise HTTPException(status_code=404, detail="No letter found") from None
+        else:
+            raise e
+
+    # Transform the MongoEngine documents to a list of dictionaries
+    notes_list = []
+    for note in notes:
+        created_at = note.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
+        note_dict = note.to_mongo().to_dict()
+        note_dict["createdAt"] = created_at
+        note_dict["_id"] = str(note_dict["_id"])
+        patient_details = note.patient_id.to_mongo().to_dict()
+        del patient_details["_id"]
+        if "practice_id" in patient_details:
+            del patient_details["practice_id"]
+        del patient_details["dob"]
+        del patient_details["gender"]
+        del patient_details["address"]
+        del patient_details["email"]
+        note_dict["patient_details"] = patient_details
+        del note_dict["patient_id"]
+
+        notes_list.append(note_dict)
+
+    return notes_list
+
+
+# Function to get a specific letter
+def retrieve_note(note_id, user_id):
+    # Query the letter using MongoEngine
+    note = AudioNote.objects(id=note_id, user_id=user_id).only("patient_id", "formatted_notes", "createdAt").first()
+
+    if not note:
+        # Handle case where the letter doesn't exist or doesn't belong to the user
+        raise HTTPException(status_code=400, detail="No letter found")
+
+    created_at = note.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
+    note_dict = note.to_mongo().to_dict()
+    note_dict["createdAt"] = created_at
+    note_dict["_id"] = str(note_dict["_id"])
+    patient_details = note.patient_id.to_mongo().to_dict()
+    del patient_details["_id"]
+    if "practice_id" in patient_details:
+        del patient_details["practice_id"]
+    del patient_details["dob"]
+    del patient_details["gender"]
+    del patient_details["address"]
+    del patient_details["email"]
+    note_dict["patient_details"] = patient_details
+    del note_dict["patient_id"]
+
+    return note_dict
+
+
+# Function to update the consent letter
+def update_note(note_id, text, user_id: str):
+    # Use MongoEngine to find and update the document
+    note = AudioNote.objects(id=note_id, user_id=user_id).first()
+
+    if not note:
+        raise HTTPException(status_code=404, detail="No note found")
+
+    # Update the consent_letter field
+    note.formatted_notes = text
+    note.save()
