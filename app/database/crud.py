@@ -1,4 +1,5 @@
 import json
+from io import BytesIO
 from datetime import datetime
 from typing import List, Optional
 
@@ -503,15 +504,6 @@ def retrieve_last_three_triage_requests(user_id: str):
         return []
 
 
-# save new audio note
-def create_audio_note(patient_id: str, audio_base64: str, transcript: str, formatted_notes: str):
-    try:
-        audio_note = AudioNote(patient_id=patient_id, audio=audio_base64, transcript=transcript, formatted_notes=formatted_notes)
-        audio_note.save()
-        return audio_note.id  # Return the ID of the saved document
-    except Exception as e:
-        print(f"An error occurred while creating the audio note: {e}")
-        return None
 
 
 def update_triage_requests_opened(triage_requests: List[str], opened: bool, practice_id: str):
@@ -522,3 +514,22 @@ def update_triage_requests_opened(triage_requests: List[str], opened: bool, prac
     except DoesNotExist as e:
         # Handle the case where a Triage object is not found
         raise HTTPException(status_code=404, detail=str(e)) from None
+
+
+
+
+
+
+
+# Note ---------------------------
+def create_audio_note(patient_id: str, user_id: str, practice_id: str, audio_bytesio: BytesIO, transcript: str, formatted_notes: str):
+    try:
+        # Convert BytesIO to bytes
+        audio_bytes = audio_bytesio.getvalue()
+        audio_note = AudioNote(patient_id=patient_id, user_id=user_id, practice_id=practice_id, audio=audio_bytes, transcript=transcript, formatted_notes=formatted_notes)
+        audio_note.save()
+        return audio_note.id  # Return the ID of the saved document
+    except Exception as e:
+        print(f"An error occurred while creating the audio note: {e}")
+        return None
+

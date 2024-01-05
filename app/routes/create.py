@@ -4,7 +4,7 @@ import logging
 import os
 import time
 import uuid
-
+from io import BytesIO
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
@@ -183,29 +183,27 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
 
 @router.post("/uploadAudio")
 async def upload_audio(audioFile: UploadFile = File(...), patientEmail: str = Form(...), access_token=Depends(JWTBearer())):
-    print("Upload audio route called")
-
     try:
-        print(f"Received file: {audioFile.filename}, Content type: {audioFile.content_type}")
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: {audioFile.filename}, Content type: {audioFile.content_type}")
+
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+        practice_id = token["practice_id"]
 
         patient = retrieve_patient_by_email(patientEmail)
-        patientID = patient["_id"]
+        patient_id = patient["_id"]
 
         # Read the file contents into a memory buffer
         audio_content = await audioFile.read()
-
-        # Generate a unique file name using UUID with .webm extension
-        unique_filename = str(uuid.uuid4()) + ".webm"
-
-        # Save the audio file in a temporary directory
-        file_path = os.path.join("tmp/audio_uploads", unique_filename)
-        with open(file_path, "wb") as f:
-            f.write(audio_content)
+        # Create a BytesIO object to mimic file reading
+        audio_buffer = BytesIO(audio_content)
 
         # Speech to text conversion
-        response = await dpg_speech_to_text(file_path)
+        response = await dpg_speech_to_text(audio_buffer)
         transcripts = response["results"]["channels"][0]["alternatives"][0]["transcript"]
-        print("Transcripts:", transcripts)
 
         # AI formatting of dental voice notes
         prompt = f"""
@@ -233,28 +231,17 @@ async def upload_audio(audioFile: UploadFile = File(...), patientEmail: str = Fo
 
         """
         formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes")
-        print("AI response to transcript: ", formatted_notes)
 
-        # Convert the audio content to Base64 and save to database
-        audio_base64 = base64.b64encode(audio_content).decode()
-        audio_note_id = create_audio_note(patientID, audio_base64, transcripts, formatted_notes)
-        if not audio_note_id:
-            raise Exception("Failed to save audio note to database")
-        else:
-            print("saved note to database ")
-
-        # Delete the temporary audio file
-        os.remove(file_path)
+        create_audio_note(patient_id, user_id, practice_id, audio_buffer, transcripts, formatted_notes)
 
         # Convert ObjectId to string for JSON serialization
         return {
-            "audio_note_id": str(audio_note_id) if isinstance(audio_note_id, ObjectId) else audio_note_id,
             "transcripts": transcripts,
             "formatted_notes": formatted_notes,
         }
 
-    except Exception as e:
-        print(f"An error occurred during file processing: {str(e)}")
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
 
 
 @router.post("/treatmentPlan", response_model=TreatmentPlanResponse)
