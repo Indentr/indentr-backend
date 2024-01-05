@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 import uuid
@@ -6,36 +7,18 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.database.crud import (
     retrieve_all_users_letters,
+    retrieve_all_users_notes,
+    retrieve_note,
     retrieve_user_letter,
     update_letter,
+    update_note,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
-from app.models.file import getFiles, saveTreatmentPlan
+from app.models.file import getFiles, saveFile
 
 router = APIRouter(prefix="/files", tags=["Files"])
 
 log = logging.getLogger(__name__)
-
-
-# @router.get("/")
-# def get_letters(access_token=Depends(JWTBearer())):
-#     """
-#     # Gets all letters
-#     This endpoint is called on files page load.
-#     """
-
-#     start = time.time()
-#     request_id = uuid.uuid4().hex
-
-#     log.debug(f"Request {request_id} received for getting all users consent letters.")
-
-#     token = decodeJWT(access_token)
-#     user_id = token["user_id"]
-#     letters = retrieve_all_users_letters(user_id)
-
-#     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
-
-#     return {"letters": letters}
 
 
 @router.post("/get-files/")
@@ -48,7 +31,7 @@ def get_files(body: getFiles, access_token=Depends(JWTBearer())):
     start = time.time()
     request_id = uuid.uuid4().hex
 
-    log.debug(f"Request {request_id} received for getting all users consent letters.")
+    log.info(f"Request {request_id} received for getting all users consent letters.")
 
     token = decodeJWT(access_token)
     user_id = token["user_id"]
@@ -59,15 +42,15 @@ def get_files(body: getFiles, access_token=Depends(JWTBearer())):
         files = retrieve_all_users_letters(user_id)
 
     else:
-        files = []
+        files = retrieve_all_users_notes(user_id)
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
     return {"files": files}
 
 
-@router.get("/{letter_id}")
-def get_treatment_plan(letter_id: str, access_token=Depends(JWTBearer())):
+@router.get("/{file_id}")
+def get_file(file_id: str, access_token=Depends(JWTBearer())):
     """
     Retrieves a treatment plan based on the provided letter ID.
     """
@@ -75,32 +58,41 @@ def get_treatment_plan(letter_id: str, access_token=Depends(JWTBearer())):
     try:
         token = decodeJWT(access_token)
         user_id = token["user_id"]
-        letter = retrieve_user_letter(letter_id, user_id)
-        return letter
+        try:
+            file = retrieve_user_letter(file_id, user_id)
+            file_type = "letter"
+        except HTTPException:
+            file = retrieve_note(file_id, user_id)
+            file_type = "note"
 
-    except HTTPException as e:
-        raise e
+        return {"file": file, "file_type": file_type}
+
+    except HTTPException:
+        raise HTTPException(status_code=400, detail="No file found") from None
 
 
-@router.post("/saveTreatmentPlan")
-def save_treatment_plan(body: saveTreatmentPlan, access_token=Depends(JWTBearer())):
+@router.post("/save-file/")
+def save_file(body: saveFile, access_token=Depends(JWTBearer())):
     """
-    Saves a treatment plan to the database. If a letter with the provided ID
-    exists, the consent letter field will be updated with the new treatment plan.
+    Saves a file to the database. If a file with the provided ID
+    exists, the necessary field will be updated with the new file text.
     """
 
     start = time.time()
     request_id = uuid.uuid4().hex
-    log.info(f"Request {request_id} received for saving treatment plan.")
+    log.info(f"Request {request_id} received for saving a file.")
 
     try:
         token = decodeJWT(access_token)
         user_id = token["user_id"]
-        letter_id = body.letterId
-        treatmentPlan = body.treatmentPlan
-        update_letter(letter_id, treatmentPlan, user_id)
+
+        if body.file_type == "letter":
+            update_letter(body.file_id, json.loads(body.file_text), user_id)
+        else:
+            update_note(body.file_id, json.loads(body.file_text), user_id)
+
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
-        return {"message": "Letter updated successfully"}
+        return {"message": "File updated successfully"}
 
     except HTTPException as e:
         log.debug(f"Request {request_id} failed and took {round((time.time() - start), 2)} seconds.")
