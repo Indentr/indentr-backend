@@ -1,15 +1,16 @@
 from datetime import datetime
+
 from mongoengine import (
+    BinaryField,
     DateTimeField,
     Document,
     ReferenceField,
     StringField,
-    BinaryField
 )
 
 from app.database.schemas.patient import Patient
-from app.database.schemas.user import User
 from app.database.schemas.practice import Practice
+from app.database.schemas.user import User
 
 
 class AudioNote(Document):

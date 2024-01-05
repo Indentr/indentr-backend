@@ -8,5 +8,3 @@ class getFiles(BaseModel):
 class saveTreatmentPlan(BaseModel):
     treatmentPlan: str
     letterId: str
-
-

@@ -1,11 +1,9 @@
-import base64
 import json
 import logging
-import os
 import time
 import uuid
 from io import BytesIO
-from bson import ObjectId
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
 from app.constants import DB_URI
@@ -187,7 +185,9 @@ async def upload_audio(audioFile: UploadFile = File(...), patientEmail: str = Fo
         start = time.time()
         request_id = uuid.uuid4().hex
 
-        log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: {audioFile.filename}, Content type: {audioFile.content_type}")
+        log.info(
+            f"Request {request_id} received for uploadAudio endpoint. Received file: {audioFile.filename}, Content type: {audioFile.content_type}"
+        )
 
         token = decodeJWT(access_token)
         user_id = token["user_id"]
@@ -233,6 +233,8 @@ async def upload_audio(audioFile: UploadFile = File(...), patientEmail: str = Fo
         formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes")
 
         create_audio_note(patient_id, user_id, practice_id, audio_buffer, transcripts, formatted_notes)
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
         # Convert ObjectId to string for JSON serialization
         return {
