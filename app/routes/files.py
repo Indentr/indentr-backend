@@ -10,17 +10,39 @@ from app.database.crud import (
     update_letter,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
-from app.models.file import saveTreatmentPlan
+from app.models.file import getFiles, saveTreatmentPlan
 
 router = APIRouter(prefix="/files", tags=["Files"])
 
 log = logging.getLogger(__name__)
 
 
-@router.get("/")
-def get_files(access_token=Depends(JWTBearer())):
+# @router.get("/")
+# def get_letters(access_token=Depends(JWTBearer())):
+#     """
+#     # Gets all letters
+#     This endpoint is called on files page load.
+#     """
+
+#     start = time.time()
+#     request_id = uuid.uuid4().hex
+
+#     log.debug(f"Request {request_id} received for getting all users consent letters.")
+
+#     token = decodeJWT(access_token)
+#     user_id = token["user_id"]
+#     letters = retrieve_all_users_letters(user_id)
+
+#     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+#     return {"letters": letters}
+
+
+@router.post("/get-files/")
+def get_files(body: getFiles, access_token=Depends(JWTBearer())):
     """
-    This endpoint allows authenticated users to retrieve all of their treatment plans.
+    # Gets all letters
+    This endpoint is called on files page load.
     """
 
     start = time.time()
@@ -30,11 +52,18 @@ def get_files(access_token=Depends(JWTBearer())):
 
     token = decodeJWT(access_token)
     user_id = token["user_id"]
-    letters = retrieve_all_users_letters(user_id)
+
+    file_type = body.file_type
+
+    if file_type == "letters":
+        files = retrieve_all_users_letters(user_id)
+
+    else:
+        files = []
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
-    return {"letters": letters}
+    return {"files": files}
 
 
 @router.get("/{letter_id}")
