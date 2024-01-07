@@ -4,10 +4,11 @@ import time
 import uuid
 from io import BytesIO
 
+from bson import ObjectId
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
 from app.constants import DB_URI
-from app.database.atlas_search import mongo_patient_autocomplete
+from app.database.atlas_search import atlas_search
 from app.database.crud import (
     create_audio_note,
     create_new_letter,
@@ -55,9 +56,40 @@ async def search_patients(body: PatientSearch, access_token=Depends(JWTBearer())
         practice_id = token["practice_id"]
 
         search_param = body.search_param
+        pipeline = [
+            {
+                "$search": {
+                    "index": "default",
+                    "compound": {
+                        "should": [
+                            {"autocomplete": {"query": search_param, "path": "forename"}},
+                            {"autocomplete": {"query": search_param, "path": "surname"}},
+                            {"autocomplete": {"query": search_param, "path": "email"}},
+                        ],
+                        "filter": [
+                            {"equals": {"value": ObjectId(practice_id), "path": "practice_id"}},
+                        ],
+                        "minimumShouldMatch": 1,
+                    },
+                }
+            },
+            {"$limit": 4},
+            {
+                "$project": {
+                    "_id": 1,
+                    "forename": 1,
+                    "surname": 1,
+                    "dob": 1,
+                    "gender": 1,
+                    "address": 1,
+                    "email": 1,
+                }
+            },
+        ]
+        result = atlas_search(DB_URI, "patients", pipeline)
 
-        # perform mongodb search function call here
-        result = mongo_patient_autocomplete(DB_URI, search_param, practice_id)
+        for i in result:
+            i["_id"] = str(i["_id"])
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
 

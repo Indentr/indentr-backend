@@ -21,3 +21,5 @@ class AudioNote(Document):
     transcript = StringField(required=True)
     formatted_notes = StringField(required=True)
     createdAt = DateTimeField(default=datetime.utcnow)
+
+    meta = {"collection": "audio_note"}  # Specify the collection name

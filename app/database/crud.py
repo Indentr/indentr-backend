@@ -217,17 +217,28 @@ def retrieve_patient_by_email(email: str):
         raise HTTPException(status_code=404, detail="Patient not found") from None
 
 
+def retrieve_patient_by_id(patient_id: str):
+    try:
+        # Retrieve the patient document based on patient_id
+        patient = Patient.objects.get(id=patient_id)
+        patient_dict = patient.to_mongo().to_dict()
+        patient_dict["_id"] = str(patient_dict["_id"])
+        if "practice_id" in patient_dict:
+            patient_dict["practice_id"] = str(patient_dict["practice_id"])
+
+        return patient_dict
+
+    except DoesNotExist:
+        # Handle the case when a patient with the given patient_id is not found
+        pass
+
+
 def retrieve_patients_by_ids(ids: List[str]):
     patients = []
     for patient_id in ids:
         try:
             # Retrieve the patient document based on patient_id
-            patient = Patient.objects.get(id=patient_id)
-            patient_dict = patient.to_mongo().to_dict()
-            patient_dict["_id"] = str(patient_dict["_id"])
-            if "practice_id" in patient_dict:
-                patient_dict["practice_id"] = str(patient_dict["practice_id"])
-
+            patient_dict = retrieve_patient_by_id(patient_id)
             patients.append(patient_dict)
 
         except DoesNotExist:
