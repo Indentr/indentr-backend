@@ -135,7 +135,7 @@ async def generate_questions(body: SymptomData, form_type: str, access_token=Dep
         {selected_prompt}
     """
 
-    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant")
+    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-3.5-turbo")
     update_user_tokens(user_id, tokens)
 
     try:
@@ -230,7 +230,7 @@ async def upload_audio(audioFile: UploadFile = File(...), patientEmail: str = Fo
 
 
         """
-        formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes")
+        formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes", "gpt-4-1106-preview")
 
         create_audio_note(patient_id, user_id, practice_id, audio_buffer, transcripts, formatted_notes)
 
@@ -319,7 +319,7 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
 
     """
 
-    treatmentPlan, tokens = await ask_gpt(prompt, "You're a UK based dentist writing treatment plan letters for patients")
+    treatmentPlan, tokens = await ask_gpt(prompt, "You're a UK based dentist writing treatment plan letters for patients", "gpt-3.5-turbo")
     update_user_tokens(user_id, tokens)
 
     log.info(f"GPT treatment plan response: {treatmentPlan}")
