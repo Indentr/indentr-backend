@@ -167,7 +167,7 @@ async def generate_questions(body: SymptomData, form_type: str, access_token=Dep
         {selected_prompt}
     """
 
-    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant")
+    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-3.5-turbo")
     update_user_tokens(user_id, tokens)
 
     try:
@@ -211,15 +211,15 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
         raise HTTPException(status_code=500, detail="Failed to save image") from e
 
 
-@router.post("/uploadAudio")
-async def upload_audio(audioFile: UploadFile = File(...), patientEmail: str = Form(...), access_token=Depends(JWTBearer())):
+@router.post("/uploadTranscript")
+async def upload_transcript(
+    audioFile: UploadFile = File(...), transcript: str = Form(...), patientEmail: str = Form(...), access_token=Depends(JWTBearer())
+):
     try:
         start = time.time()
         request_id = uuid.uuid4().hex
 
-        log.info(
-            f"Request {request_id} received for uploadAudio endpoint. Received file: {audioFile.filename}, Content type: {audioFile.content_type}"
-        )
+        log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
 
         token = decodeJWT(access_token)
         user_id = token["user_id"]
@@ -233,10 +233,6 @@ async def upload_audio(audioFile: UploadFile = File(...), patientEmail: str = Fo
         # Create a BytesIO object to mimic file reading
         audio_buffer = BytesIO(audio_content)
 
-        # Speech to text conversion
-        response = await dpg_speech_to_text(audio_buffer)
-        transcripts = response["results"]["channels"][0]["alternatives"][0]["transcript"]
-
         # AI formatting of dental voice notes
         prompt = f"""
 
@@ -245,7 +241,7 @@ async def upload_audio(audioFile: UploadFile = File(...), patientEmail: str = Fo
 
         START OF TRANSCRIPT
 
-        {transcripts}
+        {transcript}
 
         END OF TRANSCRIPT
 
@@ -262,16 +258,45 @@ async def upload_audio(audioFile: UploadFile = File(...), patientEmail: str = Fo
 
 
         """
-        formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes")
+        formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes", "gpt-4-1106-preview")
 
-        create_audio_note(patient_id, user_id, practice_id, audio_buffer, transcripts, formatted_notes)
+        create_audio_note(patient_id, user_id, practice_id, audio_buffer, transcript, formatted_notes)
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
         # Convert ObjectId to string for JSON serialization
         return {
-            "transcripts": transcripts,
             "formatted_notes": formatted_notes,
+        }
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
+@router.post("/uploadAudioTranscription")
+async def upload_audio(audioFile: UploadFile = File(...), access_token=Depends(JWTBearer())):
+    try:
+        time.time()
+        request_id = uuid.uuid4().hex
+
+        log.info(
+            f"Request {request_id} received for uploadAudioTranscription endpoint. Received file: {audioFile.filename}, Content type: {audioFile.content_type}"
+        )
+
+        decodeJWT(access_token)
+
+        # Read the file contents into a memory buffer
+        audio_content = await audioFile.read()
+        # Create a BytesIO object to mimic file reading
+        audio_buffer = BytesIO(audio_content)
+
+        # Speech to text conversion
+        response = await dpg_speech_to_text(audio_buffer)
+        transcripts = response["results"]["channels"][0]["alternatives"][0]["transcript"]
+
+        # Convert ObjectId to string for JSON serialization
+        return {
+            "transcripts": transcripts,
         }
 
     except HTTPException as e:
@@ -351,7 +376,7 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
 
     """
 
-    treatmentPlan, tokens = await ask_gpt(prompt, "You're a UK based dentist writing treatment plan letters for patients")
+    treatmentPlan, tokens = await ask_gpt(prompt, "You're a UK based dentist writing treatment plan letters for patients", "gpt-3.5-turbo")
     update_user_tokens(user_id, tokens)
 
     log.info(f"GPT treatment plan response: {treatmentPlan}")
