@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 from io import BytesIO
+from string import ascii_lowercase
 from typing import List, Optional
 
 from bson import ObjectId
@@ -324,7 +325,6 @@ def retrieve_last_three_letters(user_id: str):
 
 def retrieve_all_users_letters(user_id: str):
     try:
-        # Query letters using MongoEngine
         letters = Letter.objects(user_id=user_id).only("consent_letter", "patient_id", "createdAt").order_by("-createdAt").select_related()
 
     except DoesNotExist as e:
@@ -357,6 +357,66 @@ def retrieve_all_users_letters(user_id: str):
         letters_list.append(letter_dict)
 
     return letters_list
+
+
+def retrieve_all_users_letters_filtered_by_char(user_id: str, starts_with: str):
+    try:
+        pipeline = [
+            {"$match": {"user_id": ObjectId(user_id)}},
+            {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
+            {"$unwind": "$patient"},
+            {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
+        ]
+
+        letters = Letter.objects.aggregate(*pipeline)
+
+        result = [
+            {
+                "_id": str(doc["_id"]),
+                "consent_letter": doc["consent_letter"],
+                "patient_details": {
+                    "forename": doc["patient"]["forename"],
+                    "surname": doc["patient"]["surname"],
+                },
+                "createdAt": doc["createdAt"],
+            }
+            for doc in letters
+        ]
+
+        return result
+
+    except DoesNotExist as e:
+        if "Letter" in str(e):
+            raise HTTPException(status_code=404, detail="No letter found") from None
+        else:
+            raise e
+
+
+def retrieve_letters_alphabet_status(user_id: str):
+    try:
+        # Use the aggregation framework to calculate alphabet status
+        pipeline = [
+            {"$match": {"user_id": ObjectId(user_id)}},
+            {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
+            {"$unwind": "$patient"},
+            {"$group": {"_id": {"$substr": ["$patient.forename", 0, 1]}, "count": {"$sum": 1}}},
+        ]
+
+        result = Letter.objects.aggregate(*pipeline)
+
+        # Create a dictionary with default value 0 for all letters
+        alphabet_status = {letter: 0 for letter in ascii_lowercase}
+
+        # Update the dictionary based on the aggregation result
+        for entry in result:
+            first_letter = entry["_id"].lower()
+            count = entry["count"]
+            alphabet_status[first_letter] = count if count > 0 else 0
+
+        return alphabet_status
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Error retrieving alphabet_status") from None
 
 
 # Function to get a specific letter
@@ -534,10 +594,8 @@ def create_audio_note(patient_id: str, user_id: str, practice_id: str, audio_byt
             patient_id=patient_id, user_id=user_id, practice_id=practice_id, audio=audio_bytes, transcript=transcript, formatted_notes=formatted_notes
         )
         audio_note.save()
-        return audio_note.id  # Return the ID of the saved document
     except Exception as e:
-        print(f"An error occurred while creating the audio note: {e}")
-        return None
+        raise HTTPException(status_code=404, detail=str(e)) from None
 
 
 def retrieve_all_users_notes(user_id: str):
@@ -615,3 +673,62 @@ def update_note(note_id, text, user_id: str):
     # Update the consent_letter field
     note.formatted_notes = text
     note.save()
+
+
+def retrieve_notes_alphabet_status(user_id: str):
+    try:
+        pipeline = [
+            {"$match": {"user_id": ObjectId(user_id)}},
+            {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
+            {"$unwind": "$patient"},
+            {"$group": {"_id": {"$substr": ["$patient.forename", 0, 1]}, "count": {"$sum": 1}}},
+        ]
+
+        result = AudioNote.objects.aggregate(*pipeline)
+
+        # Create a dictionary with default value 0 for all letters
+        alphabet_status = {letter: 0 for letter in ascii_lowercase}
+
+        # Update the dictionary based on the aggregation result
+        for entry in result:
+            first_letter = entry["_id"].lower()
+            count = entry["count"]
+            alphabet_status[first_letter] = count if count > 0 else 0
+
+        return alphabet_status
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Error retrieving alphabet_status") from None
+
+
+def retrieve_all_users_notes_filtered_by_char(user_id: str, starts_with: str):
+    try:
+        pipeline = [
+            {"$match": {"user_id": ObjectId(user_id)}},
+            {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
+            {"$unwind": "$patient"},
+            {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
+        ]
+
+        notes = AudioNote.objects.aggregate(*pipeline)
+
+        result = [
+            {
+                "_id": str(doc["_id"]),
+                "formatted_notes": doc["formatted_notes"],
+                "patient_details": {
+                    "forename": doc["patient"]["forename"],
+                    "surname": doc["patient"]["surname"],
+                },
+                "createdAt": doc["createdAt"],
+            }
+            for doc in notes
+        ]
+
+        return result
+
+    except DoesNotExist as e:
+        if "Letter" in str(e):
+            raise HTTPException(status_code=404, detail="No letter found") from None
+        else:
+            raise e
