@@ -10,15 +10,19 @@ from app.constants import DB_URI
 from app.database.atlas_search import atlas_search
 from app.database.crud import (
     retrieve_all_users_letters,
+    retrieve_all_users_letters_filtered_by_char,
     retrieve_all_users_notes,
+    retrieve_all_users_notes_filtered_by_char,
+    retrieve_letters_alphabet_status,
     retrieve_note,
+    retrieve_notes_alphabet_status,
     retrieve_patient_by_id,
     retrieve_user_letter,
     update_letter,
     update_note,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
-from app.models.file import GetFiles, SaveFile, SearchFiles
+from app.models.file import FileType, SaveFile, SearchFiles, SelectChar
 
 router = APIRouter(prefix="/files", tags=["Files"])
 
@@ -26,7 +30,7 @@ log = logging.getLogger(__name__)
 
 
 @router.post("/get-files/")
-def get_files(body: GetFiles, access_token=Depends(JWTBearer())):
+def get_files(body: FileType, access_token=Depends(JWTBearer())):
     """
     # Gets all letters
     This endpoint is called on files page load.
@@ -120,8 +124,6 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
         user_id = token["user_id"]
         returned_fields = {}
 
-        print("user_id: ", ObjectId(user_id))
-
         if body.file_type == "letter":
             table = "letters"
             path = "consent_letter"
@@ -172,12 +174,77 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
             i["patient_details"] = patient_details
             i["createdAt"] = i["createdAt"].strftime("%Y-%m-%d %H:%M:%S")
 
-        print(result)
-
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
         return result
 
     except HTTPException as e:
         log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
+        log.debug(f"Request {request_id} Error: {e.detail}")
+        raise e
+
+
+@router.post("/init-alphabetised/")
+def init_alphabetised(body: FileType, access_token=Depends(JWTBearer())):
+    """
+    Saves a file to the database. If a file with the provided ID
+    exists, the necessary field will be updated with the new file text.
+    """
+
+    start = time.time()
+    request_id = uuid.uuid4().hex
+    log.info(f"Request {request_id} received for initialising alphabetised search.")
+
+    try:
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+        starts_with_char = None
+        files = None
+
+        if body.file_type == "letter":
+            alphabet_status = retrieve_letters_alphabet_status(user_id)
+            starts_with_char = next((char for char, count in alphabet_status.items() if count > 0), None)
+            if starts_with_char:
+                files = retrieve_all_users_letters_filtered_by_char(user_id, starts_with_char)
+        else:
+            alphabet_status = retrieve_notes_alphabet_status(user_id)
+            starts_with_char = next((char for char, count in alphabet_status.items() if count > 0), None)
+            if starts_with_char:
+                files = retrieve_all_users_notes_filtered_by_char(user_id, starts_with_char)
+
+        log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
+        return {"files": files, "starts_with_char": starts_with_char, "alphabet_status": alphabet_status}
+
+    except HTTPException as e:
+        log.debug(f"Request {request_id} failed and took {round((time.time() - start), 2)} seconds.")
+        log.debug(f"Request {request_id} Error: {e.detail}")
+        raise e
+
+
+@router.post("/select-char/")
+def select_char(body: SelectChar, access_token=Depends(JWTBearer())):
+    """
+    Saves a file to the database. If a file with the provided ID
+    exists, the necessary field will be updated with the new file text.
+    """
+
+    start = time.time()
+    request_id = uuid.uuid4().hex
+    log.info(f"Request {request_id} received for selecting a char in alphabetised search.")
+
+    try:
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+        files = None
+
+        if body.file_type == "letter":
+            files = retrieve_all_users_letters_filtered_by_char(user_id, body.char)
+        else:
+            files = retrieve_all_users_notes_filtered_by_char(user_id, body.char)
+
+        log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
+        return {"files": files}
+
+    except HTTPException as e:
+        log.debug(f"Request {request_id} failed and took {round((time.time() - start), 2)} seconds.")
         log.debug(f"Request {request_id} Error: {e.detail}")
         raise e
