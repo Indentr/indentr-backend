@@ -1,4 +1,5 @@
 import json
+
 import pytest
 from bson import ObjectId
 from fastapi.testclient import TestClient
@@ -65,7 +66,7 @@ def test_get_all_user_letters(insert_consent_letter):
     token, letter_id, consent_letter, patient_details, user_id = insert_consent_letter
     response = client.post(
         "/files/get-files/",
-        json={"file_type": 'letter'},
+        json={"file_type": "letter"},
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
@@ -121,7 +122,7 @@ def test_save_consent_letter(insert_consent_letter):
 
     response = client.post(
         "/files/save-file/",
-        json={"file_text": json.dumps(consent_letter_document_template["consent_letter"]), "file_id": letter_id, "file_type": 'letter'},
+        json={"file_text": json.dumps(consent_letter_document_template["consent_letter"]), "file_id": letter_id, "file_type": "letter"},
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
@@ -144,7 +145,7 @@ def test_save_nonexistent_consent_letter(insert_consent_letter):
     }
     response = client.post(
         "/files/save-file/",
-        json={"file_text": json.dumps(consent_letter_document_template["consent_letter"]), "file_id": str(random_letter_id), "file_type": 'letter'},
+        json={"file_text": json.dumps(consent_letter_document_template["consent_letter"]), "file_id": str(random_letter_id), "file_type": "letter"},
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",

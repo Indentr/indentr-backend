@@ -32,8 +32,8 @@ log = logging.getLogger(__name__)
 @router.post("/get-files/")
 def get_files(body: FileType, access_token=Depends(JWTBearer())):
     """
-    # Gets all letters
-    This endpoint is called on files page load.
+    # Gets all files
+    Gets all notes/consent letters based on the file_type that gets passed in.
     """
 
     start = time.time()
@@ -60,7 +60,7 @@ def get_files(body: FileType, access_token=Depends(JWTBearer())):
 @router.get("/{file_id}")
 def get_file(file_id: str, access_token=Depends(JWTBearer())):
     """
-    Retrieves a treatment plan based on the provided letter ID.
+    Retrieves a file based on the provided file ID.
     """
 
     try:
@@ -186,8 +186,9 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
 @router.post("/init-alphabetised/")
 def init_alphabetised(body: FileType, access_token=Depends(JWTBearer())):
     """
-    Saves a file to the database. If a file with the provided ID
-    exists, the necessary field will be updated with the new file text.
+    # Initialises alphabtised when user clicks on alphabet sort button on front end
+    returns a dictionary of number of files for each letter in the alphabet.
+    also returns all files that are present for the first letter in alphabet that is > 0
     """
 
     start = time.time()
@@ -223,8 +224,7 @@ def init_alphabetised(body: FileType, access_token=Depends(JWTBearer())):
 @router.post("/select-char/")
 def select_char(body: SelectChar, access_token=Depends(JWTBearer())):
     """
-    Saves a file to the database. If a file with the provided ID
-    exists, the necessary field will be updated with the new file text.
+    # Retrieves all files whose patients first name starts with 'char'
     """
 
     start = time.time()
