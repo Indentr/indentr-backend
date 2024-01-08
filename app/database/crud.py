@@ -366,6 +366,7 @@ def retrieve_all_users_letters_filtered_by_char(user_id: str, starts_with: str):
             {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
             {"$unwind": "$patient"},
             {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
+            {"$sort": {"createdAt": -1}},
         ]
 
         letters = Letter.objects.aggregate(*pipeline)
@@ -708,6 +709,8 @@ def retrieve_all_users_notes_filtered_by_char(user_id: str, starts_with: str):
             {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
             {"$unwind": "$patient"},
             {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
+            {"$sort": {"createdAt": -1}},
+            {"$project": {"audio": 0, "practice_id": 0, "user_id": 0, "transcript": 0}},
         ]
 
         notes = AudioNote.objects.aggregate(*pipeline)
