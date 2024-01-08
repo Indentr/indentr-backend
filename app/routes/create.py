@@ -179,16 +179,15 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
         raise HTTPException(status_code=500, detail="Failed to save image") from e
 
 
-
 @router.post("/uploadTranscript")
-async def upload_audio(audioFile: UploadFile = File(...), transcript: str = Form(...), patientEmail: str = Form(...), access_token=Depends(JWTBearer())):
+async def upload_transcript(
+    audioFile: UploadFile = File(...), transcript: str = Form(...), patientEmail: str = Form(...), access_token=Depends(JWTBearer())
+):
     try:
         start = time.time()
         request_id = uuid.uuid4().hex
 
-        log.info(
-            f"Request {request_id} received for uploadAudio endpoint. Received file: transcript"
-        )
+        log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
 
         token = decodeJWT(access_token)
         user_id = token["user_id"]
@@ -241,17 +240,18 @@ async def upload_audio(audioFile: UploadFile = File(...), transcript: str = Form
     except HTTPException as e:
         raise e  # Reraise the HTTPException
 
+
 @router.post("/uploadAudioTranscription")
 async def upload_audio(audioFile: UploadFile = File(...), access_token=Depends(JWTBearer())):
     try:
-        start = time.time()
+        time.time()
         request_id = uuid.uuid4().hex
 
         log.info(
             f"Request {request_id} received for uploadAudioTranscription endpoint. Received file: {audioFile.filename}, Content type: {audioFile.content_type}"
         )
 
-        token = decodeJWT(access_token)
+        decodeJWT(access_token)
 
         # Read the file contents into a memory buffer
         audio_content = await audioFile.read()
@@ -269,7 +269,6 @@ async def upload_audio(audioFile: UploadFile = File(...), access_token=Depends(J
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
-
 
 
 @router.post("/treatmentPlan", response_model=TreatmentPlanResponse)
