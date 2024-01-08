@@ -245,6 +245,36 @@ async def upload_audio(audioFile: UploadFile = File(...), patientEmail: str = Fo
     except HTTPException as e:
         raise e  # Reraise the HTTPException
 
+@router.post("/uploadAudioTranscription")
+async def upload_audio(audioFile: UploadFile = File(...), access_token=Depends(JWTBearer())):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.info(
+            f"Request {request_id} received for uploadAudioTranscription endpoint. Received file: {audioFile.filename}, Content type: {audioFile.content_type}"
+        )
+
+        token = decodeJWT(access_token)
+
+        # Read the file contents into a memory buffer
+        audio_content = await audioFile.read()
+        # Create a BytesIO object to mimic file reading
+        audio_buffer = BytesIO(audio_content)
+
+        # Speech to text conversion
+        response = await dpg_speech_to_text(audio_buffer)
+        transcripts = response["results"]["channels"][0]["alternatives"][0]["transcript"]
+
+        # Convert ObjectId to string for JSON serialization
+        return {
+            "transcripts": transcripts,
+        }
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
 
 @router.post("/treatmentPlan", response_model=TreatmentPlanResponse)
 async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(JWTBearer())):
