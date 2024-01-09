@@ -9,6 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.constants import DB_URI
 from app.database.atlas_search import atlas_search
 from app.database.crud import (
+    delete_letter,
+    delete_note,
     retrieve_all_users_letters,
     retrieve_all_users_letters_filtered_by_char,
     retrieve_all_users_notes,
@@ -22,7 +24,7 @@ from app.database.crud import (
     update_note,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
-from app.models.file import FileType, SaveFile, SearchFiles, SelectChar
+from app.models.file import DeleteFile, FileType, SaveFile, SearchFiles, SelectChar
 
 router = APIRouter(prefix="/files", tags=["Files"])
 
@@ -243,6 +245,35 @@ def select_char(body: SelectChar, access_token=Depends(JWTBearer())):
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
         return {"files": files}
+
+    except HTTPException as e:
+        log.debug(f"Request {request_id} failed and took {round((time.time() - start), 2)} seconds.")
+        log.debug(f"Request {request_id} Error: {e.detail}")
+        raise e
+
+
+@router.post("/delete-file/")
+def delete_file(body: DeleteFile, access_token=Depends(JWTBearer())):
+    """
+    # Retrieves all files whose patients first name starts with 'char'
+    """
+
+    start = time.time()
+    request_id = uuid.uuid4().hex
+    log.info(f"Request {request_id} received for deleting a file.")
+
+    try:
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+        practice_id = token["practice_id"]
+
+        if body.file_type == "letter":
+            delete_letter(user_id, body.file_id)
+        else:
+            delete_note(practice_id, body.file_id)
+
+        log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
+        return {"success": True}
 
     except HTTPException as e:
         log.debug(f"Request {request_id} failed and took {round((time.time() - start), 2)} seconds.")

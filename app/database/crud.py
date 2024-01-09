@@ -292,6 +292,16 @@ def create_new_letter(user_id: str, text: str, patient_id: str, tokens_consumed:
         raise HTTPException(status_code=404, detail="User not found") from None
 
 
+def delete_letter(user_id: str, file_id: str):
+    letter_to_delete = Letter.objects(id=file_id, user_id=user_id).first()
+
+    if not letter_to_delete:
+        raise HTTPException(status_code=404, detail="No member with that id found in practice")
+
+    # Delete the user document
+    letter_to_delete.delete()
+
+
 def retrieve_last_three_letters(user_id: str):
     try:
         letters = Letter.objects(user_id=user_id).only("consent_letter", "patient_id", "createdAt").order_by("-_id").limit(3)
@@ -597,6 +607,16 @@ def create_audio_note(patient_id: str, user_id: str, practice_id: str, audio_byt
         audio_note.save()
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e)) from None
+
+
+def delete_note(practice_id: str, file_id: str):
+    note_to_delete = AudioNote.objects(id=file_id, practice_id=practice_id).first()
+
+    if not note_to_delete:
+        raise HTTPException(status_code=404, detail="No member with that id found in practice")
+
+    # Delete the user document
+    note_to_delete.delete()
 
 
 def retrieve_all_users_notes(user_id: str):
