@@ -21,3 +21,8 @@ class SaveFile(BaseModel):
 class SelectChar(BaseModel):
     file_type: Literal["letter", "note"]
     char: str
+
+
+class DeleteFile(BaseModel):
+    file_type: Literal["letter", "note"]
+    file_id: str
