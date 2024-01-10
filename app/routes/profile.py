@@ -1,8 +1,9 @@
+import json
 import logging
 import time
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Form, HTTPException
 
 from app.database.crud import (
     create_new_user,
@@ -18,6 +19,7 @@ from app.database.crud import (
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.user import DeleteUser, UserDetails, UserRegistration
+from app.services.openAI import ask_gpt
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
@@ -36,6 +38,103 @@ def get_profile(access_token=Depends(JWTBearer())):
         user = retrieve_user_by_id(user_id)
 
         return {"user": user}
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
+@router.post("/uploadInitialPriceList")
+async def upload_initial_price_list(price_list: str = Form(...), access_token=Depends(JWTBearer())):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.info(f"Request {request_id} received for uploadInitialPriceLisst endpoint.")
+
+        # AI formatting of dental voice notes
+        prompt = f"""
+
+        Objective: Given the below price list, convert it into a json format:
+
+        START OF PRICELIST
+
+        {price_list}
+
+        END OF PRICELIST
+
+        The following price list should be formatted as such:
+
+        Dental Cleaning - $80
+        Teeth Whitening - $150
+        Dental Filling (Composite) - $125 per tooth
+        Root Canal Treatment - $500
+        Dental Crown (Ceramic) - $800
+
+        {{
+            "priceList": [
+                {{
+                    "service": "Dental Cleaning",
+                    "price": "$80"
+                }},
+                {{
+                    "service": "Teeth Whitening",
+                    "price": "$150"
+                }},
+                {{
+                    "service": "Dental Filling (Composite) (per tooth)",
+                    "price": "$125"
+                }},
+                {{
+                    "service": "Root Canal Treatment",
+                    "price": "$500"
+                }},
+                {{
+                    "service": "Dental Crown (Ceramic)",
+                    "price": "$800"
+                }}
+            ]
+        }}
+
+        Do not double up the curly braces like I have, single is fine
+
+        """
+        formatted_price_list_text, tokens = await ask_gpt(prompt, "You're an ai formatting dental price list", "gpt-3.5-turbo")
+
+        try:
+            formatted_price_list_json = json.loads(formatted_price_list_text)
+        except json.JSONDecodeError as e:
+            # Handle the case where json.loads fails, still send GPT response back as error message
+            error_detail = f"Error decoding GPT response: {str(e)}"
+            raise HTTPException(status_code=500, detail=error_detail) from e
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        # Convert ObjectId to string for JSON serialization
+        return {
+            "formatted_price_list_json": formatted_price_list_json,
+        }
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
+@router.post("/uploadPriceList")
+async def upload_price_list(price_list_json: str = Form(...), access_token=Depends(JWTBearer())):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.info(f"Request {request_id} received for uploadPriceLisst endpoint.")
+
+        token = decodeJWT(access_token)
+        token["practice_id"]
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        # Convert ObjectId to string for JSON serialization
+        return {
+            "formatted_price_list_json": "success",
+        }
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
