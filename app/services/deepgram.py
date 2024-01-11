@@ -1,15 +1,24 @@
-from deepgram import Deepgram
+from deepgram import DeepgramClient, PrerecordedOptions
 
 from app.constants import DEEPGRAM_API_KEY
 
 
 async def dpg_speech_to_text(audio_buffer):
-    # Initializes the Deepgram SDK
-    deepgram = Deepgram(DEEPGRAM_API_KEY)
+    try:
+        # Initializes the Deepgram SDK
+        deepgram = DeepgramClient(DEEPGRAM_API_KEY)
 
-    # Use BytesIO object as the buffer for Deepgram API
-    source = {"buffer": audio_buffer, "mimetype": "audio/webm"}
+        # Use BytesIO object as the buffer for Deepgram API
+        source = {"buffer": audio_buffer, "mimetype": "audio/webm"}
 
-    response = deepgram.transcription.sync_prerecorded(source, {"punctuate": False})
+        options = PrerecordedOptions(
+            model="nova-2",
+            smart_format=False,
+        )
 
-    return response
+        response = deepgram.listen.prerecorded.v("1").transcribe_file(source, options)
+
+        return response
+
+    except Exception as e:
+        print(f"Exception: {e}")
