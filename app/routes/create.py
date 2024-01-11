@@ -235,28 +235,13 @@ async def upload_transcript(
 
         # AI formatting of dental voice notes
         prompt = f"""
+            START OF TRANSCRIPT
 
-        Objective: Convert the below dental dictation transcript into professional, concise but comprehensive
-        dental notes for patient record inclusion:
+            {transcript}
 
-        START OF TRANSCRIPT
+            END OF TRANSCRIPT
 
-        {transcript}
-
-        END OF TRANSCRIPT
-
-        Important points: Bare in mind that it is an ai generated audio transcription so some of the words
-        maybe incorrectly recorded, do your best to guess what the correct sentence would have been.
-        eg upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
-        in words that do not appear to fit the context will mean Upper left 3
-
-        do not include sections for patient information e.g. patient name     as this notes record will be saved to
-        a patient file anyway
-
-        It is critical that you do not make up sections that are not mentioned in the transcript if the audio
-        transcript is empty or unusable then please do not try to guess. just reply that the transcript is unusable/empty.
-
-
+            {upload_transcript_prompt}
         """
         formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes", "gpt-4-1106-preview")
 
