@@ -64,7 +64,7 @@ async def generate_triage_questions(body: GenerateQuestions):
         # check if email exists within that practice's list of patients
         try:
             patient = retrieve_patient_by_email(patient_details["email"])
-            if patient["practice_id"] != practice_id:
+            if "practice_id" not in patient or patient["practice_id"] != practice_id:
                 raise HTTPException(status_code=404, detail="Email not associated with practice")
 
         except HTTPException as e:
