@@ -1,4 +1,14 @@
+from typing import Optional
+
+from fastapi import UploadFile
 from pydantic import BaseModel
+
+
+# Request model
+class PatientSearch(BaseModel):
+    search_param: str
+
+    model_config = {"json_schema_extra": {"examples": [{"search_param": "janedoe@gmail.com"}]}}
 
 
 # Request model
@@ -41,8 +51,8 @@ class SymptomResponse(BaseModel):
 # Request model
 class TreatmentPlanData(BaseModel):
     patientDetails: str
-    symptomDetails: str
-    dentistNotes: str
+    symptomDetails: Optional[str] = None
+    dentistNotes: Optional[str] = None
 
     model_config = {
         "json_schema_extra": {
@@ -96,7 +106,7 @@ class TreatmentPlanResponse(BaseModel):
 
 
 # Request model
-class SaveTreatmentPlan(BaseModel):
+class SaveFile(BaseModel):
     treatment_plan: str
     patient_details: str
     tokens_consumed: int
@@ -115,8 +125,14 @@ class SaveTreatmentPlan(BaseModel):
 
 
 # Response model
-class SaveTreatmentPlanResponse(BaseModel):
+class SaveFileResponse(BaseModel):
     message: str
     letter_id: str
 
     model_config = {"json_schema_extra": {"examples": [{"html_content": "Letter saved successfully", "letter_id": "123456789"}]}}
+
+
+# Request model
+class SaveAudioNotes(BaseModel):
+    audioFile: UploadFile
+    patientEmail: str

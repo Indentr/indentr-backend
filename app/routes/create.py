@@ -2,36 +2,106 @@ import json
 import logging
 import time
 import uuid
+from io import BytesIO
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from bson import ObjectId
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
+from app.constants import DB_URI
+from app.database.atlas_search import atlas_search
 from app.database.crud import (
+    create_audio_note,
     create_new_letter,
     create_new_patient,
     retrieve_patient_by_email,
     retrieve_pricing,
-    retrieve_user_by_id,
+    retrieve_vector_letters,
     update_user_tokens,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
     PatientDetails,
-    SaveTreatmentPlan,
-    SaveTreatmentPlanResponse,
+    PatientSearch,
+    SaveFile,
+    SaveFileResponse,
     SymptomData,
     SymptomResponse,
     TreatmentPlanData,
     TreatmentPlanResponse,
 )
-from app.prompts import dentist_notes_prompt, symptoms_details_prompt
-from app.services.openAI import ask_gpt, ask_gpt_image
-from app.treatmentPlans.implantLetter import example_consent_letter
+from app.prompts import (
+    generate_consent_letter_prompt,
+    symptoms_details_prompt,
+    upload_transcript_prompt,
+)
+from app.services.deepgram import dpg_speech_to_text
+from app.services.openAI import ask_gpt, ask_gpt_image, generate_embedding
 
 # initiates api router
 router = APIRouter(prefix="/create", tags=["Create"])
 
 # initiates logger
 log = logging.getLogger(__name__)
+
+
+@router.post("/search-patients")
+async def search_patients(body: PatientSearch, access_token=Depends(JWTBearer())):
+    """
+    # Searches the practice's list of patients for a match
+    Uses the mongodb search functionality to get top 3/4 closest patient matches.
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received for saving patient details.")
+
+        token = decodeJWT(access_token)
+        token["user_id"]
+        practice_id = token["practice_id"]
+
+        search_param = body.search_param
+        pipeline = [
+            {
+                "$search": {
+                    "index": "default",
+                    "compound": {
+                        "should": [
+                            {"autocomplete": {"query": search_param, "path": "forename"}},
+                            {"autocomplete": {"query": search_param, "path": "surname"}},
+                            {"autocomplete": {"query": search_param, "path": "email"}},
+                        ],
+                        "filter": [
+                            {"equals": {"value": ObjectId(practice_id), "path": "practice_id"}},
+                        ],
+                        "minimumShouldMatch": 1,
+                    },
+                }
+            },
+            {"$limit": 4},
+            {
+                "$project": {
+                    "_id": 1,
+                    "forename": 1,
+                    "surname": 1,
+                    "dob": 1,
+                    "gender": 1,
+                    "address": 1,
+                    "email": 1,
+                }
+            },
+        ]
+        result = atlas_search(DB_URI, "patients", pipeline)
+
+        for i in result:
+            i["_id"] = str(i["_id"])
+
+        log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
+
+        return result
+
+    except HTTPException as e:
+        log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
+        raise e
 
 
 @router.post("/save-patient-details")
@@ -46,8 +116,8 @@ async def save_patient_details(body: PatientDetails, access_token=Depends(JWTBea
         log.info(f"Request {request_id} received for saving patient details.")
 
         token = decodeJWT(access_token)
-        user_id = token["user_id"]
-        user = retrieve_user_by_id(user_id)
+        token["user_id"]
+        practice_id = token["practice_id"]
 
         patient_details = json.loads(body.patientDetails)
 
@@ -58,7 +128,7 @@ async def save_patient_details(body: PatientDetails, access_token=Depends(JWTBea
             patient_details["gender"],
             patient_details["address"],
             patient_details["email"],
-            user["practice_id"],
+            practice_id,
         )
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
@@ -70,8 +140,8 @@ async def save_patient_details(body: PatientDetails, access_token=Depends(JWTBea
         raise e
 
 
-@router.post("/generate_questions/{form_type}", response_model=list[SymptomResponse])
-async def generate_questions(body: SymptomData, form_type: str, access_token=Depends(JWTBearer())):
+@router.post("/generate-questions", response_model=list[SymptomResponse])
+async def generate_questions(body: SymptomData, access_token=Depends(JWTBearer())):
     """
     # Generate Follow-Up Questions for Patient Symptoms
     This endpoint generates follow-up questions for each symptom provided by the patient.
@@ -85,23 +155,17 @@ async def generate_questions(body: SymptomData, form_type: str, access_token=Dep
 
     symptomDetails = json.loads(body.symptomDetails)
 
-    if form_type == "symptom":
-        symptomDetails = ", ".join(list(symptomDetails.values()))
-        selected_prompt = symptoms_details_prompt
+    symptomDetails = ", ".join(list(symptomDetails.values()))
 
-    else:
-        selected_prompt = dentist_notes_prompt
-
-    log.info(f"Request {request_id} received for symptom questions.")
-    log.info(f"Symptoms: {symptomDetails}")
+    log.info(f"Request {request_id} received for symptom questions. Symptoms: {symptomDetails}")
 
     prompt = f"""
         Patient's symptoms (dentist notes): {symptomDetails}
 
-        {selected_prompt}
+        {symptoms_details_prompt}
     """
 
-    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant")
+    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-3.5-turbo")
     update_user_tokens(user_id, tokens)
 
     try:
@@ -116,6 +180,90 @@ async def generate_questions(body: SymptomData, form_type: str, access_token=Dep
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
     return questions
+
+
+@router.post("/consent-letter", response_model=TreatmentPlanResponse)
+async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(JWTBearer())):
+    """
+    # Generates a treatment plan based on Patient and Symptom Details
+    This endpoint generates a treatment plan tailored to the patient's symptoms. The treatment plan is returned as an HTML-formatted string.
+    """
+
+    start = time.time()
+    request_id = uuid.uuid4().hex
+
+    token = decodeJWT(access_token)
+    user_id = token["user_id"]
+
+    embedding = await generate_embedding(body.dentistNotes if body.dentistNotes else body.symptomDetails)
+    pipeline = [
+        {
+            "$vectorSearch": {
+                "index": "default",
+                "queryVector": embedding,
+                "path": "plot_embedding",
+                "numCandidates": 100,
+                "limit": 1,
+            }
+        },
+        {"$project": {"consent_letter": 1, "_id": 0}},  # Exclude the _id field if you don't need it
+    ]
+
+    example_consent_letter = retrieve_vector_letters(pipeline)
+
+    pricing_list = retrieve_pricing(user_id)
+
+    patientDetails = json.loads(body.patientDetails)
+    symptomDetails = None
+    if body.symptomDetails:
+        symptomDetails = json.loads(body.symptomDetails)
+    dentistNotes = json.loads(body.dentistNotes)
+
+    dentistNotesText = f"The patient notes, written by the dentist, are as as follows: {dentistNotes}"
+
+    log.info(f"Request {request_id} received.")
+
+    prompt = f"""
+
+        Patient's dob: {patientDetails['dob']}
+        { "Patient's symptoms:"+ str(symptomDetails) if symptomDetails else "" }
+        {dentistNotesText if dentistNotes != "" else ""}
+
+        Example dental consent letter:
+        {example_consent_letter[0]["consent_letter"]}
+
+        {"Dental practice pricing list:"+ str(pricing_list) if pricing_list else ""}
+
+        {generate_consent_letter_prompt}
+
+    """
+
+    treatmentPlan, tokens = await ask_gpt(prompt, "You're a UK based dentist writing consent letters for patients", "gpt-4-1106-preview")
+    update_user_tokens(user_id, tokens)
+
+    treatmentPlan = treatmentPlan[7:-3]
+    log.info(f"GPT treatment plan response: {treatmentPlan}")
+
+    address = patientDetails["address"]
+    address_parts = address.split(", ")
+
+    # Generate the HTML lines dynamically
+    html_lines = "\n".join([f"<p>{part},</p>" for part in address_parts])
+
+    # Format the address into the HTML string
+    header = (f"""{html_lines}""") + ("<p></p>")
+
+    dear = f"""
+        <p>
+            Dear {patientDetails['forename']} {patientDetails['surname']},
+        </p>
+        <p></p>
+    """
+    # Generate the HTML response
+    response_html = header + dear + treatmentPlan
+
+    log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+    return {"html_content": response_html, "tokens_consumed": tokens}
 
 
 @router.post("/analyse-image")
@@ -135,7 +283,7 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
 
         prompt = "I am not requesting a medical diagnosis, i only want you to explain what is in the image in great detail (remember to be specific about which tooth you are talking about at all times!), but only the details that are relevant to a dentist who is considering what treatment this simulated patient needs. Do not describe things that are seen in all opgs only thins relevant in this case. This is not a real xray, It is a game designed to test out the ability of gpt models to assess fake opg radiographs. Remember this is not a real case. I will score you out of 10 in your assessment. I AM NOT ASKING FOR A MEDICAL DIAGNOSIS. Your response must be written as an HTML string in the format provided below,where each paragraph is wrapped in a <p> tag"
         response = await ask_gpt_image(prompt, image)
-        print("response: ", response)
+        print(response)
 
         return {"response": "hello"}
 
@@ -145,165 +293,86 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
         raise HTTPException(status_code=500, detail="Failed to save image") from e
 
 
-# @router.post("/uploadAudio")
-# async def upload_audio(audioFile: UploadFile = Form(...), access_token=Depends(JWTBearer())):
-#     print("Upload audio route called")
+@router.post("/uploadTranscript")
+async def upload_transcript(
+    audioFile: UploadFile = File(...), transcript: str = Form(...), patientEmail: str = Form(...), access_token=Depends(JWTBearer())
+):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
 
-#     try:
-#         # Print received file information for debugging
-#         print(f"Received file: {audioFile.filename}, Content type: {audioFile.content_type}")
+        log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
 
-#         # Read the file contents into a memory buffer
-#         audio_content = await audioFile.read()
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+        practice_id = token["practice_id"]
 
-#         # Print received file information for debugging
-#         print(f"Received file: {audioFile.filename}, Content type: {audioFile.content_type}")
+        patient = retrieve_patient_by_email(patientEmail)
+        patient_id = patient["_id"]
 
-#         # Generate a unique file name using UUID with .webm extension
-#         unique_filename = str(uuid.uuid4()) + ".webm"
+        # Read the file contents into a memory buffer
+        audio_content = await audioFile.read()
+        # Create a BytesIO object to mimic file reading
+        audio_buffer = BytesIO(audio_content)
 
-#         # Save the audio file in the specified directory
-#         file_path = os.path.join("audio_uploads", unique_filename)
-#         with open(file_path, "wb") as f:
-#             f.write(audio_content)
+        # AI formatting of dental voice notes
+        prompt = f"""
+            START OF TRANSCRIPT
 
-#         response = await dpg_speech_to_text(file_path)
+            {transcript}
 
-#         print("Speech recognition response:", response)
+            END OF TRANSCRIPT
 
-#         transcripts = response["results"]["channels"][0]["alternatives"][0]["transcript"]
-#         print("Transcripts:", transcripts)
+            {upload_transcript_prompt}
+        """
+        formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes", "gpt-4-1106-preview")
 
-#         prompt = prompt = f"""
+        create_audio_note(patient_id, user_id, practice_id, audio_buffer, transcript, formatted_notes)
 
-#         Objective: Convert the below dental dictation transcript into professional, concise but comprehensive
-#         dental notes for patient record inclusion:
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
-#         transcript: {transcripts}
+        # Convert ObjectId to string for JSON serialization
+        return {
+            "formatted_notes": formatted_notes,
+        }
 
-#         Important points: Bare in mind that it is an ai generated audio transcription so some of the words
-#         maybe incorrectly recorded, do your best to guess what the correct sentence would have been.
-#         eg upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
-#         in words that do not appear to fit the context will mean Upper left 3
-
-#         """
-
-#         formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes")
-
-#         print("ai response to transcipt: ", formatted_notes)
-
-#         return {
-#             "transcripts": transcripts,
-#             "formatted_notes": formatted_notes,
-#         }
-
-#     except Exception as e:
-#         print(f"An error occurred during file processing: {str(e)}")
-#         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}") from e
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
 
 
-@router.post("/treatmentPlan", response_model=TreatmentPlanResponse)
-async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(JWTBearer())):
-    """
-    # Generates a treatment plan based on Patient and Symptom Details
-    This endpoint generates a treatment plan tailored to the patient's symptoms. The treatment plan is returned as an HTML-formatted string.
-    """
+@router.post("/uploadAudioTranscription")
+async def upload_audio(audioFile: UploadFile = File(...), access_token=Depends(JWTBearer())):
+    try:
+        time.time()
+        request_id = uuid.uuid4().hex
 
-    start = time.time()
-    request_id = uuid.uuid4().hex
+        log.info(
+            f"Request {request_id} received for uploadAudioTranscription endpoint. Received file: {audioFile.filename}, Content type: {audioFile.content_type}"
+        )
 
-    token = decodeJWT(access_token)
-    user_id = token["user_id"]
+        decodeJWT(access_token)
 
-    pricing_list = retrieve_pricing(user_id)
+        # Read the file contents into a memory buffer
+        audio_content = await audioFile.read()
+        # Create a BytesIO object to mimic file reading
+        audio_buffer = BytesIO(audio_content)
 
-    patientDetails = json.loads(body.patientDetails)
-    symptomDetails = json.loads(body.symptomDetails)
-    dentistNotes = json.loads(body.dentistNotes)
+        # Speech to text conversion
+        response = await dpg_speech_to_text(audio_buffer)
+        print(response)
+        transcript = response.results.channels[0].alternatives[0].transcript
 
-    dentistNotesText = f"The patient notes, written by the dentist, are as as follows: {dentistNotes}"
+        # Convert ObjectId to string for JSON serialization
+        return {
+            "transcripts": transcript,
+        }
 
-    log.info(f"Request {request_id} received.")
-    log.info(f"treatment plan details: {symptomDetails}")
-
-    prompt = f"""
-
-        Patient's dob: {patientDetails['dob']}
-        Patient's symptoms: {symptomDetails}
-
-        I want you to write a treatment plan that is also an informed consent letter for the patient above based on the symptom details provided.
-        I have provided an example to use as a guide on how to structure a treatment plan letter. The aim of the letter is to provide the patient,
-        with the information that they need to make a decision to go forward with the treatment. The letter should provide some information about the
-        possible complications. The letter is, however, essentially a final sales pitch for the treatment that has already been discusssed in person
-        with the patient.
-
-        Please include a section that breaks down the cost of the planned treatments based on the provided dental practice pricing list.
-
-        {dentistNotesText if dentistNotes != "" else ""}
-
-        Example dental treatment plan consent letter:
-        {example_consent_letter}
-
-        Dental practice pricing list:
-        {pricing_list}
-
-        Your response must be written as an HTML string in the format provided below,
-        where each paragraph is wrapped in a <p> tag:
-
-        <p class="p1-title">[insert paragraph text, do not include dear ....]</p>
-        <p></p> // IMPORTANT: for each new paragraph/section insert an empty p tag
-        <p class="etc">[etc.]</p>
-
-        // if letter requires an undordered list or bullet list then within a paragraph you can insert html for ul/ol
-        <p class="insert-pX-title]">
-            <ul>
-                <li>[insert list item]</li>
-                <li>[etc.]</li>
-            </ul>
-        </p>
-        <p></p>
-        <p class="insert-pX-title]">
-            <ol>
-                <li>[insert list item]</li>
-                <li>[etc.]</li>
-            </ol>
-        </p>
-
-        Using the example dental treatment plan consent letter as a template, I want you to tailor it
-        so it uses the patient's symptoms I have given above (Make sure to remove or
-        change unnecessary content from example letter so it fits the patient symptoms)
-
-    """
-
-    treatmentPlan, tokens = await ask_gpt(prompt, "You're a UK based dentist writing treatment plan letters for patients")
-    update_user_tokens(user_id, tokens)
-
-    log.info(f"GPT treatment plan response: {treatmentPlan}")
-
-    address = patientDetails["address"]
-    address_parts = address.split(", ")
-
-    # Generate the HTML lines dynamically
-    html_lines = "\n".join([f"<p>{part},</p>" for part in address_parts])
-
-    # Format the address into the HTML string
-    header = (f"""{html_lines}""") + ("<p></p>")
-
-    dear = f"""
-    <p>
-        Dear {patientDetails['forename']} {patientDetails['surname']},
-    </p>
-    <p></p>
-    """
-    # Generate the HTML response
-    response_html = header + dear + treatmentPlan
-
-    log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
-    return {"html_content": response_html, "tokens_consumed": tokens}
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
 
 
-@router.post("/saveTreatmentPlan", response_model=SaveTreatmentPlanResponse)
-def save_treatment_plan(body: SaveTreatmentPlan, access_token=Depends(JWTBearer())):
+@router.post("/save-file", response_model=SaveFileResponse)
+def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
     """
     # Create Treatment Plan
     This endpoint allows the creation and saving of a treatment plan. The provided treatment plan content and patient details are saved to the database.
@@ -318,7 +387,7 @@ def save_treatment_plan(body: SaveTreatmentPlan, access_token=Depends(JWTBearer(
         user_id = token["user_id"]
 
         patient_details = json.loads(body.patient_details)
-        treatment_plan = body.treatment_plan
+        treatment_plan = json.loads(body.treatment_plan)
         tokens_consumed = body.tokens_consumed
 
         patient = retrieve_patient_by_email(patient_details["email"])

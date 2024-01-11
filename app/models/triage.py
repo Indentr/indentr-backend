@@ -41,3 +41,7 @@ class ToggleTriageOpenedRequest(BaseModel):
 
 class DeleteTriageRequests(BaseModel):
     selected_requests: str
+
+
+class AddPatientToPractice(BaseModel):
+    patient_id: str
