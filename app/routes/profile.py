@@ -15,6 +15,7 @@ from app.database.crud import (
     retrieve_practice_users_token_consumption,
     retrieve_user_by_email,
     retrieve_user_by_id,
+    update_price_list,
     update_user_details,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
@@ -119,7 +120,7 @@ async def upload_initial_price_list(price_list: str = Form(...), access_token=De
 
 
 @router.post("/uploadPriceList")
-async def upload_price_list(price_list_json: str = Form(...), access_token=Depends(JWTBearer())):
+async def upload_price_list(price_list_string: str = Form(...), access_token=Depends(JWTBearer())):
     try:
         start = time.time()
         request_id = uuid.uuid4().hex
@@ -127,7 +128,14 @@ async def upload_price_list(price_list_json: str = Form(...), access_token=Depen
         log.info(f"Request {request_id} received for uploadPriceLisst endpoint.")
 
         token = decodeJWT(access_token)
-        token["practice_id"]
+        practice_id = token["practice_id"]
+
+        try:
+            # Attempt to call the update_price_list function
+            update_price_list(price_list_string, practice_id)
+        except Exception as e:
+            # Handle exceptions that might be raised
+            print(f"An error occurred: {e}")
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 

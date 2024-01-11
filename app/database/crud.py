@@ -150,6 +150,42 @@ def retrieve_practice_users_token_consumption(practice_id: str):
     return users_tokens_dict_list
 
 
+def update_price_list(price_list: str, practice_id: str):
+    try:
+        print("Received price list:", price_list)
+        print("Received practice ID:", practice_id)
+
+        price_list_data = json.loads(price_list)
+        print("Parsed price list data:", price_list_data)
+
+        for item in price_list_data:
+            print("Processing pricing for:", item)
+            # Find existing pricing document
+            pricing = Pricing.objects(treatment=item["service"], practice_id=practice_id).first()
+
+            # Update existing document or create a new one
+            if pricing:
+                pricing.price = item["price"]
+                pricing.save()
+                print(f"Pricing updated: {pricing}")
+            else:
+                pricing = Pricing(treatment=item["service"], price=item["price"], practice_id=practice_id)
+                pricing.save()
+                print(f"Pricing created: {pricing}")
+
+        updated_prices = Pricing.objects(practice_id=practice_id)
+        updated_prices_list = [price.to_mongo().to_dict() for price in updated_prices]
+        print("Updated prices:", updated_prices_list)
+        return updated_prices_list
+
+    except DoesNotExist:
+        print("Practice not found")
+        raise HTTPException(status_code=404, detail="Practice not found") from None
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from None
+
+
 def update_user_details(user_id: str, email: str):
     try:
         user = User.objects.get(id=user_id)

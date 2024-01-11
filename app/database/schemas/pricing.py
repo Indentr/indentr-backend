@@ -1,9 +1,9 @@
-from mongoengine import DecimalField, Document, ReferenceField, StringField
+from mongoengine import Document, ReferenceField, StringField
 
 
 class Pricing(Document):
     treatment = StringField(required=True)
-    price = DecimalField(required=True, precision=2)
+    price = StringField(required=True)
     practice_id = ReferenceField("Practice", required=True)
 
     meta = {"collection": "pricing"}  # Specify the collection name if needed
