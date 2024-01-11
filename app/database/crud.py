@@ -11,6 +11,7 @@ from werkzeug.security import generate_password_hash
 
 from app.database.schemas.audio_note import AudioNote
 from app.database.schemas.config import Config
+from app.database.schemas.example_consent_letters import VectorExampleLetter
 from app.database.schemas.letter import Letter
 from app.database.schemas.patient import Patient
 from app.database.schemas.practice import Practice
@@ -755,3 +756,21 @@ def retrieve_all_users_notes_filtered_by_char(user_id: str, starts_with: str):
             raise HTTPException(status_code=404, detail="No letter found") from None
         else:
             raise e
+
+
+# Vector example letters
+def create_new_vector_letter(consent_letter: str, title: str, plot_embedding: List[float]):
+    try:
+        letter = VectorExampleLetter(consent_letter=consent_letter, title=title, plot_embedding=plot_embedding)
+        letter.save()
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e)) from None
+
+
+def retrieve_vector_letters(pipeline):
+    try:
+        result = VectorExampleLetter.objects.aggregate(*pipeline)
+        return list(result)
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Error retrieving alphabet_status") from None

@@ -79,3 +79,9 @@ async def ask_gpt_image(prompt: str, base64_image: str):
         # Log the error if any exception occurs
         log.error(f"An error occurred: {str(e)}")
         raise
+
+
+async def generate_embedding(embedding_text: str):
+    response = client.embeddings.create(input=embedding_text, model="text-embedding-ada-002")
+    embedding = response.data[0].embedding
+    return embedding
