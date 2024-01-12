@@ -16,8 +16,25 @@ from app.database.schemas.letter import Letter
 from app.database.schemas.patient import Patient
 from app.database.schemas.practice import Practice
 from app.database.schemas.pricing import Pricing
+from app.database.schemas.prompt import Prompt
 from app.database.schemas.triage import Triage
 from app.database.schemas.user import User
+
+
+# GPT Prompts ------------------------
+def create_new_prompt(title: str, prompt_text: str):
+    # Create a Prompt document
+    new_prompt = Prompt(title=title, prompt_text=prompt_text)
+    new_prompt.save()
+
+
+def retrieve_prompt_by_title(title: str):
+    try:
+        prompt = Prompt.objects.get(title=title)
+        return prompt.prompt_text
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Prompt not found") from None
 
 
 # Practice ------------------------
@@ -264,13 +281,19 @@ def update_patients_practice_id(patient_id: str, practice_id: str):
 def retrieve_pricing(user_id: str):
     try:
         user = User.objects.get(id=user_id)
-        pricing = Pricing.objects(practice_id=user.practice_id).first()
+        pricing = Pricing.objects(practice_id=user.practice_id).only("treatment", "price")
 
         if pricing is None:
             # raise HTTPException(status_code=404, detail="No pricing found")
             return "No pricing available, use best judgement"
 
-        return pricing.treatment
+        pricing_list = []
+        for price in pricing:
+            price_dict = price.to_mongo().to_dict()
+            del price_dict["_id"]
+            pricing_list.append(price_dict)
+
+        return pricing_list
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="User not found") from None

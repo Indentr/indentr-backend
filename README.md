@@ -84,3 +84,16 @@ Deploy to google cloud
 ```bash
 gcloud run deploy indentr-backend --port 8080 --source . --region=europe-west1
 ```
+
+
+## MongoDB Database Tools commands
+Make sure MongoDB tools are installed on your machine. 
+
+### Copy collection from one database to another
+```bash
+mongodump --uri="<connection-string>" --db=databaseName --collection=sourceCollection
+
+```
+```bash
+mongorestore --uri="<connection-string>" --db=databaseName --collection=destinationCollection dump/development/sourceCollection.bson
+```
