@@ -16,9 +16,9 @@ from app.database.schemas.letter import Letter
 from app.database.schemas.patient import Patient
 from app.database.schemas.practice import Practice
 from app.database.schemas.pricing import Pricing
+from app.database.schemas.prompt import Prompt
 from app.database.schemas.triage import Triage
 from app.database.schemas.user import User
-from app.database.schemas.prompt import Prompt
 
 
 # GPT Prompts ------------------------
@@ -291,8 +291,9 @@ def retrieve_pricing(user_id: str):
         for price in pricing:
             price_dict = price.to_mongo().to_dict()
             del price_dict["_id"]
-            
-        return pricing.treatment
+            pricing_list.append(price_dict)
+
+        return pricing_list
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="User not found") from None

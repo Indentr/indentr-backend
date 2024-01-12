@@ -222,7 +222,6 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
         dentistNotes = json.loads(body.dentistNotes)
         dentistNotesText = f"The patient notes, written by the dentist, are as as follows: {dentistNotes}"
 
-
     log.info(f"Request {request_id} received.")
 
     prompt = f"""
@@ -238,8 +237,6 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
 
         {generate_consent_letter_prompt}
     """
-
-    print(prompt)
 
     treatmentPlan, tokens = await ask_gpt(prompt, "You're a UK based dentist writing consent letters for patients", "gpt-4-1106-preview")
     update_user_tokens(user_id, tokens)
