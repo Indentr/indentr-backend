@@ -4,8 +4,8 @@ from mongoengine import (
 )
 
 
-class GPTPrompts(Document):
+class Prompt(Document):
     title = StringField(required=True, unique=True)
     prompt_text = StringField(required=True)
 
-    meta = {"collection": "GPT_prompts"}  # Specify the collection name
+    meta = {"collection": "prompts"}  # Specify the collection name

@@ -8,6 +8,7 @@ from starlette_context.middleware import RawContextMiddleware
 from app.constants import ALLOWED_ORIGINS, DB_URI
 from app.database.db import connect_to_mongoengine
 from app.routes import auth, create, files, profile, triage, vector_letter
+from app.database.crud import create_new_prompt
 
 middleware = [Middleware(RawContextMiddleware)]
 
