@@ -207,7 +207,7 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
     ]
 
     example_consent_letter = retrieve_vector_letters(pipeline)
-
+    generate_consent_letter_prompt = retrieve_prompt_by_title("generate_consent_letter")
     pricing_list = retrieve_pricing(user_id)
 
     patientDetails = json.loads(body.patientDetails)
@@ -222,7 +222,6 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
         dentistNotes = json.loads(body.dentistNotes)
         dentistNotesText = f"The patient notes, written by the dentist, are as as follows: {dentistNotes}"
 
-    generate_consent_letter_prompt = retrieve_prompt_by_title("generate_consent_letter")
 
     log.info(f"Request {request_id} received.")
 
@@ -238,7 +237,6 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
         {"Dental practice pricing list:"+ str(pricing_list) if pricing_list else ""}
 
         {generate_consent_letter_prompt}
-
     """
 
     print(prompt)

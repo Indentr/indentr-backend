@@ -281,12 +281,17 @@ def update_patients_practice_id(patient_id: str, practice_id: str):
 def retrieve_pricing(user_id: str):
     try:
         user = User.objects.get(id=user_id)
-        pricing = Pricing.objects(practice_id=user.practice_id).first()
+        pricing = Pricing.objects(practice_id=user.practice_id).only("treatment", "price")
 
         if pricing is None:
             # raise HTTPException(status_code=404, detail="No pricing found")
             return "No pricing available, use best judgement"
 
+        pricing_list = []
+        for price in pricing:
+            price_dict = price.to_mongo().to_dict()
+            del price_dict["_id"]
+            
         return pricing.treatment
 
     except DoesNotExist:
