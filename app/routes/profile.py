@@ -171,66 +171,45 @@ async def get_price_list(access_token=Depends(JWTBearer())):
     try:
         start = time.time()
         request_id = uuid.uuid4().hex
-
-        print(f"Request {request_id} started")  # Debug print
         log.info(f"Request {request_id} received for getPriceList endpoint.")
 
         token = decodeJWT(access_token)
         practice_id = token["practice_id"]
 
-        print(f"Decoded JWT, practice_id: {practice_id}")  # Debug print
-
         try:
-            print("Calling retrieve_price_list")  # Debug print
             price_list_from_db = retrieve_price_list(practice_id)
-            print(f"Retrieved price list: {price_list_from_db}")  # Debug print
-
             price_list_from_db = convert_objectid_to_str(price_list_from_db)
-            print(f"Converted ObjectId to string: {price_list_from_db}")  # Debug print
         except Exception as e:
-            print(f"An error occurred in retrieving or converting price list: {e}")  # Debug print
             log.error(f"An error occurred: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail=f"Error getting price list: {str(e)}") from e
+
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
         return jsonable_encoder({"price_list_from_db": price_list_from_db})
 
     except HTTPException as e:
-        print(f"HTTPException raised: {e}")  # Debug print
         raise e  # Reraise the HTTPException
 
 
 @router.post("/deletePriceList")
 async def delete_price_list(access_token=Depends(JWTBearer())):
     try:
-        start = time.time()
-        request_id = uuid.uuid4().hex
-        print(f"[Debug] Request {request_id} started - deletePriceList")  # Debug print
+        time.time()
 
-        print("[Debug] Decoding JWT")  # Debug print
+
         token = decodeJWT(access_token)
         if token is None:
-            print("[Debug] Token is None after decodeJWT")  # Debug print
             raise HTTPException(status_code=401, detail="Invalid or expired token")
-        print(f"[Debug] Token decoded successfully: {token}")  # Debug print
 
         practice_id = token["practice_id"]
-        print(f"[Debug] Practice ID: {practice_id}")  # Debug print
-
         try:
-            print("[Debug] Calling internal delete_price_list function")  # Debug print
             await delete_price_list_crud(practice_id)
-            print("[Debug] delete_price_list function executed successfully")  # Debug print
         except Exception as e:
-            print(f"[Debug] An error occurred in delete_price_list: {e}")  # Debug print
-            raise HTTPException(status_code=500, detail=str(e))
-
-        print(f"[Debug] Request completed in {round((time.time() - start), 2)} seconds")  # Debug print
+            raise HTTPException(status_code=500, detail=f"Error deleting price list: {str(e)}") from e
         return {"message": "Price list deleted successfully"}
 
     except HTTPException as e:
-        print(f"[Debug] HTTPException raised: {e}")  # Debug print
         raise e
 
 
@@ -305,10 +284,6 @@ async def save_details(body: UserDetails, access_token=Depends(JWTBearer())):
         email = body.email
         phone = body.phone
         address = body.address
-
-        if not email or not phone or not address:
-            raise HTTPException(status_code=400, detail="No data provided")
-
         # Extract user's email from JWT token
         token = decodeJWT(access_token)
         user_id = token["user_id"]
