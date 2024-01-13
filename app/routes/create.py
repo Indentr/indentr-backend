@@ -310,7 +310,7 @@ async def upload_transcript(
         patient = retrieve_patient_by_email(patientEmail)
         patient_id = patient["_id"]
 
-        upload_transcript_prompt = retrieve_prompt_by_title("generate_consent_letter")
+        upload_transcript_prompt = retrieve_prompt_by_title("upload_transcript")
 
         # Read the file contents into a memory buffer
         audio_content = await audioFile.read()
