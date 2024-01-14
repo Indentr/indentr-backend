@@ -18,6 +18,7 @@ from app.database.crud import (
     retrieve_practice_by_id,
     retrieve_practice_users_token_consumption,
     retrieve_price_list,
+    retrieve_prompt_by_title,
     retrieve_user_by_email,
     retrieve_user_by_id,
     update_practice_details,
@@ -65,6 +66,8 @@ async def upload_initial_price_list(price_list: str = Form(...), access_token=De
 
         log.info(f"Request {request_id} received for uploadInitialPriceLisst endpoint.")
 
+        upload_price_list_prompt = retrieve_prompt_by_title("upload_price_list")
+        
         # AI formatting of dental voice notes
         prompt = f"""
 
@@ -76,43 +79,7 @@ async def upload_initial_price_list(price_list: str = Form(...), access_token=De
 
         END OF PRICELIST
 
-        For example, the following price list should be formatted as such:
-
-        Dental Cleaning - $80
-        Teeth Whitening - $150
-        Dental Filling (Composite) - $125 per tooth
-        Root Canal Treatment - $500
-        Dental Crown (Ceramic) - $800
-
-        {{
-            "priceList": [
-                {{
-                    "service": "Dental Cleaning",
-                    "price": "$80"
-                }},
-                {{
-                    "service": "Teeth Whitening",
-                    "price": "$150"
-                }},
-                {{
-                    "service": "Dental Filling (Composite) (per tooth)",
-                    "price": "$125"
-                }},
-                {{
-                    "service": "Root Canal Treatment",
-                    "price": "$500"
-                }},
-                {{
-                    "service": "Dental Crown (Ceramic)",
-                    "price": "$800"
-                }}
-            ]
-        }}
-
-        Do not double up the curly braces like I have, single is fine.
-
-        IMPORTANT NOTE: you must ONLY include treatments that have been specifically stated
-                        between "START OF PRICELIST" and "END OF PRICELIST"
+        {upload_price_list_prompt}
 
         """
         formatted_price_list_text, tokens = await ask_gpt(prompt, "You're an ai formatting dental price list", "gpt-3.5-turbo")
