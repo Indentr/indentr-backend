@@ -12,6 +12,7 @@ from app.database.crud import (
     retrieve_all_triage_requests,
     retrieve_patient_by_email,
     retrieve_practice_by_id,
+    retrieve_prompt_by_title,
     retrieve_triage_request,
     update_patients_practice_id,
     update_triage_requests_opened,
@@ -24,7 +25,6 @@ from app.models.triage import (
     GenerateQuestions,
     ToggleTriageOpenedRequest,
 )
-from app.prompts import create_triage_request_prompt, generate_triage_questions_prompt
 from app.services.openAI import ask_gpt
 
 router = APIRouter(prefix="/triage", tags=["Triage"])
@@ -89,6 +89,8 @@ async def generate_triage_questions(body: GenerateQuestions):
 
     log.info(f"Request {request_id} received for triage symptom questions.")
 
+    generate_triage_questions_prompt = retrieve_prompt_by_title("generate_triage_questions")
+
     prompt = f"""
         Reason for appointment request: {patient_details["appointment_reason"]}
         {generate_triage_questions_prompt}
@@ -127,6 +129,8 @@ async def create_patient_request(body: CreatePatientRequest):
     symptom_details = json.loads(body.symptom_details)
 
     log.info(f"Request {request_id} received for creating a patient triage request.")
+
+    create_triage_request_prompt = retrieve_prompt_by_title("create_triage_request")
 
     prompt = f"""
         The questions and patients answers: {symptom_details}

@@ -16,8 +16,25 @@ from app.database.schemas.letter import Letter
 from app.database.schemas.patient import Patient
 from app.database.schemas.practice import Practice
 from app.database.schemas.pricing import Pricing
+from app.database.schemas.prompt import Prompt
 from app.database.schemas.triage import Triage
 from app.database.schemas.user import User
+
+
+# GPT Prompts ------------------------
+def create_new_prompt(title: str, prompt_text: str):
+    # Create a Prompt document
+    new_prompt = Prompt(title=title, prompt_text=prompt_text)
+    new_prompt.save()
+
+
+def retrieve_prompt_by_title(title: str):
+    try:
+        prompt = Prompt.objects.get(title=title)
+        return prompt.prompt_text
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Prompt not found") from None
 
 
 # Practice ------------------------
@@ -34,6 +51,16 @@ def create_new_practice(practice_name: str, email: str, url: str, address: str, 
     return practice_dict["_id"]
 
 
+# Function to find a practice by email
+def retrieve_practice_by_email(email: str):
+    practice = Practice.objects(primary_email=email).first()
+
+    if not practice:
+        raise HTTPException(status_code=404, detail="Practice not found")
+
+    return practice.to_mongo().to_dict()
+
+
 def retrieve_practice_by_id(practice_id: str):
     try:
         practice = Practice.objects.get(id=practice_id)
@@ -42,6 +69,41 @@ def retrieve_practice_by_id(practice_id: str):
         practice_dict["_id"] = str(practice.id)
 
         return practice_dict
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Practice not found") from None
+
+
+def update_practice_details(practice_id: str, name: str = None, email: str = None, address: str = None, website: str = None):
+    try:
+        practice = Practice.objects.get(id=practice_id)
+        if name:
+            practice.practice_name = name
+
+        if email:
+            try:
+                # Attempt to retrieve the user by email
+                existing_practice = retrieve_practice_by_email(email)
+            except HTTPException as e:
+                # Handle the 404 exception if user is not found
+                if e.status_code == 404:
+                    existing_practice = None
+                else:
+                    raise
+
+            # Check if the email already exists
+            if existing_practice:
+                raise HTTPException(status_code=400, detail="Email already in use")
+
+            practice.primary_email = email
+
+        if address:
+            practice.address = address
+
+        if website:
+            practice.website_url = website
+
+        practice.save()
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Practice not found") from None
@@ -119,9 +181,9 @@ def retrieve_user_by_email(email: str):
     return user.to_mongo().to_dict()
 
 
-def retrieve_all_practice_members(practice_id: str):
+def retrieve_all_practice_users(practice_id: str):
     # Query all users with the given practice_id
-    practice_members = User.objects(practice_id=practice_id, role="Member")
+    practice_members = User.objects(practice_id=practice_id).only("name", "email", "role").select_related()
 
     if not practice_members:
         return []
@@ -131,8 +193,6 @@ def retrieve_all_practice_members(practice_id: str):
     for member in practice_members:
         member_dict = member.to_mongo().to_dict()
         member_dict["_id"] = str(member.id)
-        member_dict["practice_id"] = str(member.practice_id.id)
-        member_dict.pop("password", None)
         members_dict_list.append(member_dict)
 
     return members_dict_list
@@ -151,19 +211,34 @@ def retrieve_practice_users_token_consumption(practice_id: str):
     return users_tokens_dict_list
 
 
-def update_user_details(user_id: str, email: str):
+def update_user_details(user_id: str, name: str = None, email: str = None, password: str = None):
     try:
         user = User.objects.get(id=user_id)
-        user.email = email
+        if name:
+            user.name = name
+
+        if email:
+            try:
+                # Attempt to retrieve the user by email
+                existing_user = retrieve_user_by_email(email)
+            except HTTPException as e:
+                # Handle the 404 exception if user is not found
+                if e.status_code == 404:
+                    existing_user = None
+                else:
+                    raise
+
+            # Check if the email already exists
+            if existing_user:
+                raise HTTPException(status_code=400, detail="Email already in use")
+
+            user.email = email
+
+        if password:
+            hash_pass = generate_password_hash(password, method="scrypt")
+            user.password = hash_pass
+
         user.save()
-
-        user_dict = user.to_mongo().to_dict()
-
-        # Convert ObjectId to string in user_object
-        user_dict["_id"] = str(user_dict["_id"])
-        user_dict.pop("password", None)
-
-        return user_dict
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="User not found") from None
@@ -264,13 +339,19 @@ def update_patients_practice_id(patient_id: str, practice_id: str):
 def retrieve_pricing(user_id: str):
     try:
         user = User.objects.get(id=user_id)
-        pricing = Pricing.objects(practice_id=user.practice_id).first()
+        pricing = Pricing.objects(practice_id=user.practice_id).only("treatment", "price")
 
         if pricing is None:
             # raise HTTPException(status_code=404, detail="No pricing found")
             return "No pricing available, use best judgement"
 
-        return pricing.treatment
+        pricing_list = []
+        for price in pricing:
+            price_dict = price.to_mongo().to_dict()
+            del price_dict["_id"]
+            pricing_list.append(price_dict)
+
+        return pricing_list
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="User not found") from None

@@ -15,6 +15,7 @@ from app.database.crud import (
     create_new_patient,
     retrieve_patient_by_email,
     retrieve_pricing,
+    retrieve_prompt_by_title,
     retrieve_vector_letters,
     update_user_tokens,
 )
@@ -28,11 +29,6 @@ from app.models.create import (
     SymptomResponse,
     TreatmentPlanData,
     TreatmentPlanResponse,
-)
-from app.prompts import (
-    generate_consent_letter_prompt,
-    symptoms_details_prompt,
-    upload_transcript_prompt,
 )
 from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt, ask_gpt_image, generate_embedding
@@ -154,8 +150,9 @@ async def generate_questions(body: SymptomData, access_token=Depends(JWTBearer()
     user_id = token["user_id"]
 
     symptomDetails = json.loads(body.symptomDetails)
-
     symptomDetails = ", ".join(list(symptomDetails.values()))
+
+    symptoms_details_prompt = retrieve_prompt_by_title("symptoms_details")
 
     log.info(f"Request {request_id} received for symptom questions. Symptoms: {symptomDetails}")
 
@@ -210,16 +207,20 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
     ]
 
     example_consent_letter = retrieve_vector_letters(pipeline)
-
+    generate_consent_letter_prompt = retrieve_prompt_by_title("generate_consent_letter")
     pricing_list = retrieve_pricing(user_id)
 
     patientDetails = json.loads(body.patientDetails)
     symptomDetails = None
+    dentistNotes = None
+    dentistNotesText = None
+
     if body.symptomDetails:
         symptomDetails = json.loads(body.symptomDetails)
-    dentistNotes = json.loads(body.dentistNotes)
 
-    dentistNotesText = f"The patient notes, written by the dentist, are as as follows: {dentistNotes}"
+    if body.dentistNotes:
+        dentistNotes = json.loads(body.dentistNotes)
+        dentistNotesText = f"The patient notes, written by the dentist, are as as follows: {dentistNotes}"
 
     log.info(f"Request {request_id} received.")
 
@@ -235,7 +236,6 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
         {"Dental practice pricing list:"+ str(pricing_list) if pricing_list else ""}
 
         {generate_consent_letter_prompt}
-
     """
 
     treatmentPlan, tokens = await ask_gpt(prompt, "You're a UK based dentist writing consent letters for patients", "gpt-4-1106-preview")
@@ -310,6 +310,8 @@ async def upload_transcript(
         patient = retrieve_patient_by_email(patientEmail)
         patient_id = patient["_id"]
 
+        upload_transcript_prompt = retrieve_prompt_by_title("upload_transcript")
+
         # Read the file contents into a memory buffer
         audio_content = await audioFile.read()
         # Create a BytesIO object to mimic file reading
@@ -359,7 +361,6 @@ async def upload_audio(audioFile: UploadFile = File(...), access_token=Depends(J
 
         # Speech to text conversion
         response = await dpg_speech_to_text(audio_buffer)
-        print(response)
         transcript = response.results.channels[0].alternatives[0].transcript
 
         # Convert ObjectId to string for JSON serialization
