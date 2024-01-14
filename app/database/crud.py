@@ -171,23 +171,17 @@ def delete_price_list_crud(practice_id: str):
 
 def delete_service_from_price_list(practice_id: str, service_name: str):
     try:
-        print(f"[Debug] Deleting treatment '{service_name}' for practice_id: {practice_id}")
-
         # Fetch and delete the specific pricing document
         pricing_doc = Pricing.objects(practice_id=practice_id, treatment=service_name).first()
         if not pricing_doc:
-            print("[Debug] No pricing document found for the specified treatment and practice_id")
             raise DoesNotExist
 
         pricing_doc.delete()
-        print(f"[Debug] Treatment '{service_name}' deleted for practice_id: {practice_id}")
         return {"message": f"Treatment '{service_name}' deleted successfully"}
 
     except DoesNotExist:
-        print("[Debug] DoesNotExist exception raised")
         raise HTTPException(status_code=404, detail="Treatment not found for the specified practice") from None
     except Exception as e:
-        print(f"[Debug] Exception occurred: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}") from None
 
 
@@ -215,12 +209,11 @@ def retrieve_price_list(practice_id: str):
 def update_price_list(price_list: str, practice_id: str):
     try:
         price_list_data = json.loads(price_list)
+        service_list = [item["service"] for item in price_list_data]
 
+        # Update existing documents or create new ones
         for item in price_list_data:
-            # Find existing pricing document
             pricing = Pricing.objects(treatment=item["service"], practice_id=practice_id).first()
-
-            # Update existing document or create a new one
             if pricing:
                 pricing.price = item["price"]
                 pricing.save()
@@ -228,6 +221,10 @@ def update_price_list(price_list: str, practice_id: str):
                 pricing = Pricing(treatment=item["service"], price=item["price"], practice_id=practice_id)
                 pricing.save()
 
+        # Delete records not in the updated price list
+        Pricing.objects(practice_id=practice_id, treatment__nin=service_list).delete()
+
+        # Retrieve and return the updated price list
         updated_prices = Pricing.objects(practice_id=practice_id)
         updated_prices_list = [price.to_mongo().to_dict() for price in updated_prices]
         return updated_prices_list
@@ -236,6 +233,7 @@ def update_price_list(price_list: str, practice_id: str):
         raise HTTPException(status_code=404, detail="Practice not found") from None
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from None
+
 
 
 def update_user_details(user_id: str, email: str):
