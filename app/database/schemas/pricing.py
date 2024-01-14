@@ -1,9 +1,9 @@
-from mongoengine import Document, ReferenceField, StringField
+from mongoengine import Document, ReferenceField, StringField, FloatField
 
 
 class Pricing(Document):
     treatment = StringField(required=True)
-    price = StringField(required=True)
+    price = FloatField(required=True) 
     practice_id = ReferenceField("Practice", required=True)
 
     meta = {"collection": "pricing"}  # Specify the collection name if needed

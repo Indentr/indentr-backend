@@ -68,7 +68,7 @@ async def upload_initial_price_list(price_list: str = Form(...), access_token=De
 
         END OF PRICELIST
 
-        The following price list should be formatted as such:
+        For example, the following price list should be formatted as such:
 
         Dental Cleaning - $80
         Teeth Whitening - $150
@@ -101,7 +101,10 @@ async def upload_initial_price_list(price_list: str = Form(...), access_token=De
             ]
         }}
 
-        Do not double up the curly braces like I have, single is fine
+        Do not double up the curly braces like I have, single is fine.
+
+        IMPORTANT NOTE: you must ONLY include treatments that have been specifically stated
+                        between "START OF PRICELIST" and "END OF PRICELIST"
 
         """
         formatted_price_list_text, tokens = await ask_gpt(prompt, "You're an ai formatting dental price list", "gpt-3.5-turbo")
@@ -178,8 +181,18 @@ async def get_price_list(access_token=Depends(JWTBearer())):
         practice_id = token["practice_id"]
 
         try:
+            # Attempt to retrieve the price list
             price_list_from_db = retrieve_price_list(practice_id)
-            price_list_from_db = convert_objectid_to_str(price_list_from_db)
+            
+            # Check if the price list is empty and handle accordingly
+            if not price_list_from_db:
+                log.info(f"No prices found for practice_id {practice_id}")
+                price_list_from_db = []
+
+            # Convert ObjectId to strings if price list is not empty
+            else:
+                price_list_from_db = convert_objectid_to_str(price_list_from_db)
+
         except Exception as e:
             log.error(f"An error occurred: {e}")
             raise HTTPException(status_code=500, detail=f"Error getting price list: {str(e)}") from e
@@ -190,6 +203,7 @@ async def get_price_list(access_token=Depends(JWTBearer())):
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
+
 
 
 @router.post("/deletePriceList")
