@@ -235,7 +235,6 @@ def update_price_list(price_list: str, practice_id: str):
         raise HTTPException(status_code=500, detail=str(e)) from None
 
 
-
 def update_user_details(user_id: str, email: str):
     try:
         user = User.objects.get(id=user_id)
