@@ -12,6 +12,7 @@ from app.database.crud import (
     retrieve_all_triage_requests,
     retrieve_patient_by_email,
     retrieve_practice_by_id,
+    retrieve_prompt_by_title,
     retrieve_triage_request,
     update_patients_practice_id,
     update_triage_requests_opened,
@@ -63,7 +64,7 @@ async def generate_triage_questions(body: GenerateQuestions):
         # check if email exists within that practice's list of patients
         try:
             patient = retrieve_patient_by_email(patient_details["email"])
-            if patient["practice_id"] != practice_id:
+            if "practice_id" not in patient or patient["practice_id"] != practice_id:
                 raise HTTPException(status_code=404, detail="Email not associated with practice")
 
         except HTTPException as e:
@@ -88,26 +89,14 @@ async def generate_triage_questions(body: GenerateQuestions):
 
     log.info(f"Request {request_id} received for triage symptom questions.")
 
-    prompt = f"""
-        Patient's symptom: {patient_details["appointment_reason"]}
+    generate_triage_questions_prompt = retrieve_prompt_by_title("generate_triage_questions")
 
-        Please ask the patient three follow-up questions.
-        The questions show aim to gather more information from the patient so the dentist has all the necessary information in terms of severity of condition etc.
-        Please format your response as JSON, as shown below:
-        [
-            {{
-                "symptom": "[Symptom name]",
-                "q1": "[Insert q1]",
-                "q2": "[q2]",
-                "q3": "[q3]"
-            }},
-            {{
-                etc.
-            }}
-        ]
+    prompt = f"""
+        Reason for appointment request: {patient_details["appointment_reason"]}
+        {generate_triage_questions_prompt}
     """
 
-    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant")
+    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-3.5-turbo")
 
     try:
         questions = json.loads(original_response)
@@ -141,24 +130,14 @@ async def create_patient_request(body: CreatePatientRequest):
 
     log.info(f"Request {request_id} received for creating a patient triage request.")
 
+    create_triage_request_prompt = retrieve_prompt_by_title("create_triage_request")
+
     prompt = f"""
-        A patient has just filled out a dental triage form where they were asked 3 questions based on a dental symptom they have.
         The questions and patients answers: {symptom_details}
-
-        Based on the patients patients response I need you to give a response to the following:
-        1. A diagnosis title, a very short title of like 5 words max
-        2. A general overview of the problem, a dentist will be reading this so you don't have to explain what anything means. If the diagnosis is unclear then say so.
-        3. A severity score out of 10 (10 being absolutely must see a dentist in the next hour or they will die, 1 being tooth hurts slightly)
-
-        Your responses to the following must be formatted as JSON, as shown below:
-        {{
-            "diagnosis": "[Your diagnosis title],
-            "overview": "[A general overview of the problem]",
-            "severity": "[An int value between 0/10]":
-        }}
+        {create_triage_request_prompt}
     """
 
-    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant")
+    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-3.5-turbo")
 
     try:
         response = json.loads(original_response)

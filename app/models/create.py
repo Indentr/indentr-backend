@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import UploadFile
 from pydantic import BaseModel
 
@@ -49,8 +51,8 @@ class SymptomResponse(BaseModel):
 # Request model
 class TreatmentPlanData(BaseModel):
     patientDetails: str
-    symptomDetails: str
-    dentistNotes: str
+    symptomDetails: Optional[str] = None
+    dentistNotes: Optional[str] = None
 
     model_config = {
         "json_schema_extra": {

@@ -1,10 +1,16 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
 
-class UserDetails(BaseModel):
-    email: str
-    phone: str
-    address: str
+class EditUserField(BaseModel):
+    text: str
+    record: Literal["name", "email", "password"]
+
+
+class EditPracticeField(BaseModel):
+    text: str
+    record: Literal["name", "email", "address", "website"]
 
 
 class DeleteUser(BaseModel):

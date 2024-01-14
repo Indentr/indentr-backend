@@ -13,6 +13,7 @@ from app.database.crud import (
     delete_price_list_crud,
     delete_service_from_price_list,
     retrieve_all_practice_members,
+    retrieve_all_practice_users,
     retrieve_last_three_letters,
     retrieve_last_three_triage_requests,
     retrieve_practice_by_id,
@@ -20,12 +21,22 @@ from app.database.crud import (
     retrieve_price_list,
     retrieve_user_by_email,
     retrieve_user_by_id,
+    upload_price_list,
     update_price_list,
     update_user_details,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
-from app.models.user import DeleteUser, UserDetails, UserRegistration
 from app.services.openAI import ask_gpt
+    update_practice_details,
+    update_user_details,
+)
+from app.models.user import (
+    DeleteUser,
+    EditPracticeField,
+    EditUserField,
+    UserRegistration,
+)
+
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
@@ -41,9 +52,11 @@ def get_profile(access_token=Depends(JWTBearer())):
     try:
         token = decodeJWT(access_token)
         user_id = token["user_id"]
+        practice_id = token["practice_id"]
         user = retrieve_user_by_id(user_id)
+        practice = retrieve_practice_by_id(practice_id)
 
-        return {"user": user}
+        return {"user": user, "practice": practice}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
@@ -287,9 +300,10 @@ def get_account_settings(access_token=Depends(JWTBearer())):
     try:
         token = decodeJWT(access_token)
         user_id = token["user_id"]
+        practice_id = token["practice_id"]
         user = retrieve_user_by_id(user_id)
-        practice_members = retrieve_all_practice_members(user["practice_id"])
-        practice = retrieve_practice_by_id(user["practice_id"])
+        practice_members = retrieve_all_practice_users(practice_id)
+        practice = retrieve_practice_by_id(practice_id)
 
         return {"user": user, "practice_members": practice_members, "practice": practice}
 
@@ -314,23 +328,48 @@ def get_account_settings_billing(access_token=Depends(JWTBearer())):
         raise e  # Reraise the HTTPException
 
 
-@router.post("/saveDetails")
-async def save_details(body: UserDetails, access_token=Depends(JWTBearer())):
+@router.post("/edit-user-field")
+async def edit_user_field(body: EditUserField, access_token=Depends(JWTBearer())):
     """
-    Saves the user's email, phone number, and address to the database.
+    Edits the users name or email or password depending on what gets sent in the body.
     """
 
     try:
-        email = body.email
-        phone = body.phone
-        address = body.address
         # Extract user's email from JWT token
         token = decodeJWT(access_token)
         user_id = token["user_id"]
 
+        name = body.text if body.record == "name" else None
+        email = body.text if body.record == "email" else None
+        password = body.text if body.record == "password" else None
+
         # Update the user's details in MongoDB
-        user = update_user_details(user_id, email, phone, address)
-        return {"email": user["email"], "phone": user["phone"], "address": user["address"]}
+        update_user_details(user_id, name, email, password)
+        return {"message": "Edit successful"}
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
+@router.post("/edit-practice-field")
+async def edit_practice_field(body: EditPracticeField, access_token=Depends(JWTBearer())):
+    """
+    Edits the users name or email or password depending on what gets sent in the body.
+    """
+
+    try:
+        # Extract user's email from JWT token
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        name = body.text if body.record == "name" else None
+        email = body.text if body.record == "email" else None
+        address = body.text if body.record == "address" else None
+        website = body.text if body.record == "website" else None
+
+        # Update the user's details in MongoDB
+        update_practice_details(practice_id, name, email, address, website)
+        return {"message": "Edit successful"}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException

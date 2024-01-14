@@ -1,33 +1,33 @@
 import logging
 
-import backoff
 import openai
 import requests
+from openai import OpenAI
 
 from app.constants import OPENAI_API_KEY
 
 log = logging.getLogger(__name__)
 
+client = OpenAI(api_key=OPENAI_API_KEY)
 
-@backoff.on_exception(backoff.expo, (openai.error.RateLimitError, openai.error.ServiceUnavailableError, openai.error.Timeout))
+
 async def ask_gpt(prompt: str, system_prompt: str, model_name: str):
     # Log the input to the API
     log.info(f"Sending prompt to GPT:\nSystem Prompt: {system_prompt}\nUser Prompt: {prompt}")
 
     openai.api_key = OPENAI_API_KEY
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model=model_name, messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}], temperature=0.0
         )
-
-        content = response["choices"][0]["message"]["content"]
-        total_tokens = response["usage"]["total_tokens"]
+        content = response.choices[0].message.content
+        total_tokens = response.usage.total_tokens
 
         # Log the response from the API
         log.info(f"GPT response:\n{content}\nTokens consumed: {total_tokens}")
 
         return content, total_tokens
-    except openai.error.OpenAIError as e:
+    except Exception as e:
         # Log the error if the API call fails
         log.error(f"An error occurred: {str(e)}")
         raise
@@ -79,3 +79,9 @@ async def ask_gpt_image(prompt: str, base64_image: str):
         # Log the error if any exception occurs
         log.error(f"An error occurred: {str(e)}")
         raise
+
+
+async def generate_embedding(embedding_text: str):
+    response = client.embeddings.create(input=embedding_text, model="text-embedding-ada-002")
+    embedding = response.data[0].embedding
+    return embedding

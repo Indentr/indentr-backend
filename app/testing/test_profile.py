@@ -146,7 +146,7 @@ def test_get_settings(insert_treatment_plan):
     data = response.json()
     assert data["user"]["name"] == "John Terry"
     assert data["user"]["email"] == "johnterry@gmail.com"
-    assert len(data["practice_members"]) == 0
+    assert len(data["practice_members"]) == 1
 
 
 def test_register_member(insert_treatment_plan):
