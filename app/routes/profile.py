@@ -11,6 +11,7 @@ from app.database.crud import (
     create_new_user,
     delete_member,
     delete_price_list_crud,
+    delete_service_from_price_list,
     retrieve_all_practice_members,
     retrieve_last_three_letters,
     retrieve_last_three_triage_requests,
@@ -183,7 +184,6 @@ async def get_price_list(access_token=Depends(JWTBearer())):
             log.error(f"An error occurred: {e}")
             raise HTTPException(status_code=500, detail=f"Error getting price list: {str(e)}") from e
 
-
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
         return jsonable_encoder({"price_list_from_db": price_list_from_db})
@@ -196,7 +196,6 @@ async def get_price_list(access_token=Depends(JWTBearer())):
 async def delete_price_list(access_token=Depends(JWTBearer())):
     try:
         time.time()
-
 
         token = decodeJWT(access_token)
         if token is None:
@@ -213,6 +212,33 @@ async def delete_price_list(access_token=Depends(JWTBearer())):
         raise e
 
 
+@router.post("/deleteSinglePrice")
+async def delete_single_price(serviceName: str = Form(...), access_token=Depends(JWTBearer())):
+    print("[Debug] delete_single_price called with serviceName:", serviceName)
+    try:
+        print("[Debug] Decoding JWT")
+        token = decodeJWT(access_token)
+        if token is None:
+            print("[Debug] Token is None, raising 401")
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+        practice_id = token["practice_id"]
+        print("[Debug] Practice ID:", practice_id)
+
+        try:
+            print("[Debug] Attempting to delete service from price list")
+            delete_service_from_price_list(practice_id, serviceName)
+            print("[Debug] Service deletion successful")
+        except Exception as e:
+            print("[Debug] Error occurred in delete_service_from_price_list:", str(e))
+            raise HTTPException(status_code=500, detail=f"Error deleting service: {str(e)}") from e
+
+        print("[Debug] Returning success message")
+        return {"message": "Service deleted successfully"}
+
+    except HTTPException as e:
+        print("[Debug] HTTPException caught:", str(e))
+        raise e
 
 
 @router.get("/overview")

@@ -152,28 +152,42 @@ def retrieve_practice_users_token_consumption(practice_id: str):
 
 def delete_price_list_crud(practice_id: str):
     try:
-        print(f"[Debug] Deleting price list for practice_id: {practice_id}")  # Debug print
-
         # Fetch pricing documents for the given practice_id
         pricing_docs = Pricing.objects(practice_id=practice_id)
-        print(f"[Debug] Pricing documents fetched: {pricing_docs}")  # Debug print
 
         # Check if any documents were found
         if not pricing_docs:
-            print("[Debug] No pricing documents found")  # Debug print
             raise DoesNotExist
 
         # Delete all fetched documents
         pricing_docs.delete()
-        print("[Debug] Pricing documents deleted")  # Debug print
-
         return {"message": "Price list deleted successfully"}
 
     except DoesNotExist:
-        print("[Debug] DoesNotExist exception raised")  # Debug print
         raise HTTPException(status_code=404, detail="Price list not found for the given practice") from None
     except Exception as e:
-        print(f"[Debug] Exception occurred: {e}")  # Debug print
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}") from None
+
+
+def delete_service_from_price_list(practice_id: str, service_name: str):
+    try:
+        print(f"[Debug] Deleting treatment '{service_name}' for practice_id: {practice_id}")
+
+        # Fetch and delete the specific pricing document
+        pricing_doc = Pricing.objects(practice_id=practice_id, treatment=service_name).first()
+        if not pricing_doc:
+            print("[Debug] No pricing document found for the specified treatment and practice_id")
+            raise DoesNotExist
+
+        pricing_doc.delete()
+        print(f"[Debug] Treatment '{service_name}' deleted for practice_id: {practice_id}")
+        return {"message": f"Treatment '{service_name}' deleted successfully"}
+
+    except DoesNotExist:
+        print("[Debug] DoesNotExist exception raised")
+        raise HTTPException(status_code=404, detail="Treatment not found for the specified practice") from None
+    except Exception as e:
+        print(f"[Debug] Exception occurred: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}") from None
 
 
@@ -188,10 +202,8 @@ def retrieve_price_list(practice_id: str):
 
         # Convert documents to a list of dictionaries
         price_list = [doc.to_mongo().to_dict() for doc in pricing_docs]
-
         # Optionally, process the price_list to format it as required
         # for example, convert ObjectId to string, etc.
-
         return price_list
 
     except DoesNotExist:
@@ -202,7 +214,6 @@ def retrieve_price_list(practice_id: str):
 
 def update_price_list(price_list: str, practice_id: str):
     try:
-
         price_list_data = json.loads(price_list)
 
         for item in price_list_data:
