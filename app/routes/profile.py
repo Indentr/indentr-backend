@@ -12,7 +12,6 @@ from app.database.crud import (
     delete_member,
     delete_price_list_crud,
     delete_service_from_price_list,
-    retrieve_all_practice_members,
     retrieve_all_practice_users,
     retrieve_last_three_letters,
     retrieve_last_three_triage_requests,
@@ -21,22 +20,18 @@ from app.database.crud import (
     retrieve_price_list,
     retrieve_user_by_email,
     retrieve_user_by_id,
-    upload_price_list,
+    update_practice_details,
     update_price_list,
     update_user_details,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
-from app.services.openAI import ask_gpt
-    update_practice_details,
-    update_user_details,
-)
 from app.models.user import (
     DeleteUser,
     EditPracticeField,
     EditUserField,
     UserRegistration,
 )
-
+from app.services.openAI import ask_gpt
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
@@ -196,7 +191,7 @@ async def get_price_list(access_token=Depends(JWTBearer())):
         try:
             # Attempt to retrieve the price list
             price_list_from_db = retrieve_price_list(practice_id)
-            
+
             # Check if the price list is empty and handle accordingly
             if not price_list_from_db:
                 log.info(f"No prices found for practice_id {practice_id}")
@@ -216,7 +211,6 @@ async def get_price_list(access_token=Depends(JWTBearer())):
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
-
 
 
 @router.post("/deletePriceList")

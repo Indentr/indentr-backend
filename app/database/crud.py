@@ -211,7 +211,6 @@ def retrieve_practice_users_token_consumption(practice_id: str):
     return users_tokens_dict_list
 
 
-
 def delete_price_list_crud(practice_id: str):
     try:
         # Fetch pricing documents for the given practice_id
@@ -267,7 +266,6 @@ def retrieve_price_list(practice_id: str):
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}") from None
 
 
-
 def update_price_list(price_list: str, practice_id: str):
     try:
         price_list_data = json.loads(price_list)
@@ -289,7 +287,6 @@ def update_price_list(price_list: str, practice_id: str):
         raise HTTPException(status_code=404, detail="Practice not found") from None
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from None
-
 
 
 def update_user_details(user_id: str, name: str = None, email: str = None, password: str = None):
