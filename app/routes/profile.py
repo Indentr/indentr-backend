@@ -67,7 +67,7 @@ async def upload_initial_price_list(price_list: str = Form(...), access_token=De
         log.info(f"Request {request_id} received for uploadInitialPriceLisst endpoint.")
 
         upload_price_list_prompt = retrieve_prompt_by_title("upload_price_list")
-        
+
         # AI formatting of dental voice notes
         prompt = f"""
 
