@@ -1,8 +1,9 @@
+import json
 import logging
 import time
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Form, HTTPException
 
 from app.database.crud import (
     create_new_user,
@@ -12,9 +13,12 @@ from app.database.crud import (
     retrieve_last_three_triage_requests,
     retrieve_practice_by_id,
     retrieve_practice_users_token_consumption,
+    retrieve_price_list,
+    retrieve_prompt_by_title,
     retrieve_user_by_email,
     retrieve_user_by_id,
     update_practice_details,
+    update_price_list,
     update_user_details,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
@@ -24,6 +28,7 @@ from app.models.user import (
     EditUserField,
     UserRegistration,
 )
+from app.services.openAI import ask_gpt
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
@@ -202,3 +207,85 @@ def delete_member_account(body: DeleteUser, access_token=Depends(JWTBearer())):
 
     except HTTPException as e:
         raise e
+
+
+@router.post("/format-price-list")
+async def format_price_list(price_list: str = Form(...), access_token=Depends(JWTBearer())):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.info(f"Request {request_id} received for uploadInitialPriceLisst endpoint.")
+
+        upload_price_list_prompt = retrieve_prompt_by_title("upload_price_list")
+
+        # AI formatting of dental voice notes
+        prompt = f"""
+            START OF PRICELIST
+            {price_list}
+            END OF PRICELIST
+
+            {upload_price_list_prompt}
+        """
+        formatted_price_list_text, tokens = await ask_gpt(prompt, "You're an ai formatting dental price list", "gpt-3.5-turbo")
+
+        try:
+            formatted_price_list = json.loads(formatted_price_list_text)
+        except json.JSONDecodeError as e:
+            # Handle the case where json.loads fails, still send GPT response back as error message
+            error_detail = f"Error decoding GPT response: {str(e)}"
+            raise HTTPException(status_code=500, detail=error_detail) from e
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {
+            "formatted_price_list": formatted_price_list,
+        }
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
+@router.post("/save-price-list")
+async def save_price_list(price_list_string: str = Form(...), access_token=Depends(JWTBearer())):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.info(f"Request {request_id} received for saving-price-list endpoint.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+        price_list = json.loads(price_list_string)
+
+        update_price_list(price_list, practice_id)
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {
+            "message": "Prices were saved successfully!",
+        }
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
+@router.post("/get-price-list")
+async def get_price_list(access_token=Depends(JWTBearer())):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received for getPriceList endpoint.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        # Attempt to retrieve the price list
+        price_list = retrieve_price_list(practice_id)
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {"price_list": price_list}
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
