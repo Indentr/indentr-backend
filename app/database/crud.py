@@ -2,7 +2,7 @@ import json
 from datetime import datetime
 from io import BytesIO
 from string import ascii_lowercase
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from bson import ObjectId
 from fastapi import HTTPException
@@ -209,84 +209,6 @@ def retrieve_practice_users_token_consumption(practice_id: str):
         users_tokens_dict_list.append(user_dict)
 
     return users_tokens_dict_list
-
-
-def delete_price_list_crud(practice_id: str):
-    try:
-        # Fetch pricing documents for the given practice_id
-        pricing_docs = Pricing.objects(practice_id=practice_id)
-
-        # Check if any documents were found
-        if not pricing_docs:
-            raise DoesNotExist
-
-        # Delete all fetched documents
-        pricing_docs.delete()
-        return {"message": "Price list deleted successfully"}
-
-    except DoesNotExist:
-        raise HTTPException(status_code=404, detail="Price list not found for the given practice") from None
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}") from None
-
-
-def delete_service_from_price_list(practice_id: str, service_name: str):
-    try:
-        # Fetch and delete the specific pricing document
-        pricing_doc = Pricing.objects(practice_id=practice_id, treatment=service_name).first()
-        if not pricing_doc:
-            raise DoesNotExist
-
-        pricing_doc.delete()
-        return {"message": f"Treatment '{service_name}' deleted successfully"}
-
-    except DoesNotExist:
-        raise HTTPException(status_code=404, detail="Treatment not found for the specified practice") from None
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}") from None
-
-
-def retrieve_price_list(practice_id: str):
-    try:
-        # Fetch pricing documents for the given practice_id
-        pricing_docs = Pricing.objects(practice_id=practice_id)
-
-        # If no documents are found, return an empty list instead of raising an exception
-        if not pricing_docs:
-            return []
-
-        # Convert documents to a list of dictionaries
-        price_list = [doc.to_mongo().to_dict() for doc in pricing_docs]
-        # Optionally, process the price_list to format it as required
-        # for example, convert ObjectId to string, etc.
-        return price_list
-
-    except Exception as e:
-        # Handle any other exceptions that might occur
-        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}") from None
-
-
-def update_price_list(price_list: str, practice_id: str):
-    try:
-        price_list_data = json.loads(price_list)
-
-        # Delete all existing records for this practice_id
-        Pricing.objects(practice_id=practice_id).delete()
-
-        # Insert new records
-        for item in price_list_data:
-            pricing = Pricing(treatment=item["service"], price=item["price"], practice_id=practice_id)
-            pricing.save()
-
-        # Retrieve and return the updated price list
-        updated_prices = Pricing.objects(practice_id=practice_id)
-        updated_prices_list = [price.to_mongo().to_dict() for price in updated_prices]
-        return updated_prices_list
-
-    except DoesNotExist:
-        raise HTTPException(status_code=404, detail="Practice not found") from None
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from None
 
 
 def update_user_details(user_id: str, name: str = None, email: str = None, password: str = None):
@@ -917,7 +839,7 @@ def retrieve_all_users_notes_filtered_by_char(user_id: str, starts_with: str):
             raise e
 
 
-# Vector example letters
+# Vector example letters ---------------------------------
 def create_new_vector_letter(consent_letter: str, title: str, plot_embedding: List[float]):
     try:
         letter = VectorExampleLetter(consent_letter=consent_letter, title=title, plot_embedding=plot_embedding)
@@ -933,3 +855,41 @@ def retrieve_vector_letters(pipeline):
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Error retrieving alphabet_status") from None
+
+
+# Pricing ---------------------------
+def retrieve_price_list(practice_id: str):
+    try:
+        # Fetch pricing documents for the given practice_id
+        pricing_docs = Pricing.objects(practice_id=practice_id).select_related()
+
+        # If no documents are found, return an empty list instead of raising an exception
+        if not pricing_docs:
+            return []
+
+        price_list = []
+        for pricing in pricing_docs:
+            pricing_dict = pricing.to_mongo().to_dict()
+            pricing_dict["_id"] = str(pricing_dict["_id"])
+            pricing_dict["practice_id"] = str(pricing_dict["practice_id"])
+            price_list.append(pricing_dict)
+
+        return price_list
+
+    except Exception as e:
+        # Handle any other exceptions that might occur
+        raise HTTPException(status_code=500, detail=str(e)) from None
+
+
+def update_price_list(price_list: List[Dict], practice_id: str):
+    try:
+        # Delete all existing records for this practice_id
+        Pricing.objects(practice_id=practice_id).delete()
+
+        if price_list:
+            Pricing.objects.insert([Pricing(treatment=item["treatment"], price=item["price"], practice_id=practice_id) for item in price_list])
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Practice not found") from None
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from None
