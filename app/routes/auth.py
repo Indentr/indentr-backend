@@ -7,6 +7,7 @@ from app.database.crud import (
     create_new_user,
     retrieve_allow_user_registrations,
     retrieve_user_by_email,
+    create_letter_config
 )
 from app.middleware.jwt import JWTBearer, decodeJWT, signJWT
 from app.models.login import UserLoginRequest, UserRegisterRequest
@@ -36,6 +37,7 @@ def post_user_login(body: UserLoginRequest):
 
     except HTTPException as e:
         raise e
+
 
 
 @router.post("/register")
@@ -69,6 +71,7 @@ def post_user_registration(body: UserRegisterRequest):
         practice_id = create_new_practice(body.practice_name, body.practice_email, body.practice_url, body.address, body.phone)
 
         create_new_user(body.name, body.email, body.password, practice_id, "Owner")
+        create_letter_config(practice_id)
 
         return {"message": "Registered successfully"}
 

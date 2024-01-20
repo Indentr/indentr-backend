@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+from datetime import datetime
 import uuid
 from io import BytesIO
 
@@ -13,9 +14,12 @@ from app.database.crud import (
     create_audio_note,
     create_new_letter,
     create_new_patient,
+    retrieve_letter_config,
     retrieve_patient_by_email,
+    retrieve_practice_by_id,
     retrieve_pricing,
     retrieve_prompt_by_title,
+    retrieve_user_by_id,
     retrieve_vector_letters,
     update_user_tokens,
 )
@@ -191,6 +195,7 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
 
     token = decodeJWT(access_token)
     user_id = token["user_id"]
+    practice_id = token["practice_id"]
 
     embedding = await generate_embedding(body.dentistNotes if body.dentistNotes else body.symptomDetails)
     pipeline = [
@@ -203,17 +208,19 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
                 "limit": 1,
             }
         },
-        {"$project": {"consent_letter": 1, "_id": 0}},  # Exclude the _id field if you don't need it
+        {"$project": {"consent_letter": 1, "_id": 0}},
     ]
 
     example_consent_letter = retrieve_vector_letters(pipeline)
     generate_consent_letter_prompt = retrieve_prompt_by_title("generate_consent_letter")
-    pricing_list = retrieve_pricing(user_id)
+    letter_config = retrieve_letter_config(practice_id)
+
+    if letter_config['pricing']:
+        pricing_list = retrieve_pricing(practice_id)
+
 
     patientDetails = json.loads(body.patientDetails)
-    symptomDetails = None
-    dentistNotes = None
-    dentistNotesText = None
+    symptomDetails, dentistNotes, dentistNotesText = None, None, None
 
     if body.symptomDetails:
         symptomDetails = json.loads(body.symptomDetails)
@@ -233,34 +240,83 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
         Example dental consent letter:
         {example_consent_letter[0]["consent_letter"]}
 
-        {"Dental practice pricing list:"+ str(pricing_list) if pricing_list else ""}
+        {"Dental practice pricing list:"+ str(pricing_list) if letter_config["pricing"] else "Don't include any pricing section/information"}
+
+        {"Make sure to include both dentist and patient signature lines within the consent letter" if letter_config["patient_signature"] and letter_config["dentist_signature"] else ""}
+        {"Make sure to include only dentist signature line (no patient signature line within the consent letter)" if letter_config["dentist_signature"] else ""}
+        {"Make sure to include only patient signature line (no patient signature line within the consent letter)" if letter_config["patient_signature"] else ""}
 
         {generate_consent_letter_prompt}
     """
-
-    treatmentPlan, tokens = await ask_gpt(prompt, "You're a UK based dentist writing consent letters for patients", "gpt-4-1106-preview")
+    gpt_model = "gpt-4-1106-preview"
+    treatmentPlan, tokens = await ask_gpt(prompt, "You're a UK based dentist writing consent letters for patients", gpt_model)
     update_user_tokens(user_id, tokens)
 
     treatmentPlan = treatmentPlan[7:-3]
     log.info(f"GPT treatment plan response: {treatmentPlan}")
 
-    address = patientDetails["address"]
-    address_parts = address.split(", ")
+    header = ""
+    date = ""
+    if letter_config["patient_address"]:
+        address = patientDetails["address"]
+        address_parts = address.split(", ")
+        # generates the HTML lines dynamically
+        html_lines = "\n".join([f"<p style='text-align: right'>{part},</p>" for part in address_parts])
+        # formats the address into the HTML string
+        header = (f"""{html_lines}""") + ("<p></p><p></p>")
 
-    # Generate the HTML lines dynamically
-    html_lines = "\n".join([f"<p>{part},</p>" for part in address_parts])
+    if letter_config["date"]:
+        current_date = datetime.now()
+        uk_date_format = current_date.strftime("%d/%m/%y")
+        date = f"""
+            <p>
+                {uk_date_format},
+            </p>
+            <p></p>
+        """
 
-    # Format the address into the HTML string
-    header = (f"""{html_lines}""") + ("<p></p>")
+    mrOrMrs = 'Mr' if patientDetails['gender'] else 'Mrs'
 
     dear = f"""
         <p>
-            Dear {patientDetails['forename']} {patientDetails['surname']},
+            {letter_config["salutation"]} {patientDetails['forename'] if letter_config["recipient_naming"] == 'first_lastname' else mrOrMrs} {patientDetails['surname']},
         </p>
         <p></p>
     """
+
+    # consent_lines = 
+
+    user, practice = None, None
+    if letter_config["dentist_naming"] == "practice_name" or letter_config["dentist_naming"] == "dentist_practice_name" or letter_config["practice_contact_details"]:
+        practice = retrieve_practice_by_id(practice_id)
+
+    if letter_config["dentist_naming"] == "dentist_name" or letter_config["dentist_naming"] == "dentist_practice_name":
+        user = retrieve_user_by_id(user_id)
+
+    signoff = f"""
+        <p></p>
+        <p>
+            {letter_config["sign_off"]} {user['name'] if letter_config["dentist_naming"] == 'dentist_name' else ''} {(user['name']+', '+practice["practice_name"])  if letter_config["dentist_naming"] == 'dentist_practice_name' else ''} {practice["practice_name"] if letter_config["dentist_naming"] == 'practice_name' else ''}
+        </p>
+    """
+
+    completed_in = f"""
+        <p></p>
+        <p>
+            completed in {round((time.time() - start), 2)} seconds
+        </p>
+        <p/>
+        <p>
+            cost: {tokens} tokens
+        </p>
+        <p/>
+        <p>
+            used gpt model: {gpt_model}
+        </p>
+    """
+
     # Generate the HTML response
-    response_html = header + dear + treatmentPlan
+    response_html = header + date + dear + treatmentPlan + signoff + completed_in
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
     return {"html_content": response_html, "tokens_consumed": tokens}

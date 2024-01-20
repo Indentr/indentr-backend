@@ -19,6 +19,7 @@ from app.database.schemas.pricing import Pricing
 from app.database.schemas.prompt import Prompt
 from app.database.schemas.triage import Triage
 from app.database.schemas.user import User
+from app.database.schemas.letter_config import LetterConfig
 
 
 # GPT Prompts ------------------------
@@ -336,14 +337,12 @@ def update_patients_practice_id(patient_id: str, practice_id: str):
 
 
 # Pricing ---------------------------
-def retrieve_pricing(user_id: str):
+def retrieve_pricing(practice_id: str):
     try:
-        user = User.objects.get(id=user_id)
-        pricing = Pricing.objects(practice_id=user.practice_id).only("treatment", "price")
+        pricing = Pricing.objects(practice_id=practice_id).only("treatment", "price")
 
         if pricing is None:
-            # raise HTTPException(status_code=404, detail="No pricing found")
-            return "No pricing available, use best judgement"
+            return None
 
         pricing_list = []
         for price in pricing:
@@ -739,7 +738,7 @@ def retrieve_all_users_notes(user_id: str):
 
 
 # Function to get a specific letter
-def retrieve_note(note_id, user_id):
+def retrieve_note(note_id: str, user_id: str):
     # Query the letter using MongoEngine
     note = AudioNote.objects(id=note_id, user_id=user_id).only("patient_id", "formatted_notes", "createdAt").first()
 
@@ -893,3 +892,57 @@ def update_price_list(price_list: List[Dict], practice_id: str):
         raise HTTPException(status_code=404, detail="Practice not found") from None
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from None
+
+
+
+
+
+
+# Letter config ---------------------------------
+def create_letter_config(practice_id: str):
+    try:
+        letter_config = LetterConfig(practice_id=practice_id)
+        letter_config.save()
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e)) from None
+
+
+def retrieve_letter_config(practice_id: str):
+    try:
+        # Fetch pricing documents for the given practice_id
+        letter_config = LetterConfig.objects(practice_id=practice_id).first().select_related()
+
+        if not letter_config:
+            # Handle case where the letter doesn't exist or doesn't belong to the user
+            raise HTTPException(status_code=400, detail="No letter config found")
+
+        letter_config_dict = letter_config.to_mongo().to_dict()
+        del letter_config_dict["_id"]
+        del letter_config_dict["practice_id"]
+
+        return letter_config_dict
+
+    except Exception as e:
+        # Handle any other exceptions that might occur
+        raise HTTPException(status_code=500, detail=str(e)) from None
+
+
+
+def update_letter_config(practice_id: str, patient_address: bool, date: bool, salutation: str, recipient_naming: str, pricing: bool, patient_insurance_info: str, patient_signature: bool, dentist_signature: bool, practice_contact_details: bool, sign_off: str, dentist_naming: str):
+    try:
+        letter_config = LetterConfig.objects.get(practice_id=practice_id)
+        letter_config.patient_address = patient_address
+        letter_config.date = date
+        letter_config.salutation = salutation
+        letter_config.recipient_naming = recipient_naming
+        letter_config.pricing = pricing
+        letter_config.patient_insurance_info = patient_insurance_info
+        letter_config.patient_signature = patient_signature
+        letter_config.dentist_signature = dentist_signature
+        letter_config.practice_contact_details = practice_contact_details
+        letter_config.sign_off = sign_off
+        letter_config.dentist_naming = dentist_naming
+        letter_config.save()
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Letter config not found") from None
