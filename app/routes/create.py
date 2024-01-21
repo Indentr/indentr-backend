@@ -270,7 +270,7 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
         uk_date_format = current_date.strftime("%d/%m/%y")
         date = f"""
             <p>
-                {uk_date_format},
+                {uk_date_format}
             </p>
             <p></p>
         """
