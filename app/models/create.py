@@ -12,6 +12,12 @@ class PatientSearch(BaseModel):
 
 
 # Request model
+class SaveNote(BaseModel):
+    updated_note: str
+    note_id: str
+
+
+# Request model
 class PatientDetails(BaseModel):
     patientDetails: str
 

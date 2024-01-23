@@ -17,6 +17,7 @@ from app.database.crud import (
     retrieve_pricing,
     retrieve_prompt_by_title,
     retrieve_vector_letters,
+    update_formatted_notes,
     update_user_tokens,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
@@ -25,6 +26,7 @@ from app.models.create import (
     PatientSearch,
     SaveFile,
     SaveFileResponse,
+    SaveNote,
     SymptomData,
     SymptomResponse,
     TreatmentPlanData,
@@ -329,13 +331,41 @@ async def upload_transcript(
         """
         formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes", "gpt-4-1106-preview")
 
-        create_audio_note(patient_id, user_id, practice_id, audio_buffer, transcript, formatted_notes)
+        note_id = create_audio_note(patient_id, user_id, practice_id, audio_buffer, transcript, formatted_notes)
+        print(note_id)
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
         # Convert ObjectId to string for JSON serialization
         return {
             "formatted_notes": formatted_notes,
+            "note_id": note_id,
+        }
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
+@router.post("/save-note")
+def update_note(body: SaveNote, access_token=Depends(JWTBearer())):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.info(f"Request {request_id} received for updateNote endpoint.")
+
+        updated_note = json.loads(body.updated_note)
+        note_id = json.loads(body.note_id)
+
+        print(note_id)
+
+        update_formatted_notes(note_id, updated_note)
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        # Convert ObjectId to string for JSON serialization
+        return {
+            "message": "Success",
         }
 
     except HTTPException as e:
