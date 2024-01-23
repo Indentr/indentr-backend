@@ -679,16 +679,45 @@ def update_triage_requests_opened(triage_requests: List[str], opened: bool, prac
 
 
 # Note ---------------------------
-def create_audio_note(patient_id: str, user_id: str, practice_id: str, audio_bytesio: BytesIO, transcript: str, formatted_notes: str):
+def create_audio_note(patient_id: str, user_id: str, practice_id: str, audio_bytesio: BytesIO, transcript: str, formatted_notes: str) -> str:
     try:
         # Convert BytesIO to bytes
         audio_bytes = audio_bytesio.getvalue()
+
         audio_note = AudioNote(
             patient_id=patient_id, user_id=user_id, practice_id=practice_id, audio=audio_bytes, transcript=transcript, formatted_notes=formatted_notes
         )
         audio_note.save()
+
+        # Return the ID of the created note
+        return str(audio_note.id)  # or audio_note.pk for primary key
+
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e)) from None
+
+
+def update_formatted_notes(note_id: str, new_formatted_notes: str):
+    try:
+        print(f"Request received to update note. Note ID: {note_id}")
+
+        # Fetch the complete document
+        print(f"Attempting to find audio note with ID: {note_id}")
+        audio_note = AudioNote.objects.get(id=note_id)
+
+        if not audio_note:
+            print(f"No audio note found with ID: {note_id}")
+            raise HTTPException(status_code=404, detail="No audio note found")
+
+        print("Audio note found. Updating formatted notes...")
+        audio_note.formatted_notes = new_formatted_notes
+
+        # Save the updated document
+        audio_note.save()
+        print("Audio note updated and saved successfully.")
+
+    except Exception as e:
+        print(f"An error occurred while updating the audio note: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error") from None
 
 
 def delete_note(practice_id: str, file_id: str):
