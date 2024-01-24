@@ -3,6 +3,7 @@ from fastapi.exceptions import HTTPException
 from werkzeug.security import check_password_hash
 
 from app.database.crud import (
+    create_letter_config,
     create_new_practice,
     create_new_user,
     retrieve_allow_user_registrations,
@@ -69,6 +70,7 @@ def post_user_registration(body: UserRegisterRequest):
         practice_id = create_new_practice(body.practice_name, body.practice_email, body.practice_url, body.address, body.phone)
 
         create_new_user(body.name, body.email, body.password, practice_id, "Owner")
+        create_letter_config(practice_id)
 
         return {"message": "Registered successfully"}
 

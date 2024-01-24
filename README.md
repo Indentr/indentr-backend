@@ -95,5 +95,5 @@ mongodump --uri="<connection-string>" --db=databaseName --collection=sourceColle
 
 ```
 ```bash
-mongorestore --uri="<connection-string>" --db=databaseName --collection=destinationCollection dump/development/sourceCollection.bson
+mongorestore --uri="<connection-string>" --db=databaseName --collection=destinationCollection dump/development_db/sourceCollection.bson
 ```

@@ -3,7 +3,7 @@ import logging
 import time
 import uuid
 
-from fastapi import APIRouter, Depends, Form, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.database.crud import (
     create_new_user,
@@ -11,17 +11,21 @@ from app.database.crud import (
     retrieve_all_practice_users,
     retrieve_last_three_letters,
     retrieve_last_three_triage_requests,
+    retrieve_letter_config,
     retrieve_practice_by_id,
     retrieve_practice_users_token_consumption,
     retrieve_price_list,
     retrieve_prompt_by_title,
     retrieve_user_by_email,
     retrieve_user_by_id,
+    update_letter_config,
+    update_letter_image,
     update_practice_details,
     update_price_list,
     update_user_details,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
+from app.models.profile import UpdateLetterConfig
 from app.models.user import (
     DeleteUser,
     EditPracticeField,
@@ -194,7 +198,7 @@ def create_new_account(body: UserRegistration, access_token=Depends(JWTBearer())
 
 
 @router.post("/delete")
-def delete_member_account(body: DeleteUser, access_token=Depends(JWTBearer())):
+def deletes_member_account(body: DeleteUser, access_token=Depends(JWTBearer())):
     """
     This route handles when an account owner wants to delete a sub account from their practice
     """
@@ -207,6 +211,91 @@ def delete_member_account(body: DeleteUser, access_token=Depends(JWTBearer())):
 
     except HTTPException as e:
         raise e
+
+
+@router.get("/get-letter-config")
+async def gets_letter_config(access_token=Depends(JWTBearer())):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received for get-letter-config endpoint.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        letter_config = retrieve_letter_config(practice_id)
+        price_list = retrieve_price_list(practice_id)
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {"letter_config": letter_config, "price_list": price_list}
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
+@router.post("/update-letter-config")
+async def updates_letter_config(body: UpdateLetterConfig, access_token=Depends(JWTBearer())):
+    """
+    This endpoint updates a practice's letter config document in mongo.
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received for update-letter-config endpoint.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        update_letter_config(
+            practice_id,
+            body.include_image,
+            body.patient_address,
+            body.date,
+            body.salutation,
+            body.recipient_naming,
+            body.pricing,
+            body.include_insurance_info,
+            body.patient_insurance_info,
+            body.patient_signature,
+            body.dentist_signature,
+            body.practice_contact_details,
+            body.contact_details_text,
+            body.sign_off,
+            body.dentist_naming,
+        )
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {"message": "Letter configuration saved"}
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
+@router.post("/save-letter-image/")
+async def saveImg(file: UploadFile = File(...), access_token=Depends(JWTBearer())):
+    """
+    This endpoint allows a user to upload and save their profile image. The image data is received
+    as binary data in the request stream. The image is then associated with the user's email and
+    stored in the database.
+    """
+
+    try:
+        # Get the image data from the request stream
+        image_data = await file.read()
+
+        if not image_data:
+            raise HTTPException(status_code=400, detail="No image data provided")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        update_letter_image(practice_id, image_data)
+
+        return {"message": "Image saved successfully!"}
+    except Exception as e:
+        raise e  # Reraise the HTTPException
 
 
 @router.post("/format-price-list")
@@ -265,27 +354,6 @@ async def save_price_list(price_list_string: str = Form(...), access_token=Depen
         return {
             "message": "Prices were saved successfully!",
         }
-
-    except HTTPException as e:
-        raise e  # Reraise the HTTPException
-
-
-@router.post("/get-price-list")
-async def get_price_list(access_token=Depends(JWTBearer())):
-    try:
-        start = time.time()
-        request_id = uuid.uuid4().hex
-        log.info(f"Request {request_id} received for getPriceList endpoint.")
-
-        token = decodeJWT(access_token)
-        practice_id = token["practice_id"]
-
-        # Attempt to retrieve the price list
-        price_list = retrieve_price_list(practice_id)
-
-        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
-
-        return {"price_list": price_list}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
