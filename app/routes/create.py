@@ -1,8 +1,8 @@
 import json
 import logging
 import time
-from datetime import datetime
 import uuid
+from datetime import datetime
 from io import BytesIO
 
 from bson import ObjectId
@@ -36,6 +36,7 @@ from app.models.create import (
 )
 from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt, ask_gpt_image, generate_embedding
+from app.utils.utils import wrap_image_in_div
 
 # initiates api router
 router = APIRouter(prefix="/create", tags=["Create"])
@@ -215,9 +216,8 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
     generate_consent_letter_prompt = retrieve_prompt_by_title("generate_consent_letter")
     letter_config = retrieve_letter_config(practice_id)
 
-    if letter_config['pricing']:
+    if letter_config["pricing"]:
         pricing_list = retrieve_pricing(practice_id)
-
 
     patientDetails = json.loads(body.patientDetails)
     symptomDetails, dentistNotes, dentistNotesText = None, None, None
@@ -265,6 +265,22 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
         # formats the address into the HTML string
         header = (f"""{html_lines}""") + ("<p></p><p></p>")
 
+    if letter_config["include_image"]:
+        header = f"""
+            <table>
+              <tbody>
+                <tr>
+                  <td>
+                    <p>
+                        <img style="max-width: 100%; height: auto;" src="data:image/png;base64,{letter_config["image"]}" />
+                    </p>
+                  </td>
+                  <td colspan="3">{header}</td>
+                </tr>
+              </tbody>
+            </table>
+        """
+
     if letter_config["date"]:
         current_date = datetime.now()
         uk_date_format = current_date.strftime("%d/%m/%y")
@@ -275,7 +291,7 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
             <p></p>
         """
 
-    mrOrMrs = 'Mr' if patientDetails['gender'] else 'Mrs'
+    mrOrMrs = "Mr" if patientDetails["gender"] else "Mrs"
 
     dear = f"""
         <p>
@@ -284,10 +300,12 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
         <p></p>
     """
 
-    # consent_lines = 
-
     user, practice = None, None
-    if letter_config["dentist_naming"] == "practice_name" or letter_config["dentist_naming"] == "dentist_practice_name" or letter_config["practice_contact_details"]:
+    if (
+        letter_config["dentist_naming"] == "practice_name"
+        or letter_config["dentist_naming"] == "dentist_practice_name"
+        or letter_config["practice_contact_details"]
+    ):
         practice = retrieve_practice_by_id(practice_id)
 
     if letter_config["dentist_naming"] == "dentist_name" or letter_config["dentist_naming"] == "dentist_practice_name":

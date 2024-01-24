@@ -3,11 +3,11 @@ from fastapi.exceptions import HTTPException
 from werkzeug.security import check_password_hash
 
 from app.database.crud import (
+    create_letter_config,
     create_new_practice,
     create_new_user,
     retrieve_allow_user_registrations,
     retrieve_user_by_email,
-    create_letter_config
 )
 from app.middleware.jwt import JWTBearer, decodeJWT, signJWT
 from app.models.login import UserLoginRequest, UserRegisterRequest
@@ -37,7 +37,6 @@ def post_user_login(body: UserLoginRequest):
 
     except HTTPException as e:
         raise e
-
 
 
 @router.post("/register")

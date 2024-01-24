@@ -18,9 +18,8 @@ async def ask_gpt(prompt: str, system_prompt: str, model_name: str):
     openai.api_key = OPENAI_API_KEY
     try:
         response = client.chat.completions.create(
-            model=model_name, 
-            messages=[{"role": "system", "content": system_prompt}, 
-            {"role": "user", "content": prompt}], 
+            model=model_name,
+            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
             temperature=0.0,
         )
         content = response.choices[0].message.content

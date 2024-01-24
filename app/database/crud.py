@@ -1,3 +1,4 @@
+import base64
 import json
 from datetime import datetime
 from io import BytesIO
@@ -13,13 +14,13 @@ from app.database.schemas.audio_note import AudioNote
 from app.database.schemas.config import Config
 from app.database.schemas.example_consent_letters import VectorExampleLetter
 from app.database.schemas.letter import Letter
+from app.database.schemas.letter_config import LetterConfig
 from app.database.schemas.patient import Patient
 from app.database.schemas.practice import Practice
 from app.database.schemas.pricing import Pricing
 from app.database.schemas.prompt import Prompt
 from app.database.schemas.triage import Triage
 from app.database.schemas.user import User
-from app.database.schemas.letter_config import LetterConfig
 
 
 # GPT Prompts ------------------------
@@ -894,10 +895,6 @@ def update_price_list(price_list: List[Dict], practice_id: str):
         raise HTTPException(status_code=500, detail=str(e)) from None
 
 
-
-
-
-
 # Letter config ---------------------------------
 def create_letter_config(practice_id: str):
     try:
@@ -917,6 +914,12 @@ def retrieve_letter_config(practice_id: str):
             raise HTTPException(status_code=400, detail="No letter config found")
 
         letter_config_dict = letter_config.to_mongo().to_dict()
+
+        # Encode to base64 string before sending back
+        if "image" in letter_config_dict:
+            image_data = letter_config_dict["image"]
+            letter_config_dict["image"] = base64.b64encode(image_data).decode("utf-8")
+
         del letter_config_dict["_id"]
         del letter_config_dict["practice_id"]
 
@@ -927,19 +930,47 @@ def retrieve_letter_config(practice_id: str):
         raise HTTPException(status_code=500, detail=str(e)) from None
 
 
+def update_letter_image(practice_id: str, image_data: bytes):
+    letter_config = LetterConfig.objects(practice_id=practice_id).first()
 
-def update_letter_config(practice_id: str, patient_address: bool, date: bool, salutation: str, recipient_naming: str, pricing: bool, patient_insurance_info: str, patient_signature: bool, dentist_signature: bool, practice_contact_details: bool, sign_off: str, dentist_naming: str):
+    if not letter_config:
+        raise HTTPException(status_code=404, detail="LetterConfig not found for practice_id")
+
+    letter_config.image = image_data
+    letter_config.save()
+
+
+def update_letter_config(
+    practice_id: str,
+    include_image: bool,
+    patient_address: bool,
+    date: bool,
+    salutation: str,
+    recipient_naming: str,
+    pricing: bool,
+    include_insurance_info: bool,
+    patient_insurance_info: str,
+    patient_signature: bool,
+    dentist_signature: bool,
+    practice_contact_details: bool,
+    contact_details_text: str,
+    sign_off: str,
+    dentist_naming: str,
+):
     try:
         letter_config = LetterConfig.objects.get(practice_id=practice_id)
+        letter_config.include_image = include_image
         letter_config.patient_address = patient_address
         letter_config.date = date
         letter_config.salutation = salutation
         letter_config.recipient_naming = recipient_naming
         letter_config.pricing = pricing
+        letter_config.include_insurance_info = include_insurance_info
         letter_config.patient_insurance_info = patient_insurance_info
         letter_config.patient_signature = patient_signature
         letter_config.dentist_signature = dentist_signature
         letter_config.practice_contact_details = practice_contact_details
+        letter_config.contact_details_text = contact_details_text
         letter_config.sign_off = sign_off
         letter_config.dentist_naming = dentist_naming
         letter_config.save()
