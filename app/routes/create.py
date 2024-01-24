@@ -315,7 +315,6 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
         </p>
     """
 
-    # Generate the HTML response
     response_html = header + date + dear + treatmentPlan + signoff + completed_in
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
@@ -448,8 +447,9 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
         tokens_consumed = body.tokens_consumed
 
         patient = retrieve_patient_by_email(patient_details["email"])
+        html_string = wrap_image_in_div(treatment_plan)
 
-        result = create_new_letter(user_id, treatment_plan, patient["_id"], tokens_consumed)
+        result = create_new_letter(user_id, html_string, patient["_id"], tokens_consumed)
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
 
         return {"message": "Letter saved successfully", "letter_id": str(result)}

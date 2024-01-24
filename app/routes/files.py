@@ -25,6 +25,7 @@ from app.database.crud import (
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.file import DeleteFile, FileType, SaveFile, SearchFiles, SelectChar
+from app.utils.utils import wrap_image_in_div
 
 router = APIRouter(prefix="/files", tags=["Files"])
 
@@ -97,7 +98,8 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
         user_id = token["user_id"]
 
         if body.file_type == "letter":
-            update_letter(body.file_id, json.loads(body.file_text), user_id)
+            html_string = wrap_image_in_div(json.loads(body.file_text))
+            update_letter(body.file_id, html_string, user_id)
         else:
             update_note(body.file_id, json.loads(body.file_text), user_id)
 
