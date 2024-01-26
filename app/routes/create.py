@@ -270,16 +270,16 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
     if letter_config["include_image"]:
         header = f"""
             <table>
-              <tbody>
-                <tr>
-                  <td>
-                    <p>
-                        <img style="max-width: 100%; height: auto;" src="data:image/png;base64,{letter_config["image"]}" />
-                    </p>
-                  </td>
-                  <td colspan="3">{header}</td>
-                </tr>
-              </tbody>
+                <tbody>
+                    <tr>
+                        <td>
+                            <p>
+                                <img style="max-width: 100%; height: auto;" src="data:image/png;base64,{letter_config["image"]}" />
+                            </p>
+                        </td>
+                        <td colspan="3">{header}</td>
+                    </tr>
+                </tbody>
             </table>
         """
 
