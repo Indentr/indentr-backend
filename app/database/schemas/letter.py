@@ -3,6 +3,7 @@ from datetime import datetime
 from mongoengine import (
     DateTimeField,
     Document,
+    FloatField,
     IntField,
     ReferenceField,
     StringField,
@@ -17,6 +18,10 @@ class Letter(Document):
     patient_id = ReferenceField(Patient, required=True)
     user_id = ReferenceField(User, required=True)
     createdAt = DateTimeField(default=datetime.utcnow)
-    tokens_consumed = IntField(default=0)
+    input_tokens = IntField(default=0)
+    output_tokens = IntField(default=0)
+    cost = FloatField(default=0)
+    model = StringField()
+    tokens_consumed = IntField()
 
     meta = {"collection": "letters"}  # Specify the collection name

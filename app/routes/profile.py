@@ -13,7 +13,6 @@ from app.database.crud import (
     retrieve_last_three_triage_requests,
     retrieve_letter_config,
     retrieve_practice_by_id,
-    retrieve_practice_users_token_consumption,
     retrieve_price_list,
     retrieve_prompt_by_title,
     retrieve_user_by_email,
@@ -107,10 +106,7 @@ def get_account_settings_billing(access_token=Depends(JWTBearer())):
     Retrieves the user's profile information along with their latest letters.
     """
     try:
-        token = decodeJWT(access_token)
-        token["user_id"]
-        practice_id = token["practice_id"]
-        practice_users_token_consumption = retrieve_practice_users_token_consumption(practice_id)
+        practice_users_token_consumption = 0
 
         return {"tokens_consumed": practice_users_token_consumption}
 

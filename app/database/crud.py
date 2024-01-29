@@ -200,19 +200,6 @@ def retrieve_all_practice_users(practice_id: str):
     return members_dict_list
 
 
-# takes in a practice_id in order to search for all users with the same practice_id
-def retrieve_practice_users_token_consumption(practice_id: str):
-    practice_users_token_consumption = User.objects(practice_id=practice_id).only("name", "tokens_consumed")
-
-    users_tokens_dict_list = []
-    for user in practice_users_token_consumption:
-        user_dict = user.to_mongo().to_dict()
-        user_dict["_id"] = str(user.id)
-        users_tokens_dict_list.append(user_dict)
-
-    return users_tokens_dict_list
-
-
 def update_user_details(user_id: str, name: str = None, email: str = None, password: str = None):
     try:
         user = User.objects.get(id=user_id)
@@ -240,16 +227,6 @@ def update_user_details(user_id: str, name: str = None, email: str = None, passw
             hash_pass = generate_password_hash(password, method="scrypt")
             user.password = hash_pass
 
-        user.save()
-
-    except DoesNotExist:
-        raise HTTPException(status_code=404, detail="User not found") from None
-
-
-def update_user_tokens(user_id: str, tokens: int):
-    try:
-        user = User.objects.get(id=user_id)
-        user.tokens_consumed += tokens
         user.save()
 
     except DoesNotExist:
@@ -358,12 +335,18 @@ def retrieve_pricing(practice_id: str):
 
 
 # Letter ---------------------------
-def create_new_letter(user_id: str, text: str, patient_id: str, tokens_consumed: Optional[int] = None):
+def create_new_letter(user_id: str, text: str, patient_id: str, input_tokens: int, output_tokens: int, cost: int, model: str):
     try:
-        # user = User.objects.get(id=user_id)
-
         # Create a new Letter document
-        letter = Letter(consent_letter=text, patient_id=patient_id, user_id=user_id, tokens_consumed=tokens_consumed)
+        letter = Letter(
+            consent_letter=text,
+            patient_id=patient_id,
+            user_id=user_id,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost=cost,
+            model=model,
+        )
 
         # Save the new letter to the database
         letter.save()
@@ -527,6 +510,8 @@ def retrieve_user_letter(letter_id, user_id):
     letter_dict["_id"] = str(letter.id)
     letter_dict["user_id"] = str(letter.user_id.id)
     letter_dict["patient_id"] = str(letter.patient_id.id)
+    if "tokens_consumed" in letter_dict:
+        del letter_dict["tokens_consumed"]
 
     return letter_dict
 
