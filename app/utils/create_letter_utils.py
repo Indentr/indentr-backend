@@ -38,7 +38,7 @@ async def fees_section(
     example_insurance_section = "<p></p><p>Regarding your insurance coverage, we have on record that you are insured by DentalCare Insurance under the policy number DC123456789, with coverage valid through December 31, 2025. We will assist you in submitting the necessary claims to your insurance provider. However, please be aware that you are responsible for ensuring that the costs of the procedure are within the terms of your coverage. We recommend that you contact DentalCare Insurance directly to confirm the extent of your coverage for this procedure.</p><p></p><p>Any portion of the fees not covered by your insurance will be your responsibility, and we will provide you with a detailed breakdown of costs for your records and for submission to your insurance company. Payment for the procedure is due at the time of service unless other arrangements have been made in advance with our office.</p>"
     prompt = ""
     if not include_pricing and not include_insurance_info:
-        return ""
+        return "", 0, 0, 0
     if include_pricing:
         prompt = f"""
             I need you to write the fees and costs section of a dental consent letter. Its important that you include any necessary detail that is typically found in a financial considerations section of a dental consent letter.
