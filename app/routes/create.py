@@ -274,7 +274,7 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
             else patient_signature
         )
         signoff = generate_signoff(letter_config["sign_off"], user["name"], letter_config["dentist_naming"], practice["practice_name"])
-        
+
         response_html = header + treatment_section_result + fees_section_result + contact_details_text + signoff + signature_lines
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
