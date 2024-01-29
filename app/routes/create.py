@@ -266,13 +266,14 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
 
         contact_details_text = format_contact_details_text(letter_config["contact_details_text"]) if letter_config["practice_contact_details"] else ""
 
-        signature_lines = (
-            (dentist_signature + patient_signature)
-            if letter_config["dentist_signature"] and letter_config["patient_signature"]
-            else dentist_signature
-            if letter_config["dentist_signature"]
-            else patient_signature
-        )
+        signature_lines = ""
+        if letter_config["dentist_signature"] and letter_config["patient_signature"]:
+            signature_lines = dentist_signature + patient_signature
+        elif letter_config["dentist_signature"]:
+            signature_lines = dentist_signature
+        elif letter_config["patient_signature"]:
+            signature_lines = patient_signature
+
         signoff = generate_signoff(letter_config["sign_off"], user["name"], letter_config["dentist_naming"], practice["practice_name"])
 
         response_html = header + treatment_section_result + fees_section_result + contact_details_text + signoff + signature_lines
