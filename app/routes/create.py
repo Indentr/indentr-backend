@@ -1,8 +1,8 @@
+import asyncio
 import json
 import logging
 import time
 import uuid
-from datetime import datetime
 from io import BytesIO
 
 from bson import ObjectId
@@ -20,9 +20,7 @@ from app.database.crud import (
     retrieve_pricing,
     retrieve_prompt_by_title,
     retrieve_user_by_id,
-    retrieve_vector_letters,
     update_formatted_notes,
-    update_user_tokens,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
@@ -37,7 +35,19 @@ from app.models.create import (
     TreatmentPlanResponse,
 )
 from app.services.deepgram import dpg_speech_to_text
-from app.services.openAI import ask_gpt, ask_gpt_image, generate_embedding
+from app.services.openAI import ask_gpt, ask_gpt_image
+from app.utils.create_letter_utils import (
+    dentist_signature,
+    fees_section,
+    format_address,
+    format_contact_details_text,
+    format_image_header,
+    generate_formatted_date,
+    generate_formatted_dear,
+    generate_signoff,
+    patient_signature,
+    treatment_section,
+)
 from app.utils.utils import wrap_image_in_div
 
 # initiates api router
@@ -153,9 +163,6 @@ async def generate_questions(body: SymptomData, access_token=Depends(JWTBearer()
     start = time.time()
     request_id = uuid.uuid4().hex
 
-    token = decodeJWT(access_token)
-    user_id = token["user_id"]
-
     symptomDetails = json.loads(body.symptomDetails)
     symptomDetails = ", ".join(list(symptomDetails.values()))
 
@@ -170,7 +177,6 @@ async def generate_questions(body: SymptomData, access_token=Depends(JWTBearer()
     """
 
     original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-3.5-turbo")
-    update_user_tokens(user_id, tokens)
 
     try:
         questions = json.loads(original_response)
@@ -192,153 +198,100 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
     # Generates a treatment plan based on Patient and Symptom Details
     This endpoint generates a treatment plan tailored to the patient's symptoms. The treatment plan is returned as an HTML-formatted string.
     """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received.")
 
-    start = time.time()
-    request_id = uuid.uuid4().hex
+        gpt_model = "gpt-4-turbo-preview"
+        # gpt_model = "gpt-3.5-turbo-1106"
 
-    token = decodeJWT(access_token)
-    user_id = token["user_id"]
-    practice_id = token["practice_id"]
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+        practice_id = token["practice_id"]
 
-    embedding = await generate_embedding(body.dentistNotes if body.dentistNotes else body.symptomDetails)
-    pipeline = [
-        {
-            "$vectorSearch": {
-                "index": "default",
-                "queryVector": embedding,
-                "path": "plot_embedding",
-                "numCandidates": 100,
-                "limit": 1,
-            }
-        },
-        {"$project": {"consent_letter": 1, "_id": 0}},
-    ]
+        # embedding = await generate_embedding(body.dentistNotes if body.dentistNotes else body.symptomDetails)
+        # pipeline = [
+        #     {
+        #         "$vectorSearch": {
+        #             "index": "default",
+        #             "queryVector": embedding,
+        #             "path": "plot_embedding",
+        #             "numCandidates": 100,
+        #             "limit": 1,
+        #         }
+        #     },
+        #     {"$project": {"consent_letter": 1, "_id": 0}},
+        # ]
 
-    example_consent_letter = retrieve_vector_letters(pipeline)
-    generate_consent_letter_prompt = retrieve_prompt_by_title("generate_consent_letter")
-    letter_config = retrieve_letter_config(practice_id)
+        # example_consent_letter = retrieve_vector_letters(pipeline)
+        # generate_consent_letter_prompt = retrieve_prompt_by_title("generate_consent_letter")
 
-    if letter_config["pricing"]:
-        pricing_list = retrieve_pricing(practice_id)
-
-    patientDetails = json.loads(body.patientDetails)
-    symptomDetails, dentistNotes, dentistNotesText = None, None, None
-
-    if body.symptomDetails:
-        symptomDetails = json.loads(body.symptomDetails)
-
-    if body.dentistNotes:
-        dentistNotes = json.loads(body.dentistNotes)
-        dentistNotesText = f"The patient notes, written by the dentist, are as as follows: {dentistNotes}"
-
-    log.info(f"Request {request_id} received.")
-
-    prompt = f"""
-
-        Patient's dob: {patientDetails['dob']}
-        { "Patient's symptoms:"+ str(symptomDetails) if symptomDetails else "" }
-        {dentistNotesText if dentistNotes != "" else ""}
-
-        Example dental consent letter:
-        {example_consent_letter[0]["consent_letter"]}
-
-        {"Dental practice pricing list:"+ str(pricing_list) if letter_config["pricing"] else "Don't include any pricing section/information"}
-
-        {"Make sure to include both dentist and patient signature lines within the consent letter" if letter_config["patient_signature"] and letter_config["dentist_signature"] else ""}
-        {"Make sure to include only dentist signature line (no patient signature line within the consent letter)" if letter_config["dentist_signature"] else ""}
-        {"Make sure to include only patient signature line (no patient signature line within the consent letter)" if letter_config["patient_signature"] else ""}
-
-        {generate_consent_letter_prompt}
-    """
-    gpt_model = "gpt-4-1106-preview"
-    treatmentPlan, tokens = await ask_gpt(prompt, "You're a UK based dentist writing consent letters for patients", gpt_model)
-    update_user_tokens(user_id, tokens)
-
-    treatmentPlan = treatmentPlan[7:-3]
-    log.info(f"GPT treatment plan response: {treatmentPlan}")
-
-    header = ""
-    date = ""
-    if letter_config["patient_address"]:
-        address = patientDetails["address"]
-        address_parts = address.split(", ")
-        # generates the HTML lines dynamically
-        html_lines = "\n".join([f"<p style='text-align: right'>{part},</p>" for part in address_parts])
-        # formats the address into the HTML string
-        header = (f"""{html_lines}""") + ("<p></p><p></p>")
-
-    if letter_config["include_image"]:
-        header = f"""
-            <table>
-                <tbody>
-                    <tr>
-                        <td>
-                            <p>
-                                <img style="max-width: 100%; height: auto;" src="data:image/png;base64,{letter_config["image"]}" />
-                            </p>
-                        </td>
-                        <td colspan="3">{header}</td>
-                    </tr>
-                </tbody>
-            </table>
-        """
-
-    if letter_config["date"]:
-        current_date = datetime.now()
-        uk_date_format = current_date.strftime("%d/%m/%y")
-        date = f"""
-            <p>
-                {uk_date_format}
-            </p>
-            <p></p>
-        """
-
-    mrOrMrs = "Mr" if patientDetails["gender"] else "Mrs"
-
-    dear = f"""
-        <p>
-            {letter_config["salutation"]} {patientDetails['forename'] if letter_config["recipient_naming"] == 'first_lastname' else mrOrMrs} {patientDetails['surname']},
-        </p>
-        <p></p>
-    """
-
-    user, practice = None, None
-    if (
-        letter_config["dentist_naming"] == "practice_name"
-        or letter_config["dentist_naming"] == "dentist_practice_name"
-        or letter_config["practice_contact_details"]
-    ):
+        letter_config = retrieve_letter_config(practice_id)
+        pricing_list = retrieve_pricing(practice_id) if letter_config["pricing"] else ""
         practice = retrieve_practice_by_id(practice_id)
-
-    if letter_config["dentist_naming"] == "dentist_name" or letter_config["dentist_naming"] == "dentist_practice_name":
         user = retrieve_user_by_id(user_id)
 
-    signoff = f"""
-        <p></p>
-        <p>
-            {letter_config["sign_off"]} {user['name'] if letter_config["dentist_naming"] == 'dentist_name' else ''} {(user['name']+', '+practice["practice_name"])  if letter_config["dentist_naming"] == 'dentist_practice_name' else ''} {practice["practice_name"] if letter_config["dentist_naming"] == 'practice_name' else ''}
-        </p>
-    """
+        patientDetails = json.loads(body.patientDetails)
+        dentistNotes = json.loads(body.dentistNotes) if body.dentistNotes else None
 
-    completed_in = f"""
-        <p></p>
-        <p>
-            completed in {round((time.time() - start), 2)} seconds
-        </p>
-        <p/>
-        <p>
-            cost: {tokens} tokens
-        </p>
-        <p/>
-        <p>
-            used gpt model: {gpt_model}
-        </p>
-    """
+        results = await asyncio.gather(
+            treatment_section(dentistNotes, gpt_model),
+            fees_section(
+                dentistNotes,
+                letter_config["pricing"],
+                pricing_list,
+                letter_config["patient_insurance_info"],
+                letter_config["include_insurance_info"],
+                gpt_model,
+            ),
+        )
 
-    response_html = header + date + dear + treatmentPlan + signoff + completed_in
+        # Access the results
+        treatment_section_result, treatment_section_input_tokens, treatment_section_output_tokens, treatment_section_cost = results[0]
+        fees_section_result, fees_section_input_tokens, fees_section_output_tokens, fees_section_cost = results[1]
+        log.info(f"GPT treatment plan response: {treatment_section_result + fees_section_result}")
 
-    log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
-    return {"html_content": response_html, "tokens_consumed": tokens}
+        header = format_address(patientDetails["address"]) if letter_config["patient_address"] else ""
+        header = format_image_header(letter_config["image"], header) if letter_config["include_image"] else header
+        date = generate_formatted_date() if letter_config["date"] else ""
+        dear = generate_formatted_dear(
+            patientDetails["gender"],
+            letter_config["salutation"],
+            patientDetails["forename"],
+            letter_config["recipient_naming"],
+            patientDetails["surname"],
+        )
+        header = header + date + dear
+
+        contact_details_text = format_contact_details_text(letter_config["contact_details_text"]) if letter_config["practice_contact_details"] else ""
+
+        signature_lines = (
+            (dentist_signature + patient_signature)
+            if letter_config["dentist_signature"] and letter_config["patient_signature"]
+            else dentist_signature
+            if letter_config["dentist_signature"]
+            else patient_signature
+        )
+        signoff = generate_signoff(letter_config["sign_off"], user["name"], letter_config["dentist_naming"], practice["practice_name"])
+        
+        response_html = header + treatment_section_result + fees_section_result + contact_details_text + signoff + signature_lines
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+        return {
+            "html_content": response_html,
+            "input_tokens": treatment_section_input_tokens + fees_section_input_tokens,
+            "output_tokens": treatment_section_output_tokens + fees_section_output_tokens,
+            "cost": round((treatment_section_cost + fees_section_cost), 2),
+            "model": gpt_model,
+        }
+
+    except HTTPException as e:
+        log.debug(f"Error processing {request_id}: {e}")
+        raise e  # Reraise the HTTPException
+    except Exception as e:
+        log.debug(f"Error processing {request_id}: {e}")
+        raise HTTPException(status_code=500, detail=e) from e
 
 
 @router.post("/analyse-image")
@@ -494,15 +447,18 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
 
         patient_details = json.loads(body.patient_details)
         treatment_plan = json.loads(body.treatment_plan)
-        tokens_consumed = body.tokens_consumed
+        input_tokens = body.input_tokens
+        output_tokens = body.output_tokens
+        cost = body.cost
+        model = json.loads(body.model)
 
         patient = retrieve_patient_by_email(patient_details["email"])
         html_string = wrap_image_in_div(treatment_plan)
 
-        result = create_new_letter(user_id, html_string, patient["_id"], tokens_consumed)
+        letter_id = create_new_letter(user_id, html_string, patient["_id"], input_tokens, output_tokens, cost, model)
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
 
-        return {"message": "Letter saved successfully", "letter_id": str(result)}
+        return {"message": "Letter saved successfully", "letter_id": str(letter_id)}
 
     except HTTPException as e:
         log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
