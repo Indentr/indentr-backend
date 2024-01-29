@@ -58,7 +58,7 @@ def insert_consent_letter(register_and_login):
         patient_details["email"],
     )
 
-    letter_id = create_new_letter(user_id, consent_letter, patient["_id"])
+    letter_id = create_new_letter(user_id, consent_letter, patient["_id"], 3000, 4000, 0.15, "gpt-4-turbo-preview")
     return token, letter_id, consent_letter, patient_details, user_id
 
 

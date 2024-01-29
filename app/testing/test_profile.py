@@ -75,7 +75,7 @@ def insert_treatment_plan(register_and_login):
             )
         )
     for _i in range(0, 4):
-        create_new_letter(user_id, consent_letter, patients[_i]["_id"])
+        create_new_letter(user_id, consent_letter, patients[_i]["_id"], 3000, 4000, 0.15, "gpt-4-turbo-preview")
 
     return token
 
