@@ -12,6 +12,12 @@ class PatientSearch(BaseModel):
 
 
 # Request model
+class SaveNote(BaseModel):
+    updated_note: str
+    note_id: str
+
+
+# Request model
 class PatientDetails(BaseModel):
     patientDetails: str
 
@@ -91,14 +97,20 @@ class TreatmentPlanData(BaseModel):
 # Response model
 class TreatmentPlanResponse(BaseModel):
     html_content: str
-    tokens_consumed: int
+    input_tokens: int
+    output_tokens: int
+    cost: float
+    model: str
 
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
                     "html_content": "<p>123 Main St,</p><p>City,</p><p>Country,</p><p></p><p>Dear John Doe,</p><p></p><p>[HTML-formatted treatment plan]</p>",
-                    "tokens_consumed": 3201,
+                    "input_tokens": 3201,
+                    "output_tokens": 3002,
+                    "cost": 0.015,
+                    "model": "gpt-4-turbo-preview",
                 }
             ]
         }
@@ -109,7 +121,10 @@ class TreatmentPlanResponse(BaseModel):
 class SaveFile(BaseModel):
     treatment_plan: str
     patient_details: str
-    tokens_consumed: int
+    input_tokens: int
+    output_tokens: int
+    cost: float
+    model: str
 
     model_config = {
         "json_schema_extra": {
@@ -117,7 +132,10 @@ class SaveFile(BaseModel):
                 {
                     "treatmentPlan": "<p>123 Main St,</p><p>City,</p><p>Country,</p><p></p><p>Dear John Doe,</p><p></p><p>[HTML-formatted treatment plan]</p>",
                     "patientDetails": {"email": "ryanreynolds1@gmail.com"},
-                    "tokens_consumed": 3207,
+                    "input_tokens": 3201,
+                    "output_tokens": 3002,
+                    "cost": 0.015,
+                    "model": "gpt-4-turbo-preview",
                 }
             ]
         }
