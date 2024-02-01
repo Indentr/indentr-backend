@@ -242,7 +242,7 @@ def create_new_patient(forename: str, surname: str, dob: str, gender: str, addre
             raise HTTPException(status_code=400, detail="Patient with this email already exists")
 
         # Create a new instance of the Patient document with the provided patient details
-        new_patient = Patient(forename=forename, surname=surname, dob=dob, gender=gender, address=address, email=email, practice_id=practice_id)
+        new_patient = Patient(forename=forename.capitalize(), surname=surname.capitalize(), dob=dob, gender=gender, address=address, email=email, practice_id=practice_id)
 
         # Save the new patient instance to the database
         new_patient.save()
@@ -257,6 +257,79 @@ def create_new_patient(forename: str, surname: str, dob: str, gender: str, addre
     except NotUniqueError:
         # Handle the case where a patient with the same email already exists
         raise HTTPException(status_code=400, detail="Patient with this email already exists") from None
+
+
+def retrieve_all_patients_by_practice(practice_id: str):
+    try:
+        patients = Patient.objects(practice_id=practice_id).only("forename", "surname", "gender", "email").order_by("forename").select_related()
+
+        patients_list = []
+        for patient in patients:
+            patient_dict = patient.to_mongo().to_dict()
+            patient_dict["_id"] = str(patient_dict["_id"])
+            patients_list.append(patient_dict)
+
+        return patients_list
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="No patients found in practice")
+
+
+
+def retrieve_patients_alphabet_status(practice_id: str):
+    try:
+        pipeline = [
+            {"$match": {"practice_id": ObjectId(practice_id)}},
+            {"$group": {"_id": {"$substr": ["$forename", 0, 1]}, "count": {"$sum": 1}}},
+        ]
+
+        result = Patient.objects.aggregate(*pipeline)
+
+        # Create a dictionary with default value 0 for all letters
+        alphabet_status = {letter: 0 for letter in ascii_lowercase}
+
+        # Update the dictionary based on the aggregation result
+        for entry in result:
+            first_letter = entry["_id"].lower()
+            count = entry["count"]
+            alphabet_status[first_letter] = count if count > 0 else 0
+
+        return alphabet_status
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Error retrieving alphabet_status") from None
+
+
+
+def retrieve_all_practices_patients_filtered_by_char(practice_id: str, starts_with: str):
+    try:
+        pipeline = [
+            {"$match": {"practice_id": ObjectId(practice_id), "forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
+            {"$sort": {"forename": 1}},
+            {"$project": {"dob": 0, "address": 0, "practice_id": 0}},
+        ]
+
+        patients = Patient.objects.aggregate(*pipeline)
+
+        result = [
+            {
+                "_id": str(doc["_id"]),
+                "forename": doc["forename"],
+                "surname": doc["surname"],
+                "email": doc["email"],
+                "gender": doc["gender"]
+            }
+            for doc in patients
+        ]
+
+        return result
+
+    except DoesNotExist as e:
+        raise HTTPException(status_code=404, detail="No patients found") from None
+
+
+
+
 
 
 def retrieve_patient_by_email(email: str):
@@ -288,20 +361,6 @@ def retrieve_patient_by_id(patient_id: str):
         # Handle the case when a patient with the given patient_id is not found
         pass
 
-
-def retrieve_patients_by_ids(ids: List[str]):
-    patients = []
-    for patient_id in ids:
-        try:
-            # Retrieve the patient document based on patient_id
-            patient_dict = retrieve_patient_by_id(patient_id)
-            patients.append(patient_dict)
-
-        except DoesNotExist:
-            # Handle the case when a patient with the given patient_id is not found
-            pass
-
-    return patients
 
 
 def update_patients_practice_id(patient_id: str, practice_id: str):
