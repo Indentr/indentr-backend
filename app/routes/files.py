@@ -269,8 +269,6 @@ def init_alphabetised(body: FileType, access_token=Depends(JWTBearer())):
             if starts_with_char:
                 files = retrieve_all_practices_patients_filtered_by_char(practice_id, starts_with_char)
 
-
-
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
         return {"files": files, "starts_with_char": starts_with_char, "alphabet_status": alphabet_status}
 
@@ -299,10 +297,9 @@ def select_char(body: SelectChar, access_token=Depends(JWTBearer())):
         if body.file_type == "letter":
             files = retrieve_all_users_letters_filtered_by_char(user_id, body.char)
         elif body.file_type == "note":
-            files = retrieve_all_users_notes_filtered_by_char(user_id, body.char)  
+            files = retrieve_all_users_notes_filtered_by_char(user_id, body.char)
         elif body.file_type == "patient":
             files = retrieve_all_practices_patients_filtered_by_char(practice_id, body.char)
-
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
         return {"files": files}

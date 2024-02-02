@@ -242,7 +242,15 @@ def create_new_patient(forename: str, surname: str, dob: str, gender: str, addre
             raise HTTPException(status_code=400, detail="Patient with this email already exists")
 
         # Create a new instance of the Patient document with the provided patient details
-        new_patient = Patient(forename=forename.capitalize(), surname=surname.capitalize(), dob=dob, gender=gender, address=address, email=email, practice_id=practice_id)
+        new_patient = Patient(
+            forename=forename.capitalize(),
+            surname=surname.capitalize(),
+            dob=dob,
+            gender=gender,
+            address=address,
+            email=email,
+            practice_id=practice_id,
+        )
 
         # Save the new patient instance to the database
         new_patient.save()
@@ -259,7 +267,6 @@ def create_new_patient(forename: str, surname: str, dob: str, gender: str, addre
         raise HTTPException(status_code=400, detail="Patient with this email already exists") from None
 
 
-
 def delete_patient(practice_id: str, patient_id: str):
     patient_to_delete = Patient.objects(id=patient_id, practice_id=practice_id).first()
 
@@ -269,9 +276,15 @@ def delete_patient(practice_id: str, patient_id: str):
     # Delete the patient document
     patient_to_delete.delete()
 
+
 def retrieve_all_patients_by_practice(practice_id: str):
     try:
-        patients = Patient.objects(practice_id=practice_id).only("forename", "surname", "gender", "email", "dob", "address").order_by("forename").select_related()
+        patients = (
+            Patient.objects(practice_id=practice_id)
+            .only("forename", "surname", "gender", "email", "dob", "address")
+            .order_by("forename")
+            .select_related()
+        )
 
         patients_list = []
         for patient in patients:
@@ -282,8 +295,7 @@ def retrieve_all_patients_by_practice(practice_id: str):
         return patients_list
 
     except DoesNotExist:
-        raise HTTPException(status_code=404, detail="No patients found in practice")
-
+        raise HTTPException(status_code=404, detail="No patients found in practice") from None
 
 
 def retrieve_patients_alphabet_status(practice_id: str):
@@ -310,7 +322,6 @@ def retrieve_patients_alphabet_status(practice_id: str):
         raise HTTPException(status_code=404, detail="Error retrieving alphabet_status") from None
 
 
-
 def retrieve_all_practices_patients_filtered_by_char(practice_id: str, starts_with: str):
     try:
         pipeline = [
@@ -329,19 +340,15 @@ def retrieve_all_practices_patients_filtered_by_char(practice_id: str, starts_wi
                 "email": doc["email"],
                 "gender": doc["gender"],
                 "dob": doc["dob"],
-                "address": doc["address"]
+                "address": doc["address"],
             }
             for doc in patients
         ]
 
         return result
 
-    except DoesNotExist as e:
+    except DoesNotExist:
         raise HTTPException(status_code=404, detail="No patients found") from None
-
-
-
-
 
 
 def retrieve_patient_by_email(email: str):
@@ -372,7 +379,6 @@ def retrieve_patient_by_id(patient_id: str):
     except DoesNotExist:
         # Handle the case when a patient with the given patient_id is not found
         pass
-
 
 
 def update_patients_practice_id(patient_id: str, practice_id: str):
