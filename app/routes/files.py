@@ -11,6 +11,7 @@ from app.database.atlas_search import atlas_search
 from app.database.crud import (
     delete_letter,
     delete_note,
+    delete_patient,
     retrieve_all_patients_by_practice,
     retrieve_all_practices_patients_filtered_by_char,
     retrieve_all_users_letters,
@@ -203,6 +204,8 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
                         "surname": 1,
                         "gender": 1,
                         "email": 1,
+                        "dob": 1,
+                        "address": 1,
                     }
                 },
             ]
@@ -327,8 +330,10 @@ def delete_file(body: DeleteFile, access_token=Depends(JWTBearer())):
 
         if body.file_type == "letter":
             delete_letter(user_id, body.file_id)
-        else:
+        if body.file_type == "note":
             delete_note(practice_id, body.file_id)
+        if body.file_type == "patient":
+            delete_patient(practice_id, body.file_id)
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
         return {"success": True}

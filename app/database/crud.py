@@ -259,9 +259,19 @@ def create_new_patient(forename: str, surname: str, dob: str, gender: str, addre
         raise HTTPException(status_code=400, detail="Patient with this email already exists") from None
 
 
+
+def delete_patient(practice_id: str, patient_id: str):
+    patient_to_delete = Patient.objects(id=patient_id, practice_id=practice_id).first()
+
+    if not patient_to_delete:
+        raise HTTPException(status_code=404, detail="No patient with that id found in practice")
+
+    # Delete the patient document
+    patient_to_delete.delete()
+
 def retrieve_all_patients_by_practice(practice_id: str):
     try:
-        patients = Patient.objects(practice_id=practice_id).only("forename", "surname", "gender", "email").order_by("forename").select_related()
+        patients = Patient.objects(practice_id=practice_id).only("forename", "surname", "gender", "email", "dob", "address").order_by("forename").select_related()
 
         patients_list = []
         for patient in patients:
@@ -306,7 +316,7 @@ def retrieve_all_practices_patients_filtered_by_char(practice_id: str, starts_wi
         pipeline = [
             {"$match": {"practice_id": ObjectId(practice_id), "forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
             {"$sort": {"forename": 1}},
-            {"$project": {"dob": 0, "address": 0, "practice_id": 0}},
+            {"$project": {"practice_id": 0}},
         ]
 
         patients = Patient.objects.aggregate(*pipeline)
@@ -317,7 +327,9 @@ def retrieve_all_practices_patients_filtered_by_char(practice_id: str, starts_wi
                 "forename": doc["forename"],
                 "surname": doc["surname"],
                 "email": doc["email"],
-                "gender": doc["gender"]
+                "gender": doc["gender"],
+                "dob": doc["dob"],
+                "address": doc["address"]
             }
             for doc in patients
         ]
@@ -768,9 +780,9 @@ def delete_note(practice_id: str, file_id: str):
     note_to_delete = AudioNote.objects(id=file_id, practice_id=practice_id).first()
 
     if not note_to_delete:
-        raise HTTPException(status_code=404, detail="No member with that id found in practice")
+        raise HTTPException(status_code=404, detail="No note with that id found in practice")
 
-    # Delete the user document
+    # Delete the note document
     note_to_delete.delete()
 
 
