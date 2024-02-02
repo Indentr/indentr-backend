@@ -11,6 +11,9 @@ from app.database.atlas_search import atlas_search
 from app.database.crud import (
     delete_letter,
     delete_note,
+    delete_patient,
+    retrieve_all_patients_by_practice,
+    retrieve_all_practices_patients_filtered_by_char,
     retrieve_all_users_letters,
     retrieve_all_users_letters_filtered_by_char,
     retrieve_all_users_notes,
@@ -19,6 +22,7 @@ from app.database.crud import (
     retrieve_note,
     retrieve_notes_alphabet_status,
     retrieve_patient_by_id,
+    retrieve_patients_alphabet_status,
     retrieve_user_letter,
     update_letter,
     update_note,
@@ -46,14 +50,18 @@ def get_files(body: FileType, access_token=Depends(JWTBearer())):
 
     token = decodeJWT(access_token)
     user_id = token["user_id"]
+    practice_id = token["practice_id"]
 
     file_type = body.file_type
 
     if file_type == "letter":
         files = retrieve_all_users_letters(user_id)
 
-    else:
+    elif file_type == "note":
         files = retrieve_all_users_notes(user_id)
+
+    elif file_type == "patient":
+        files = retrieve_all_patients_by_practice(practice_id)
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
@@ -126,6 +134,7 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
     try:
         token = decodeJWT(access_token)
         user_id = token["user_id"]
+        practice_id = token["practice_id"]
         returned_fields = {}
 
         if body.file_type == "letter":
@@ -137,7 +146,7 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
                 "createdAt": 1,
                 "consent_letter": 1,
             }
-        else:
+        if body.file_type == "note":
             table = "audio_note"
             path = "formatted_notes"
             returned_fields = {
@@ -147,36 +156,74 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
                 "formatted_notes": 1,
             }
 
-        search_param = body.search_param
-        pipeline = [
-            {
-                "$search": {
-                    "index": "default",
-                    "compound": {
-                        "should": [
-                            {"autocomplete": {"query": search_param, "path": path}},
-                        ],
-                        "filter": [
-                            {"equals": {"value": ObjectId(user_id), "path": "user_id"}},
-                        ],
-                        "minimumShouldMatch": 1,
-                    },
-                }
-            },
-            {"$limit": 15},
-            {"$project": returned_fields},
-        ]
+        if body.file_type == "letter" or body.file_type == "note":
+            search_param = body.search_param
+            pipeline = [
+                {
+                    "$search": {
+                        "index": "default",
+                        "compound": {
+                            "should": [
+                                {"autocomplete": {"query": search_param, "path": path}},
+                            ],
+                            "filter": [
+                                {"equals": {"value": ObjectId(user_id), "path": "user_id"}},
+                            ],
+                            "minimumShouldMatch": 1,
+                        },
+                    }
+                },
+                {"$limit": 15},
+                {"$project": returned_fields},
+            ]
+
+        if body.file_type == "patient":
+            search_param = body.search_param
+            table = "patients"
+            pipeline = [
+                {
+                    "$search": {
+                        "index": "default",
+                        "compound": {
+                            "should": [
+                                {"autocomplete": {"query": search_param, "path": "forename"}},
+                                {"autocomplete": {"query": search_param, "path": "surname"}},
+                                {"autocomplete": {"query": search_param, "path": "email"}},
+                            ],
+                            "filter": [
+                                {"equals": {"value": ObjectId(practice_id), "path": "practice_id"}},
+                            ],
+                            "minimumShouldMatch": 1,
+                        },
+                    }
+                },
+                {
+                    "$project": {
+                        "_id": 1,
+                        "forename": 1,
+                        "surname": 1,
+                        "gender": 1,
+                        "email": 1,
+                        "dob": 1,
+                        "address": 1,
+                    }
+                },
+            ]
+
         result = atlas_search(DB_URI, table, pipeline)
         for i in result:
             i["_id"] = str(i["_id"])
-            patient_details = retrieve_patient_by_id(str(i["patient_id"]))
-            del patient_details["dob"]
-            del patient_details["gender"]
-            del patient_details["address"]
-            del patient_details["email"]
-            del i["patient_id"]
-            i["patient_details"] = patient_details
-            i["createdAt"] = i["createdAt"].strftime("%Y-%m-%d %H:%M:%S")
+            if "patient_id" in i:
+                patient_details = retrieve_patient_by_id(str(i["patient_id"]))
+                del patient_details["dob"]
+                del patient_details["gender"]
+                del patient_details["address"]
+                del patient_details["email"]
+                del i["patient_id"]
+                i["patient_details"] = patient_details
+
+            if "createdAt" in i:
+                i["createdAt"] = i["createdAt"].strftime("%Y-%m-%d %H:%M:%S")
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
         return result
@@ -202,6 +249,7 @@ def init_alphabetised(body: FileType, access_token=Depends(JWTBearer())):
     try:
         token = decodeJWT(access_token)
         user_id = token["user_id"]
+        practice_id = token["practice_id"]
         starts_with_char = None
         files = None
 
@@ -210,11 +258,16 @@ def init_alphabetised(body: FileType, access_token=Depends(JWTBearer())):
             starts_with_char = next((char for char, count in alphabet_status.items() if count > 0), None)
             if starts_with_char:
                 files = retrieve_all_users_letters_filtered_by_char(user_id, starts_with_char)
-        else:
+        elif body.file_type == "note":
             alphabet_status = retrieve_notes_alphabet_status(user_id)
             starts_with_char = next((char for char, count in alphabet_status.items() if count > 0), None)
             if starts_with_char:
                 files = retrieve_all_users_notes_filtered_by_char(user_id, starts_with_char)
+        elif body.file_type == "patient":
+            alphabet_status = retrieve_patients_alphabet_status(practice_id)
+            starts_with_char = next((char for char, count in alphabet_status.items() if count > 0), None)
+            if starts_with_char:
+                files = retrieve_all_practices_patients_filtered_by_char(practice_id, starts_with_char)
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
         return {"files": files, "starts_with_char": starts_with_char, "alphabet_status": alphabet_status}
@@ -238,12 +291,15 @@ def select_char(body: SelectChar, access_token=Depends(JWTBearer())):
     try:
         token = decodeJWT(access_token)
         user_id = token["user_id"]
+        practice_id = token["practice_id"]
         files = None
 
         if body.file_type == "letter":
             files = retrieve_all_users_letters_filtered_by_char(user_id, body.char)
-        else:
+        elif body.file_type == "note":
             files = retrieve_all_users_notes_filtered_by_char(user_id, body.char)
+        elif body.file_type == "patient":
+            files = retrieve_all_practices_patients_filtered_by_char(practice_id, body.char)
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
         return {"files": files}
@@ -271,8 +327,10 @@ def delete_file(body: DeleteFile, access_token=Depends(JWTBearer())):
 
         if body.file_type == "letter":
             delete_letter(user_id, body.file_id)
-        else:
+        if body.file_type == "note":
             delete_note(practice_id, body.file_id)
+        if body.file_type == "patient":
+            delete_patient(practice_id, body.file_id)
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
         return {"success": True}
