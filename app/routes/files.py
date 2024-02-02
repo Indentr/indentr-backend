@@ -68,8 +68,8 @@ def get_files(body: FileType, access_token=Depends(JWTBearer())):
     return {"files": files}
 
 
-@router.get("/{file_id}")
-def get_file(file_id: str, access_token=Depends(JWTBearer())):
+@router.get("/{file_type}/{file_id}")
+def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
     """
     Retrieves a file based on the provided file ID.
     """
@@ -77,17 +77,18 @@ def get_file(file_id: str, access_token=Depends(JWTBearer())):
     try:
         token = decodeJWT(access_token)
         user_id = token["user_id"]
-        try:
+        practice_id = token["practice_id"]
+        if file_type == "letter":
             file = retrieve_user_letter(file_id, user_id)
-            file_type = "letter"
-        except HTTPException:
+        elif file_type == "note":
             file = retrieve_note(file_id, user_id)
-            file_type = "note"
+        elif file_type == "patient":
+            file = retrieve_patient_by_id(file_id, practice_id)
 
-        return {"file": file, "file_type": file_type}
+        return {"file": file}
 
-    except HTTPException:
-        raise HTTPException(status_code=400, detail="No file found") from None
+    except HTTPException as e:
+        raise e
 
 
 @router.post("/save-file/")
@@ -214,7 +215,7 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
         for i in result:
             i["_id"] = str(i["_id"])
             if "patient_id" in i:
-                patient_details = retrieve_patient_by_id(str(i["patient_id"]))
+                patient_details = retrieve_patient_by_id(str(i["patient_id"]), practice_id)
                 del patient_details["dob"]
                 del patient_details["gender"]
                 del patient_details["address"]
