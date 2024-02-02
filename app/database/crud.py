@@ -275,6 +275,9 @@ def delete_patient(practice_id: str, patient_id: str):
 
     # Delete the patient document
     patient_to_delete.delete()
+    Triage.objects(patient_id=patient_id).delete()
+    Letter.objects(patient_id=patient_id).delete()
+    AudioNote.objects(patient_id=patient_id).delete()
 
 
 def retrieve_all_patients_by_practice(practice_id: str):
@@ -365,10 +368,10 @@ def retrieve_patient_by_email(email: str):
         raise HTTPException(status_code=404, detail="Patient not found") from None
 
 
-def retrieve_patient_by_id(patient_id: str):
+def retrieve_patient_by_id(patient_id: str, practice_id):
     try:
         # Retrieve the patient document based on patient_id
-        patient = Patient.objects.get(id=patient_id)
+        patient = Patient.objects.get(id=patient_id, practice_id=practice_id)
         patient_dict = patient.to_mongo().to_dict()
         patient_dict["_id"] = str(patient_dict["_id"])
         if "practice_id" in patient_dict:
@@ -377,8 +380,7 @@ def retrieve_patient_by_id(patient_id: str):
         return patient_dict
 
     except DoesNotExist:
-        # Handle the case when a patient with the given patient_id is not found
-        pass
+        raise HTTPException(status_code=404, detail="Patient not found") from None
 
 
 def update_patients_practice_id(patient_id: str, practice_id: str):
