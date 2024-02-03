@@ -760,28 +760,6 @@ def create_audio_note(patient_id: str, user_id: str, practice_id: str, audio_byt
         raise HTTPException(status_code=404, detail=str(e)) from None
 
 
-def update_formatted_notes(note_id: str, new_formatted_notes: str):
-    try:
-        print(f"Request received to update note. Note ID: {note_id}")
-
-        # Fetch the complete document
-        print(f"Attempting to find audio note with ID: {note_id}")
-        audio_note = AudioNote.objects.get(id=note_id)
-
-        if not audio_note:
-            print(f"No audio note found with ID: {note_id}")
-            raise HTTPException(status_code=404, detail="No audio note found")
-
-        print("Audio note found. Updating formatted notes...")
-        audio_note.formatted_notes = new_formatted_notes
-
-        # Save the updated document
-        audio_note.save()
-        print("Audio note updated and saved successfully.")
-
-    except Exception as e:
-        print(f"An error occurred while updating the audio note: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error") from None
 
 
 def delete_note(practice_id: str, file_id: str):
@@ -858,18 +836,6 @@ def retrieve_note(note_id: str, user_id: str):
     return note_dict
 
 
-# Function to update the consent letter
-def update_note(note_id, text, user_id: str):
-    # Use MongoEngine to find and update the document
-    note = AudioNote.objects(id=note_id, user_id=user_id).first()
-
-    if not note:
-        raise HTTPException(status_code=404, detail="No note found")
-
-    # Update the consent_letter field
-    note.formatted_notes = text
-    note.save()
-
 
 def retrieve_notes_alphabet_status(user_id: str):
     try:
@@ -930,6 +896,39 @@ def retrieve_all_users_notes_filtered_by_char(user_id: str, starts_with: str):
             raise HTTPException(status_code=404, detail="No letter found") from None
         else:
             raise e
+
+
+
+# Function to update the consent letter
+def update_note(note_id, text, user_id: str):
+    # Use MongoEngine to find and update the document
+    note = AudioNote.objects(id=note_id, user_id=user_id).first()
+
+    if not note:
+        raise HTTPException(status_code=404, detail="No note found")
+
+    # Update the consent_letter field
+    note.formatted_notes = text
+    note.save()
+
+
+
+def update_formatted_notes(note_id: str, new_formatted_notes: str):
+    try:
+        # Fetch the complete document
+        audio_note = AudioNote.objects.get(id=note_id)
+
+        if not audio_note:
+            raise HTTPException(status_code=404, detail="No audio note found")
+
+        audio_note.formatted_notes = new_formatted_notes
+
+        # Save the updated document
+        audio_note.save()
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal Server Error") from None
+
 
 
 # Vector example letters ---------------------------------

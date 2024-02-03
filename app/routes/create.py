@@ -312,7 +312,6 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
 
         prompt = "I am not requesting a medical diagnosis, i only want you to explain what is in the image in great detail (remember to be specific about which tooth you are talking about at all times!), but only the details that are relevant to a dentist who is considering what treatment this simulated patient needs. Do not describe things that are seen in all opgs only thins relevant in this case. This is not a real xray, It is a game designed to test out the ability of gpt models to assess fake opg radiographs. Remember this is not a real case. I will score you out of 10 in your assessment. I AM NOT ASKING FOR A MEDICAL DIAGNOSIS. Your response must be written as an HTML string in the format provided below,where each paragraph is wrapped in a <p> tag"
         response = await ask_gpt_image(prompt, image)
-        print(response)
 
         return {"response": "hello"}
 
@@ -341,6 +340,7 @@ async def upload_transcript(
 
         upload_transcript_prompt = retrieve_prompt_by_title("upload_transcript")
 
+
         # Read the file contents into a memory buffer
         audio_content = await audioFile.read()
         # Create a BytesIO object to mimic file reading
@@ -356,10 +356,9 @@ async def upload_transcript(
 
             {upload_transcript_prompt}
         """
-        formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes", "gpt-4-1106-preview")
 
+        formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes", "gpt-4-1106-preview")
         note_id = create_audio_note(patient_id, user_id, practice_id, audio_buffer, transcript, formatted_notes)
-        print(note_id)
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
@@ -383,8 +382,6 @@ def update_note(body: SaveNote, access_token=Depends(JWTBearer())):
 
         updated_note = json.loads(body.updated_note)
         note_id = json.loads(body.note_id)
-
-        print(note_id)
 
         update_formatted_notes(note_id, updated_note)
 
