@@ -760,8 +760,6 @@ def create_audio_note(patient_id: str, user_id: str, practice_id: str, audio_byt
         raise HTTPException(status_code=404, detail=str(e)) from None
 
 
-
-
 def delete_note(practice_id: str, file_id: str):
     note_to_delete = AudioNote.objects(id=file_id, practice_id=practice_id).first()
 
@@ -836,7 +834,6 @@ def retrieve_note(note_id: str, user_id: str):
     return note_dict
 
 
-
 def retrieve_notes_alphabet_status(user_id: str):
     try:
         pipeline = [
@@ -898,7 +895,6 @@ def retrieve_all_users_notes_filtered_by_char(user_id: str, starts_with: str):
             raise e
 
 
-
 # Function to update the consent letter
 def update_note(note_id, text, user_id: str):
     # Use MongoEngine to find and update the document
@@ -910,7 +906,6 @@ def update_note(note_id, text, user_id: str):
     # Update the consent_letter field
     note.formatted_notes = text
     note.save()
-
 
 
 def update_formatted_notes(note_id: str, new_formatted_notes: str):
@@ -926,9 +921,8 @@ def update_formatted_notes(note_id: str, new_formatted_notes: str):
         # Save the updated document
         audio_note.save()
 
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal Server Error") from None
-
 
 
 # Vector example letters ---------------------------------

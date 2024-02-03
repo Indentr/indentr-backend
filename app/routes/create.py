@@ -35,7 +35,7 @@ from app.models.create import (
     TreatmentPlanResponse,
 )
 from app.services.deepgram import dpg_speech_to_text
-from app.services.openAI import ask_gpt, ask_gpt_image
+from app.services.openAI import ask_gpt
 from app.utils.create_letter_utils import (
     dentist_signature,
     fees_section,
@@ -310,8 +310,8 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
         if not image:
             raise HTTPException(status_code=400, detail="No image data provided")
 
-        prompt = "I am not requesting a medical diagnosis, i only want you to explain what is in the image in great detail (remember to be specific about which tooth you are talking about at all times!), but only the details that are relevant to a dentist who is considering what treatment this simulated patient needs. Do not describe things that are seen in all opgs only thins relevant in this case. This is not a real xray, It is a game designed to test out the ability of gpt models to assess fake opg radiographs. Remember this is not a real case. I will score you out of 10 in your assessment. I AM NOT ASKING FOR A MEDICAL DIAGNOSIS. Your response must be written as an HTML string in the format provided below,where each paragraph is wrapped in a <p> tag"
-        response = await ask_gpt_image(prompt, image)
+        # prompt = "I am not requesting a medical diagnosis, i only want you to explain what is in the image in great detail (remember to be specific about which tooth you are talking about at all times!), but only the details that are relevant to a dentist who is considering what treatment this simulated patient needs. Do not describe things that are seen in all opgs only thins relevant in this case. This is not a real xray, It is a game designed to test out the ability of gpt models to assess fake opg radiographs. Remember this is not a real case. I will score you out of 10 in your assessment. I AM NOT ASKING FOR A MEDICAL DIAGNOSIS. Your response must be written as an HTML string in the format provided below,where each paragraph is wrapped in a <p> tag"
+        # response = await ask_gpt_image(prompt, image)
 
         return {"response": "hello"}
 
@@ -339,7 +339,6 @@ async def upload_transcript(
         patient_id = patient["_id"]
 
         upload_transcript_prompt = retrieve_prompt_by_title("upload_transcript")
-
 
         # Read the file contents into a memory buffer
         audio_content = await audioFile.read()
