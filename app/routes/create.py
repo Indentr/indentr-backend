@@ -389,7 +389,7 @@ def update_note(body: SaveNote, access_token=Depends(JWTBearer())):
 
         # Convert ObjectId to string for JSON serialization
         return {
-            "message": "Success",
+            "message": "Note saved successfully",
         }
 
     except HTTPException as e:
