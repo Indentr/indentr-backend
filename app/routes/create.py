@@ -358,8 +358,6 @@ async def upload_transcript(
         """
         formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes", "gpt-4-1106-preview")
 
-        formatted_notes = formatted_notes[7:-3]
-
         note_id = create_audio_note(patient_id, user_id, practice_id, audio_buffer, transcript, formatted_notes)
         print(note_id)
 
