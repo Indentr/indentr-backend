@@ -80,8 +80,9 @@ def test_get_all_user_letters(insert_consent_letter):
 
 def test_get_consent_letter(insert_consent_letter):
     token, letter_id, consent_letter, patient_details, user_id = insert_consent_letter
+    file_type = "letter"
     response = client.get(
-        f"/files/{letter_id}",
+        f"/files/{file_type}/{letter_id}",
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
@@ -98,8 +99,9 @@ def test_get_consent_letter(insert_consent_letter):
 def test_get_nonexistent_consent_letter(insert_consent_letter):
     token, letter_id, consent_letter, patient_details, user_id = insert_consent_letter
     non_existent_id = ObjectId()  # generates random objectId
+    file_type = "letter"
     response = client.get(
-        f"/files/{str(non_existent_id)}",
+        f"/files/{file_type}/{str(non_existent_id)}",
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
@@ -108,7 +110,7 @@ def test_get_nonexistent_consent_letter(insert_consent_letter):
 
     assert response.status_code == 400, response.text
     data = response.json()
-    assert data["detail"] == "No file found"
+    assert data["detail"] == "No letter found"
 
 
 def test_save_consent_letter(insert_consent_letter):
