@@ -395,31 +395,30 @@ def update_note(body: SaveNote, access_token=Depends(JWTBearer())):
         raise e  # Reraise the HTTPException
 
 
-@router.post("/uploadAudioTranscription")
-async def upload_audio(audioFile: UploadFile = File(...), access_token=Depends(JWTBearer())):
+@router.post("/voice-to-text")
+async def upload_audio(request: Request, access_token: str = Depends(JWTBearer())):
     try:
-        time.time()
         request_id = uuid.uuid4().hex
-
-        log.info(
-            f"Request {request_id} received for uploadAudioTranscription endpoint. Received file: {audioFile.filename}, Content type: {audioFile.content_type}"
-        )
+        log.info(f"Request {request_id} received for voice-to-text endpoint.")
 
         decodeJWT(access_token)
 
-        # Read the file contents into a memory buffer
-        audio_content = await audioFile.read()
-        # Create a BytesIO object to mimic file reading
-        audio_buffer = BytesIO(audio_content)
+        # Read the audio data from the request stream
+        audio_data = b''
+        async for chunk in request.stream():
+            audio_data += chunk
+
+        if not audio_data:
+            raise HTTPException(status_code=400, detail="No audio data provided")
+
+        # Convert audio_data to BytesIO if needed
+        audio_buffer = BytesIO(audio_data)
 
         # Speech to text conversion
         response = await dpg_speech_to_text(audio_buffer)
         transcript = response.results.channels[0].alternatives[0].transcript
 
-        # Convert ObjectId to string for JSON serialization
-        return {
-            "transcripts": transcript,
-        }
+        return {"transcripts": transcript}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
