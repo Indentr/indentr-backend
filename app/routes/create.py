@@ -404,7 +404,7 @@ async def upload_audio(request: Request, access_token: str = Depends(JWTBearer()
         decodeJWT(access_token)
 
         # Read the audio data from the request stream
-        audio_data = b''
+        audio_data = b""
         async for chunk in request.stream():
             audio_data += chunk
 
