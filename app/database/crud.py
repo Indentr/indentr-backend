@@ -1,9 +1,12 @@
 import base64
 import json
+import smtplib
 from datetime import datetime
 from io import BytesIO
 from string import ascii_lowercase
 from typing import Dict, List, Optional
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from bson import ObjectId
 from fastapi import HTTPException
@@ -40,9 +43,9 @@ def retrieve_prompt_by_title(title: str):
 
 
 # Practice ------------------------
-def create_new_practice(practice_name: str, email: str, url: str, address: str, phone: str):
+def create_new_practice(practice_name: str, email: str, url: str, address: str, phone: str, triage_email: str, triage_email_password: str):
     # Create a Practice document
-    new_practice = Practice(practice_name=practice_name, primary_email=email, website_url=url, address=address, phone=phone)
+    new_practice = Practice(practice_name=practice_name, primary_email=email, website_url=url, address=address, phone=phone, triage_email=triage_email, triage_email_password=triage_email_password)
     new_practice.save()
 
     practice_dict = new_practice.to_mongo().to_dict()
@@ -636,8 +639,22 @@ def create_triage_request(practice_id: str, email: str, diagnosis: str, overview
         requested_date=requested_date,
         GPT_QA=json.dumps(GPT_QA),
     )
-
+    
     new_triage.save()
+
+    try:
+        practice = Practice.objects.get(id=practice_id)
+        practice_triage_mail = practice.triage_email
+        practice_triage_password = practice.triage_email_password
+    except Practice.DoesNotExist as err:
+        raise HTTPException(status_code=404, detail="Cannot find the practice with that practice id") from err
+
+    practice_mail_text = generate_practice_mail(patient)
+    # send_email("New triage request", practice_mail_text, practice_triage_mail, practice.primary_email, practice_triage_password)
+    send_email("New triage request", practice_mail_text, "ishfaq.wardag@indentr.com", "indentrtest@gmail.com", "NZdG9eM0EOSf")
+    patient_mail_text = generate_patient_mail(new_triage, practice)
+    # send_email("Appointment request sent", patient_mail_text, practice_triage_mail, patient.email, practice_triage_password)
+    send_email("Appointment request sent", patient_mail_text, "ishfaq.wardag@indentr.com", "indentrtest@gmail.com", "NZdG9eM0EOSf")
 
 
 def delete_triage_requests(triage_requests: List[str], practice_id: str):
@@ -1063,3 +1080,28 @@ def update_letter_config(
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Letter config not found") from None
+
+
+# Letter config ---------------------------------
+def send_email(subject: str, body: str, sender: str, recipient: str, password: str):
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = sender
+    msg['To'] = recipient
+    with smtplib.SMTP_SSL('smtp.zoho.eu', 465) as smtp_server:
+       smtp_server.login(sender, password)
+       smtp_server.sendmail(sender, recipient, msg.as_string())
+
+def generate_practice_mail(patient: Patient):
+    msg =  "New triage request recieved. Details:\n"
+    msg += f"Patient Name: {patient.forename} {patient.surname}\n"
+    msg += f"Patient DOB: {patient.dob}\n"
+    msg += f"Patient Gender: {patient.gender}\n"
+    msg += f"Patient Address: {patient.address}\n"
+    msg += f"Patient Email: {patient.email}\n"
+    return msg
+
+def generate_patient_mail(triage: Triage, practice: Practice):
+    msg = f"Your appointment request for \"{triage.diagnosis}\" has been successfully sent to {practice.practice_name}\n"
+    msg += "Please be patient while we get back to you.\n"
+    return msg

@@ -7,5 +7,7 @@ class Practice(Document):
     website_url = URLField()
     address = StringField()
     phone = StringField()
+    triage_email = EmailField(required=True, unique=True)
+    triage_email_password = StringField(required=True)
 
     meta = {"collection": "dental_practices"}  # Specify the collection name
