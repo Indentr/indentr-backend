@@ -477,6 +477,37 @@ def retrieve_last_three_letters(user_id: str):
     return letters_list
 
 
+
+def retrieve_patients_last_three_letters(patient_id: str):
+    try:
+        letters = Letter.objects(patient_id=patient_id).only("consent_letter", "patient_id", "createdAt").order_by("-_id").limit(3)
+        letters_list = []
+
+    except DoesNotExist:
+        # Handle the case where no letters are found
+        return []
+
+    for letter in letters:
+        created_at = letter.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
+        letter_dict = letter.to_mongo().to_dict()
+        letter_dict["createdAt"] = created_at
+        letter_dict["_id"] = str(letter.id)
+        patient_details = letter.patient_id.to_mongo().to_dict()
+        del patient_details["_id"]
+        if "practice_id" in patient_details:
+            del patient_details["practice_id"]
+        del patient_details["dob"]
+        del patient_details["gender"]
+        del patient_details["address"]
+        del patient_details["email"]
+        letter_dict["patient_details"] = patient_details
+        del letter_dict["patient_id"]
+
+        letters_list.append(letter_dict)
+
+    return letters_list
+
+
 def retrieve_all_users_letters(user_id: str):
     try:
         letters = Letter.objects(user_id=user_id).only("consent_letter", "patient_id", "createdAt").order_by("-createdAt").select_related()
@@ -893,6 +924,40 @@ def retrieve_all_users_notes_filtered_by_char(user_id: str, starts_with: str):
             raise HTTPException(status_code=404, detail="No letter found") from None
         else:
             raise e
+
+
+
+
+def retrieve_patients_last_three_notes(patient_id: str):
+    try:
+        notes = AudioNote.objects(patient_id=patient_id).only("patient_id", "formatted_notes", "createdAt").order_by("-_id").limit(3).select_related()
+
+    except DoesNotExist:
+        # Handle the case where no letters are found
+        return []
+
+    notes_list = []
+    for note in notes:
+        created_at = note.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
+        note_dict = note.to_mongo().to_dict()
+        note_dict["createdAt"] = created_at
+        note_dict["_id"] = str(note_dict["_id"])
+        patient_details = note.patient_id.to_mongo().to_dict()
+        del patient_details["_id"]
+        if "practice_id" in patient_details:
+            del patient_details["practice_id"]
+        del patient_details["dob"]
+        del patient_details["gender"]
+        del patient_details["address"]
+        del patient_details["email"]
+        note_dict["patient_details"] = patient_details
+        del note_dict["patient_id"]
+
+        notes_list.append(note_dict)
+
+    return notes_list
+
+
 
 
 # Function to update the consent letter
