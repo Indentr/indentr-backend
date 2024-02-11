@@ -477,7 +477,6 @@ def retrieve_last_three_letters(user_id: str):
     return letters_list
 
 
-
 def retrieve_patients_last_three_letters(patient_id: str):
     try:
         letters = Letter.objects(patient_id=patient_id).only("consent_letter", "patient_id", "createdAt").order_by("-_id").limit(3)
@@ -926,8 +925,6 @@ def retrieve_all_users_notes_filtered_by_char(user_id: str, starts_with: str):
             raise e
 
 
-
-
 def retrieve_patients_last_three_notes(patient_id: str):
     try:
         notes = AudioNote.objects(patient_id=patient_id).only("patient_id", "formatted_notes", "createdAt").order_by("-_id").limit(3).select_related()
@@ -956,8 +953,6 @@ def retrieve_patients_last_three_notes(patient_id: str):
         notes_list.append(note_dict)
 
     return notes_list
-
-
 
 
 # Function to update the consent letter
