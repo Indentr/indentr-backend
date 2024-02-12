@@ -67,7 +67,7 @@ def post_user_registration(body: UserRegisterRequest):
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already in use")
 
-        practice_id = create_new_practice(body.practice_name, body.practice_email, body.practice_url, body.address, body.phone, body.triage_email)
+        practice_id = create_new_practice(body.practice_name, body.practice_email, body.practice_url, body.address, body.phone)
 
         create_new_user(body.name, body.email, body.password, practice_id, "Owner")
         create_letter_config(practice_id)

@@ -15,4 +15,3 @@ class UserRegisterRequest(BaseModel):
     practice_url: str
     address: str
     phone: str
-    triage_email: str

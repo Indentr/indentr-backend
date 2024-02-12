@@ -43,9 +43,9 @@ def retrieve_prompt_by_title(title: str):
 
 
 # Practice ------------------------
-def create_new_practice(practice_name: str, email: str, url: str, address: str, phone: str, triage_email: str):
+def create_new_practice(practice_name: str, email: str, url: str, address: str, phone: str, triage_email: str = None):
     # Default triage email destination to practice email if it is unset
-    if triage_email.empty():
+    if not triage_email:
         triage_email = email
 
     # Create a Practice document
