@@ -16,4 +16,3 @@ class UserRegisterRequest(BaseModel):
     address: str
     phone: str
     triage_email: str
-    triage_email_password: str
