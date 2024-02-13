@@ -10,7 +10,6 @@ from fastapi import HTTPException
 from mongoengine import DoesNotExist, NotUniqueError
 from werkzeug.security import generate_password_hash
 
-from app.constants import TRIAGE_MAIL, TRIAGE_MAIL_PASSWORD
 from app.database.schemas.audio_note import AudioNote
 from app.database.schemas.config import Config
 from app.database.schemas.example_consent_letters import VectorExampleLetter
@@ -647,7 +646,6 @@ def create_triage_request(practice_id: str, email: str, diagnosis: str, overview
     new_triage.save()
 
 
-
 def delete_triage_requests(triage_requests: List[str], practice_id: str):
     try:
         # Delete the specified Triage objects
@@ -1071,6 +1069,3 @@ def update_letter_config(
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Letter config not found") from None
-
-
-

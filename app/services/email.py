@@ -2,6 +2,7 @@ import smtplib
 from email.mime.text import MIMEText
 from typing import Dict
 
+
 def send_email(subject: str, body: str, sender: str, recipient: str, password: str):
     msg = MIMEText(body)
     msg["Subject"] = subject

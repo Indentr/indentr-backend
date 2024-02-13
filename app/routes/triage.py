@@ -26,7 +26,7 @@ from app.models.triage import (
     GenerateQuestions,
     ToggleTriageOpenedRequest,
 )
-from app.services.email import send_email, generate_practice_mail, generate_patient_mail
+from app.services.email import generate_patient_mail, generate_practice_mail, send_email
 from app.services.openAI import ask_gpt
 
 router = APIRouter(prefix="/triage", tags=["Triage"])
@@ -245,8 +245,6 @@ async def toggle_triage_request_opened(body: ToggleTriageOpenedRequest, access_t
 
     except HTTPException as e:
         raise e
-
-
 
 
 @router.post("/delete-requests/")
