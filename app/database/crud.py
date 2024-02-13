@@ -1,8 +1,6 @@
 import base64
 import json
-import smtplib
 from datetime import datetime
-from email.mime.text import MIMEText
 from io import BytesIO
 from string import ascii_lowercase
 from typing import Dict, List, Optional
@@ -648,20 +646,6 @@ def create_triage_request(practice_id: str, email: str, diagnosis: str, overview
 
     new_triage.save()
 
-    try:
-        practice = Practice.objects.get(id=practice_id)
-    except Practice.DoesNotExist as err:
-        raise HTTPException(status_code=404, detail="Cannot find the practice with that practice id") from err
-
-    practice_mail_text = generate_practice_mail(patient)
-    try:
-        send_email("New triage request", practice_mail_text, TRIAGE_MAIL, practice.triage_email, TRIAGE_MAIL_PASSWORD)
-    except TypeError:
-        # Failsafe code in case triage email is empty
-        send_email("New triage request", practice_mail_text, TRIAGE_MAIL, practice.primary_email, TRIAGE_MAIL_PASSWORD)
-
-    patient_mail_text = generate_patient_mail(new_triage, practice, patient)
-    send_email("Appointment request sent", patient_mail_text, TRIAGE_MAIL, patient.email, TRIAGE_MAIL_PASSWORD)
 
 
 def delete_triage_requests(triage_requests: List[str], practice_id: str):

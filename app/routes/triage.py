@@ -5,6 +5,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.constants import TRIAGE_MAIL, TRIAGE_MAIL_PASSWORD
 from app.database.crud import (
     create_new_patient,
     create_triage_request,
@@ -25,6 +26,7 @@ from app.models.triage import (
     GenerateQuestions,
     ToggleTriageOpenedRequest,
 )
+from app.services.email import send_email, generate_practice_mail, generate_patient_mail
 from app.services.openAI import ask_gpt
 
 router = APIRouter(prefix="/triage", tags=["Triage"])
@@ -157,6 +159,17 @@ async def create_patient_request(body: CreatePatientRequest):
         symptom_details,
     )
 
+    practice = retrieve_practice_by_id(practice_id)
+
+    if "triage_email" not in practice:
+        practice["triage_email"] = practice["primary_email"]
+
+    practice_mail_text = generate_practice_mail(patient_details, response["diagnosis"], response["overview"])
+    send_email("New triage request", practice_mail_text, TRIAGE_MAIL, practice["triage_email"], TRIAGE_MAIL_PASSWORD)
+
+    patient_mail_text = generate_patient_mail(practice, patient_details)
+    send_email("Appointment request sent", patient_mail_text, TRIAGE_MAIL, patient_details["email"], TRIAGE_MAIL_PASSWORD)
+
     return {"success": True}
 
 
@@ -232,6 +245,8 @@ async def toggle_triage_request_opened(body: ToggleTriageOpenedRequest, access_t
 
     except HTTPException as e:
         raise e
+
+
 
 
 @router.post("/delete-requests/")
