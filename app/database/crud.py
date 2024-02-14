@@ -771,7 +771,7 @@ def retrieve_last_three_triage_requests(user_id: str):
 
         triage_requests = (
             Triage.objects(practice_id=practice_id)
-            .only("opened", "severity", "diagnosis", "patient_id", "practice_id", "folder")
+            .only("opened", "severity", "diagnosis", "patient_id", "practice_id", "folder", "created_at")
             .order_by("-_id")
             .limit(3)
             .select_related()
