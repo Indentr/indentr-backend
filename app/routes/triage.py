@@ -6,7 +6,8 @@ import uuid
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.constants import DB_URI
+
+from app.constants import DB_URI, TRIAGE_MAIL, TRIAGE_MAIL_PASSWORD
 from app.database.atlas_search import atlas_search
 from app.database.crud import (
     create_new_patient,
@@ -33,6 +34,7 @@ from app.models.triage import (
     ToggleTriageFolderRequest,
     ToggleTriageOpenedRequest,
 )
+from app.services.email import generate_patient_mail, generate_practice_mail, send_email
 from app.services.openAI import ask_gpt
 
 router = APIRouter(prefix="/triage", tags=["Triage"])
@@ -164,6 +166,18 @@ async def create_patient_request(body: CreatePatientRequest):
         patient_details["requested_date"],
         symptom_details,
     )
+
+    practice = retrieve_practice_by_id(practice_id)
+    patient = retrieve_patient_by_email(patient_details["email"])
+
+    if "triage_email" not in practice:
+        practice["triage_email"] = practice["primary_email"]
+
+    practice_mail_text = generate_practice_mail(patient, response["diagnosis"], response["overview"])
+    send_email("New triage request", practice_mail_text, TRIAGE_MAIL, practice["triage_email"], TRIAGE_MAIL_PASSWORD)
+
+    patient_mail_text = generate_patient_mail(practice, patient)
+    send_email("Appointment request sent", patient_mail_text, TRIAGE_MAIL, patient_details["email"], TRIAGE_MAIL_PASSWORD)
 
     return {"success": True}
 
