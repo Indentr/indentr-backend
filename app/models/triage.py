@@ -1,4 +1,6 @@
 from pydantic import BaseModel
+from typing import Literal
+
 
 
 # Request model
@@ -38,6 +40,14 @@ class ToggleTriageOpenedRequest(BaseModel):
     selected_requests: str
     opened: str
 
+
+class ToggleTriageFolderRequest(BaseModel):
+    selected_requests: str
+    folder: Literal["ongoing", "completed"]
+
+
+class SearchTriageRequests(BaseModel):
+    search_param: str
 
 class DeleteTriageRequests(BaseModel):
     selected_requests: str

@@ -10,20 +10,24 @@ from app.database.crud import (
     create_triage_request,
     delete_triage_requests,
     retrieve_all_triage_requests,
+    retrieve_all_triage_requests_by_folder,
     retrieve_patient_by_email,
     retrieve_practice_by_id,
     retrieve_prompt_by_title,
     retrieve_triage_request,
     update_patients_practice_id,
     update_triage_requests_opened,
+    update_triage_requests_folder
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.triage import (
     AddPatientToPractice,
     CreatePatientRequest,
+    SearchTriageRequests,
     DeleteTriageRequests,
     GenerateQuestions,
     ToggleTriageOpenedRequest,
+    ToggleTriageFolderRequest
 )
 from app.services.openAI import ask_gpt
 
@@ -160,8 +164,8 @@ async def create_patient_request(body: CreatePatientRequest):
     return {"success": True}
 
 
-@router.get("/get-requests/")
-async def get_all_triage_requests(access_token=Depends(JWTBearer())):
+@router.get("/get-requests/{folder}")
+async def get_all_triage_requests(folder: str, access_token=Depends(JWTBearer())):
     """
     # Gets all practice's triage requests
     Finds the practice id based on user's access token.
@@ -176,7 +180,14 @@ async def get_all_triage_requests(access_token=Depends(JWTBearer())):
     token = decodeJWT(access_token)
     practice_id = token["practice_id"]
 
-    triage_requests = retrieve_all_triage_requests(practice_id)
+    triage_requests = []
+    if folder == "all":
+        triage_requests = retrieve_all_triage_requests(practice_id)
+    else:
+        triage_requests = retrieve_all_triage_requests_by_folder(practice_id, folder)
+
+    print("folder: ", folder)
+    print("triage_requests: ", triage_requests)
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
@@ -232,6 +243,83 @@ async def toggle_triage_request_opened(body: ToggleTriageOpenedRequest, access_t
 
     except HTTPException as e:
         raise e
+
+
+
+
+@router.post("/toggle-folder-status/")
+async def toggle_triage_request_opened(body: ToggleTriageFolderRequest, access_token=Depends(JWTBearer())):
+    """
+    # Changes selected triage requests to be folder status (e.g. ongoing or completed)
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.debug(f"Request {request_id} received for changing selected triage requests folder status to be {body.folder}.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        triage_requests = json.loads(body.selected_requests)
+        folder = body.folder
+
+        update_triage_requests_folder(triage_requests, folder, practice_id)
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {"success": True}
+
+    except HTTPException as e:
+        raise e
+
+
+
+@router.post("/search-requests/")
+async def search_triage_requests(body: SearchTriageRequests, access_token=Depends(JWTBearer())):
+    """
+    # searches triage requests
+
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.debug(f"Request {request_id} received for toggling triage requests to be opened/closed.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        pipeline = [
+            {
+                "$search": {
+                    "index": "default",
+                    "compound": {
+                        "should": [
+                            {"autocomplete": {"query": body.search_param, "path": "patient_id.forename"}},
+                            {"autocomplete": {"query": body.search_param, "path": "patient_id.surname"}},
+                        ],
+                        "filter": [
+                            {"equals": {"value": ObjectId(practice_id), "path": "practice_id"}},
+                        ],
+                        "minimumShouldMatch": 1,
+                    },
+                }
+            },
+            {"$limit": 25},
+            {"$project": returned_fields},
+        ]
+
+        result = atlas_search(DB_URI, table, pipeline)
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {"success": True, "result": result}
+
+    except HTTPException as e:
+        raise e
+
+
 
 
 @router.post("/delete-requests/")
