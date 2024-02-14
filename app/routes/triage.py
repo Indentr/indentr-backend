@@ -6,7 +6,6 @@ import uuid
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 
-
 from app.constants import DB_URI, TRIAGE_MAIL, TRIAGE_MAIL_PASSWORD
 from app.database.atlas_search import atlas_search
 from app.database.crud import (
