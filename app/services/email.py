@@ -23,7 +23,7 @@ def generate_practice_mail(patient: Dict, diagnosis: str, overview: str):
         Patient Email: {patient["email"]}\n
 
         AI diagnosis: {diagnosis}\n
-        description: {overview}
+        {overview}
     """
     return msg
 
