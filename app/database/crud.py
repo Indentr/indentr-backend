@@ -40,9 +40,15 @@ def retrieve_prompt_by_title(title: str):
 
 
 # Practice ------------------------
-def create_new_practice(practice_name: str, email: str, url: str, address: str, phone: str):
+def create_new_practice(practice_name: str, email: str, url: str, address: str, phone: str, triage_email: str = None):
+    # Default triage email destination to practice email if it is unset
+    if not triage_email:
+        triage_email = email
+
     # Create a Practice document
-    new_practice = Practice(practice_name=practice_name, primary_email=email, website_url=url, address=address, phone=phone)
+    new_practice = Practice(
+        practice_name=practice_name, primary_email=email, website_url=url, address=address, phone=phone, triage_email=triage_email
+    )
     new_practice.save()
 
     practice_dict = new_practice.to_mongo().to_dict()
