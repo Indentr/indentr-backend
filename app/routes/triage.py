@@ -160,14 +160,15 @@ async def create_patient_request(body: CreatePatientRequest):
     )
 
     practice = retrieve_practice_by_id(practice_id)
+    patient = retrieve_patient_by_email(patient_details["email"])
 
     if "triage_email" not in practice:
         practice["triage_email"] = practice["primary_email"]
 
-    practice_mail_text = generate_practice_mail(patient_details, response["diagnosis"], response["overview"])
+    practice_mail_text = generate_practice_mail(patient, response["diagnosis"], response["overview"])
     send_email("New triage request", practice_mail_text, TRIAGE_MAIL, practice["triage_email"], TRIAGE_MAIL_PASSWORD)
 
-    patient_mail_text = generate_patient_mail(practice, patient_details)
+    patient_mail_text = generate_patient_mail(practice, patient)
     send_email("Appointment request sent", patient_mail_text, TRIAGE_MAIL, patient_details["email"], TRIAGE_MAIL_PASSWORD)
 
     return {"success": True}
