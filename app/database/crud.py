@@ -800,7 +800,6 @@ def update_triage_requests_opened(triage_requests: List[str], opened: bool, prac
         raise HTTPException(status_code=404, detail=str(e)) from None
 
 
-
 def update_triage_requests_folder(triage_requests: List[str], folder: str, practice_id: str):
     try:
         # Find and update the specified Triage objects in one go
@@ -809,8 +808,6 @@ def update_triage_requests_folder(triage_requests: List[str], folder: str, pract
     except DoesNotExist as e:
         # Handle the case where a Triage object is not found
         raise HTTPException(status_code=404, detail=str(e)) from None
-
-
 
 
 # Note ---------------------------

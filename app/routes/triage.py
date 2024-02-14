@@ -2,11 +2,12 @@ import json
 import logging
 import time
 import uuid
+
 from bson import ObjectId
-
 from fastapi import APIRouter, Depends, HTTPException
-from app.constants import DB_URI
 
+from app.constants import DB_URI
+from app.database.atlas_search import atlas_search
 from app.database.crud import (
     create_new_patient,
     create_triage_request,
@@ -14,25 +15,24 @@ from app.database.crud import (
     retrieve_all_triage_requests,
     retrieve_all_triage_requests_by_folder,
     retrieve_patient_by_email,
-    retrieve_practice_by_id,
     retrieve_patient_by_id,
+    retrieve_practice_by_id,
     retrieve_prompt_by_title,
     retrieve_triage_request,
     update_patients_practice_id,
+    update_triage_requests_folder,
     update_triage_requests_opened,
-    update_triage_requests_folder
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.triage import (
     AddPatientToPractice,
     CreatePatientRequest,
-    SearchTriageRequests,
     DeleteTriageRequests,
     GenerateQuestions,
+    SearchTriageRequests,
+    ToggleTriageFolderRequest,
     ToggleTriageOpenedRequest,
-    ToggleTriageFolderRequest
 )
-from app.database.atlas_search import atlas_search
 from app.services.openAI import ask_gpt
 
 router = APIRouter(prefix="/triage", tags=["Triage"])
@@ -246,10 +246,8 @@ async def toggle_triage_request_opened(body: ToggleTriageOpenedRequest, access_t
         raise e
 
 
-
-
 @router.post("/toggle-folder-status/")
-async def toggle_triage_request_opened(body: ToggleTriageFolderRequest, access_token=Depends(JWTBearer())):
+async def toggle_triage_request_folder_status(body: ToggleTriageFolderRequest, access_token=Depends(JWTBearer())):
     """
     # Changes selected triage requests to be folder status (e.g. ongoing or completed)
     """
@@ -275,7 +273,6 @@ async def toggle_triage_request_opened(body: ToggleTriageFolderRequest, access_t
         raise e
 
 
-
 @router.post("/search-requests/")
 async def search_triage_requests(body: SearchTriageRequests, access_token=Depends(JWTBearer())):
     """
@@ -292,8 +289,6 @@ async def search_triage_requests(body: SearchTriageRequests, access_token=Depend
         practice_id = token["practice_id"]
 
         search_param = body.search_param
-        print(search_param)
-        folder = body.folder
 
         table = "triage_responses"
         returned_fields = {
@@ -347,8 +342,6 @@ async def search_triage_requests(body: SearchTriageRequests, access_token=Depend
 
     except HTTPException as e:
         raise e
-
-
 
 
 @router.post("/delete-requests/")
