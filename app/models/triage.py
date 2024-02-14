@@ -48,6 +48,7 @@ class ToggleTriageFolderRequest(BaseModel):
 
 class SearchTriageRequests(BaseModel):
     search_param: str
+    folder: Literal["all", "ongoing", "completed"]
 
 class DeleteTriageRequests(BaseModel):
     selected_requests: str

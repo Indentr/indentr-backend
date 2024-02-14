@@ -705,7 +705,7 @@ def retrieve_all_triage_requests(practice_id: str):
     try:
         triage_requests = (
             Triage.objects(practice_id=practice_id)
-            .only("opened", "severity", "diagnosis", "patient_id", "practice_id", "folder")
+            .only("opened", "severity", "diagnosis", "patient_id", "practice_id", "folder", "created_at")
             .order_by("-_id")
             .select_related()
         )

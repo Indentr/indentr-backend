@@ -2,8 +2,10 @@ import json
 import logging
 import time
 import uuid
+from bson import ObjectId
 
 from fastapi import APIRouter, Depends, HTTPException
+from app.constants import DB_URI
 
 from app.database.crud import (
     create_new_patient,
@@ -13,6 +15,7 @@ from app.database.crud import (
     retrieve_all_triage_requests_by_folder,
     retrieve_patient_by_email,
     retrieve_practice_by_id,
+    retrieve_patient_by_id,
     retrieve_prompt_by_title,
     retrieve_triage_request,
     update_patients_practice_id,
@@ -29,6 +32,7 @@ from app.models.triage import (
     ToggleTriageOpenedRequest,
     ToggleTriageFolderRequest
 )
+from app.database.atlas_search import atlas_search
 from app.services.openAI import ask_gpt
 
 router = APIRouter(prefix="/triage", tags=["Triage"])
@@ -186,9 +190,6 @@ async def get_all_triage_requests(folder: str, access_token=Depends(JWTBearer())
     else:
         triage_requests = retrieve_all_triage_requests_by_folder(practice_id, folder)
 
-    print("folder: ", folder)
-    print("triage_requests: ", triage_requests)
-
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
     return {"triage_requests": triage_requests}
@@ -290,14 +291,28 @@ async def search_triage_requests(body: SearchTriageRequests, access_token=Depend
         token = decodeJWT(access_token)
         practice_id = token["practice_id"]
 
+        search_param = body.search_param
+        print(search_param)
+        folder = body.folder
+
+        table = "triage_responses"
+        returned_fields = {
+            "_id": 1,
+            "patient_id": 1,
+            "diagnosis": 1,
+            "general_overview": 1,
+            "severity": 1,
+            "opened": 1,
+            "created_at": 1,
+            "folder": 1,
+        }
         pipeline = [
             {
                 "$search": {
                     "index": "default",
                     "compound": {
                         "should": [
-                            {"autocomplete": {"query": body.search_param, "path": "patient_id.forename"}},
-                            {"autocomplete": {"query": body.search_param, "path": "patient_id.surname"}},
+                            {"autocomplete": {"query": search_param, "path": "diagnosis"}},
                         ],
                         "filter": [
                             {"equals": {"value": ObjectId(practice_id), "path": "practice_id"}},
@@ -311,10 +326,24 @@ async def search_triage_requests(body: SearchTriageRequests, access_token=Depend
         ]
 
         result = atlas_search(DB_URI, table, pipeline)
+        print(result)
+        for i in result:
+            i["_id"] = str(i["_id"])
+            if "patient_id" in i:
+                patient_details = retrieve_patient_by_id(str(i["patient_id"]), practice_id)
+                del patient_details["dob"]
+                del patient_details["gender"]
+                del patient_details["address"]
+                del patient_details["email"]
+                del i["patient_id"]
+                i["patient_details"] = patient_details
+
+            if "createdAt" in i:
+                i["createdAt"] = i["createdAt"].strftime("%Y-%m-%d %H:%M:%S")
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
-        return {"success": True, "result": result}
+        return result
 
     except HTTPException as e:
         raise e
