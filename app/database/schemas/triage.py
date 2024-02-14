@@ -23,5 +23,6 @@ class Triage(Document):
     created_at = DateTimeField(default=datetime.utcnow)
     requested_date = DateTimeField()
     GPT_QA = StringField()
+    folder = StringField(default="ongoing")
 
     meta = {"collection": "triage_responses"}

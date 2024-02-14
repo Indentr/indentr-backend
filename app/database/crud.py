@@ -711,7 +711,35 @@ def retrieve_all_triage_requests(practice_id: str):
     try:
         triage_requests = (
             Triage.objects(practice_id=practice_id)
-            .only("opened", "severity", "diagnosis", "patient_id", "practice_id")
+            .only("opened", "severity", "diagnosis", "patient_id", "practice_id", "folder", "created_at")
+            .order_by("-_id")
+            .select_related()
+        )
+
+        # Transform the MongoEngine documents to a list of dictionaries
+        triage_list = []
+        for triage in triage_requests:
+            triage_dict = triage.to_mongo().to_dict()
+            triage_dict["_id"] = str(triage.id)
+            triage_dict["practice_id"] = str(triage.practice_id.id)
+            patient_details = {"_id": str(triage.patient_id.id), "forename": triage.patient_id.forename, "surname": triage.patient_id.surname}
+            triage_dict["patient_details"] = patient_details
+            del triage_dict["patient_id"]
+
+            triage_list.append(triage_dict)
+
+        return triage_list
+
+    except DoesNotExist:
+        # Handle the case where no letters are found
+        return []
+
+
+def retrieve_all_triage_requests_by_folder(practice_id: str, folder: str):
+    try:
+        triage_requests = (
+            Triage.objects(practice_id=practice_id, folder=folder)
+            .only("opened", "severity", "diagnosis", "patient_id", "practice_id", "folder")
             .order_by("-_id")
             .select_related()
         )
@@ -743,7 +771,7 @@ def retrieve_last_three_triage_requests(user_id: str):
 
         triage_requests = (
             Triage.objects(practice_id=practice_id)
-            .only("opened", "severity", "diagnosis", "patient_id", "practice_id")
+            .only("opened", "severity", "diagnosis", "patient_id", "practice_id", "folder")
             .order_by("-_id")
             .limit(3)
             .select_related()
@@ -772,6 +800,16 @@ def update_triage_requests_opened(triage_requests: List[str], opened: bool, prac
     try:
         # Find and update the specified Triage objects in one go
         Triage.objects(id__in=triage_requests, practice_id=practice_id).update(set__opened=opened)
+
+    except DoesNotExist as e:
+        # Handle the case where a Triage object is not found
+        raise HTTPException(status_code=404, detail=str(e)) from None
+
+
+def update_triage_requests_folder(triage_requests: List[str], folder: str, practice_id: str):
+    try:
+        # Find and update the specified Triage objects in one go
+        Triage.objects(id__in=triage_requests, practice_id=practice_id).update(set__folder=folder)
 
     except DoesNotExist as e:
         # Handle the case where a Triage object is not found
