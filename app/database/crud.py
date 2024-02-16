@@ -40,9 +40,15 @@ def retrieve_prompt_by_title(title: str):
 
 
 # Practice ------------------------
-def create_new_practice(practice_name: str, email: str, url: str, address: str, phone: str):
+def create_new_practice(practice_name: str, email: str, url: str, address: str, phone: str, triage_email: str = None):
+    # Default triage email destination to practice email if it is unset
+    if not triage_email:
+        triage_email = email
+
     # Create a Practice document
-    new_practice = Practice(practice_name=practice_name, primary_email=email, website_url=url, address=address, phone=phone)
+    new_practice = Practice(
+        practice_name=practice_name, primary_email=email, website_url=url, address=address, phone=phone, triage_email=triage_email
+    )
     new_practice.save()
 
     practice_dict = new_practice.to_mongo().to_dict()
@@ -477,6 +483,36 @@ def retrieve_last_three_letters(user_id: str):
     return letters_list
 
 
+def retrieve_patients_last_three_letters(patient_id: str):
+    try:
+        letters = Letter.objects(patient_id=patient_id).only("consent_letter", "patient_id", "createdAt").order_by("-_id").limit(3)
+        letters_list = []
+
+    except DoesNotExist:
+        # Handle the case where no letters are found
+        return []
+
+    for letter in letters:
+        created_at = letter.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
+        letter_dict = letter.to_mongo().to_dict()
+        letter_dict["createdAt"] = created_at
+        letter_dict["_id"] = str(letter.id)
+        patient_details = letter.patient_id.to_mongo().to_dict()
+        del patient_details["_id"]
+        if "practice_id" in patient_details:
+            del patient_details["practice_id"]
+        del patient_details["dob"]
+        del patient_details["gender"]
+        del patient_details["address"]
+        del patient_details["email"]
+        letter_dict["patient_details"] = patient_details
+        del letter_dict["patient_id"]
+
+        letters_list.append(letter_dict)
+
+    return letters_list
+
+
 def retrieve_all_users_letters(user_id: str):
     try:
         letters = Letter.objects(user_id=user_id).only("consent_letter", "patient_id", "createdAt").order_by("-createdAt").select_related()
@@ -675,7 +711,35 @@ def retrieve_all_triage_requests(practice_id: str):
     try:
         triage_requests = (
             Triage.objects(practice_id=practice_id)
-            .only("opened", "severity", "diagnosis", "patient_id", "practice_id")
+            .only("opened", "severity", "diagnosis", "patient_id", "practice_id", "folder", "created_at")
+            .order_by("-_id")
+            .select_related()
+        )
+
+        # Transform the MongoEngine documents to a list of dictionaries
+        triage_list = []
+        for triage in triage_requests:
+            triage_dict = triage.to_mongo().to_dict()
+            triage_dict["_id"] = str(triage.id)
+            triage_dict["practice_id"] = str(triage.practice_id.id)
+            patient_details = {"_id": str(triage.patient_id.id), "forename": triage.patient_id.forename, "surname": triage.patient_id.surname}
+            triage_dict["patient_details"] = patient_details
+            del triage_dict["patient_id"]
+
+            triage_list.append(triage_dict)
+
+        return triage_list
+
+    except DoesNotExist:
+        # Handle the case where no letters are found
+        return []
+
+
+def retrieve_all_triage_requests_by_folder(practice_id: str, folder: str):
+    try:
+        triage_requests = (
+            Triage.objects(practice_id=practice_id, folder=folder)
+            .only("opened", "severity", "diagnosis", "patient_id", "practice_id", "folder")
             .order_by("-_id")
             .select_related()
         )
@@ -707,7 +771,7 @@ def retrieve_last_three_triage_requests(user_id: str):
 
         triage_requests = (
             Triage.objects(practice_id=practice_id)
-            .only("opened", "severity", "diagnosis", "patient_id", "practice_id")
+            .only("opened", "severity", "diagnosis", "patient_id", "practice_id", "folder", "created_at")
             .order_by("-_id")
             .limit(3)
             .select_related()
@@ -736,6 +800,16 @@ def update_triage_requests_opened(triage_requests: List[str], opened: bool, prac
     try:
         # Find and update the specified Triage objects in one go
         Triage.objects(id__in=triage_requests, practice_id=practice_id).update(set__opened=opened)
+
+    except DoesNotExist as e:
+        # Handle the case where a Triage object is not found
+        raise HTTPException(status_code=404, detail=str(e)) from None
+
+
+def update_triage_requests_folder(triage_requests: List[str], folder: str, practice_id: str):
+    try:
+        # Find and update the specified Triage objects in one go
+        Triage.objects(id__in=triage_requests, practice_id=practice_id).update(set__folder=folder)
 
     except DoesNotExist as e:
         # Handle the case where a Triage object is not found
@@ -893,6 +967,36 @@ def retrieve_all_users_notes_filtered_by_char(user_id: str, starts_with: str):
             raise HTTPException(status_code=404, detail="No letter found") from None
         else:
             raise e
+
+
+def retrieve_patients_last_three_notes(patient_id: str):
+    try:
+        notes = AudioNote.objects(patient_id=patient_id).only("patient_id", "formatted_notes", "createdAt").order_by("-_id").limit(3).select_related()
+
+    except DoesNotExist:
+        # Handle the case where no letters are found
+        return []
+
+    notes_list = []
+    for note in notes:
+        created_at = note.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
+        note_dict = note.to_mongo().to_dict()
+        note_dict["createdAt"] = created_at
+        note_dict["_id"] = str(note_dict["_id"])
+        patient_details = note.patient_id.to_mongo().to_dict()
+        del patient_details["_id"]
+        if "practice_id" in patient_details:
+            del patient_details["practice_id"]
+        del patient_details["dob"]
+        del patient_details["gender"]
+        del patient_details["address"]
+        del patient_details["email"]
+        note_dict["patient_details"] = patient_details
+        del note_dict["patient_id"]
+
+        notes_list.append(note_dict)
+
+    return notes_list
 
 
 # Function to update the consent letter

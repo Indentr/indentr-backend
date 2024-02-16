@@ -23,6 +23,8 @@ from app.database.crud import (
     retrieve_notes_alphabet_status,
     retrieve_patient_by_id,
     retrieve_patients_alphabet_status,
+    retrieve_patients_last_three_letters,
+    retrieve_patients_last_three_notes,
     retrieve_user_letter,
     update_letter,
     update_note,
@@ -78,14 +80,18 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
         token = decodeJWT(access_token)
         user_id = token["user_id"]
         practice_id = token["practice_id"]
+        letters = []
+        notes = []
         if file_type == "letter":
             file = retrieve_user_letter(file_id, user_id)
         elif file_type == "note":
             file = retrieve_note(file_id, user_id)
         elif file_type == "patient":
             file = retrieve_patient_by_id(file_id, practice_id)
+            letters = retrieve_patients_last_three_letters(file_id)
+            notes = retrieve_patients_last_three_notes(file_id)
 
-        return {"file": file}
+        return {"file": file, "letters": letters, "notes": notes}
 
     except HTTPException as e:
         raise e
@@ -166,6 +172,8 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
                         "compound": {
                             "should": [
                                 {"autocomplete": {"query": search_param, "path": path}},
+                                {"autocomplete": {"query": search_param, "path": "patient_details.forename"}},
+                                {"autocomplete": {"query": search_param, "path": "patient_details.surname"}},
                             ],
                             "filter": [
                                 {"equals": {"value": ObjectId(user_id), "path": "user_id"}},
@@ -174,6 +182,7 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
                         },
                     }
                 },
+                {"$sort": {"_id": -1}},
                 {"$limit": 15},
                 {"$project": returned_fields},
             ]

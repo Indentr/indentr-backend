@@ -3,18 +3,24 @@ import logging
 import time
 import uuid
 
+from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 
+from app.constants import DB_URI, TRIAGE_MAIL, TRIAGE_MAIL_PASSWORD
+from app.database.atlas_search import atlas_search
 from app.database.crud import (
     create_new_patient,
     create_triage_request,
     delete_triage_requests,
     retrieve_all_triage_requests,
+    retrieve_all_triage_requests_by_folder,
     retrieve_patient_by_email,
+    retrieve_patient_by_id,
     retrieve_practice_by_id,
     retrieve_prompt_by_title,
     retrieve_triage_request,
     update_patients_practice_id,
+    update_triage_requests_folder,
     update_triage_requests_opened,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
@@ -23,8 +29,11 @@ from app.models.triage import (
     CreatePatientRequest,
     DeleteTriageRequests,
     GenerateQuestions,
+    SearchTriageRequests,
+    ToggleTriageFolderRequest,
     ToggleTriageOpenedRequest,
 )
+from app.services.email import generate_patient_mail, generate_practice_mail, send_email
 from app.services.openAI import ask_gpt
 
 router = APIRouter(prefix="/triage", tags=["Triage"])
@@ -157,11 +166,23 @@ async def create_patient_request(body: CreatePatientRequest):
         symptom_details,
     )
 
+    practice = retrieve_practice_by_id(practice_id)
+    patient = retrieve_patient_by_email(patient_details["email"])
+
+    if "triage_email" not in practice:
+        practice["triage_email"] = practice["primary_email"]
+
+    practice_mail_text = generate_practice_mail(patient, response["diagnosis"], response["overview"])
+    send_email("New triage request", practice_mail_text, TRIAGE_MAIL, practice["triage_email"], TRIAGE_MAIL_PASSWORD)
+
+    patient_mail_text = generate_patient_mail(practice, patient)
+    send_email("Appointment request sent", patient_mail_text, TRIAGE_MAIL, patient_details["email"], TRIAGE_MAIL_PASSWORD)
+
     return {"success": True}
 
 
-@router.get("/get-requests/")
-async def get_all_triage_requests(access_token=Depends(JWTBearer())):
+@router.get("/get-requests/{folder}")
+async def get_all_triage_requests(folder: str, access_token=Depends(JWTBearer())):
     """
     # Gets all practice's triage requests
     Finds the practice id based on user's access token.
@@ -176,7 +197,11 @@ async def get_all_triage_requests(access_token=Depends(JWTBearer())):
     token = decodeJWT(access_token)
     practice_id = token["practice_id"]
 
-    triage_requests = retrieve_all_triage_requests(practice_id)
+    triage_requests = []
+    if folder == "all":
+        triage_requests = retrieve_all_triage_requests(practice_id)
+    else:
+        triage_requests = retrieve_all_triage_requests_by_folder(practice_id, folder)
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
@@ -229,6 +254,106 @@ async def toggle_triage_request_opened(body: ToggleTriageOpenedRequest, access_t
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
         return {"success": True}
+
+    except HTTPException as e:
+        raise e
+
+
+@router.post("/toggle-folder-status/")
+async def toggle_triage_request_folder_status(body: ToggleTriageFolderRequest, access_token=Depends(JWTBearer())):
+    """
+    # Changes selected triage requests to be folder status (e.g. ongoing or completed)
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.debug(f"Request {request_id} received for changing selected triage requests folder status to be {body.folder}.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        triage_requests = json.loads(body.selected_requests)
+        folder = body.folder
+
+        update_triage_requests_folder(triage_requests, folder, practice_id)
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {"success": True}
+
+    except HTTPException as e:
+        raise e
+
+
+@router.post("/search-requests/")
+async def search_triage_requests(body: SearchTriageRequests, access_token=Depends(JWTBearer())):
+    """
+    # searches triage requests
+
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.debug(f"Request {request_id} received for toggling triage requests to be opened/closed.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        search_param = body.search_param
+
+        table = "triage_responses"
+        returned_fields = {
+            "_id": 1,
+            "patient_id": 1,
+            "diagnosis": 1,
+            "general_overview": 1,
+            "severity": 1,
+            "opened": 1,
+            "created_at": 1,
+            "folder": 1,
+        }
+        pipeline = [
+            {
+                "$search": {
+                    "index": "default",
+                    "compound": {
+                        "should": [
+                            {"autocomplete": {"query": search_param, "path": "diagnosis"}},
+                            {"autocomplete": {"query": search_param, "path": "patient_details.forename"}},
+                            {"autocomplete": {"query": search_param, "path": "patient_details.surname"}},
+                        ],
+                        "filter": [
+                            {"equals": {"value": ObjectId(practice_id), "path": "practice_id"}},
+                        ],
+                        "minimumShouldMatch": 1,
+                    },
+                }
+            },
+            {"$limit": 25},
+            {"$project": returned_fields},
+        ]
+
+        result = atlas_search(DB_URI, table, pipeline)
+        print(result)
+        for i in result:
+            i["_id"] = str(i["_id"])
+            if "patient_id" in i:
+                patient_details = retrieve_patient_by_id(str(i["patient_id"]), practice_id)
+                del patient_details["dob"]
+                del patient_details["gender"]
+                del patient_details["address"]
+                del patient_details["email"]
+                del i["patient_id"]
+                i["patient_details"] = patient_details
+
+            if "createdAt" in i:
+                i["createdAt"] = i["createdAt"].strftime("%Y-%m-%d %H:%M:%S")
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return result
 
     except HTTPException as e:
         raise e

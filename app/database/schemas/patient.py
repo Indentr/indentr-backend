@@ -2,11 +2,17 @@ from mongoengine import (
     DateField,
     Document,
     EmailField,
+    EmbeddedDocument,
     ReferenceField,
     StringField,
 )
 
 from app.database.schemas.practice import Practice
+
+
+class PatientName(EmbeddedDocument):
+    forename = StringField(required=True)
+    surname = StringField(required=True)
 
 
 class Patient(Document):
