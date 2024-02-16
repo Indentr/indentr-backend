@@ -3,13 +3,14 @@ from datetime import datetime
 from mongoengine import (
     DateTimeField,
     Document,
+    EmbeddedDocumentField,
     FloatField,
     IntField,
     ReferenceField,
     StringField,
 )
 
-from app.database.schemas.patient import Patient
+from app.database.schemas.patient import Patient, PatientName
 from app.database.schemas.user import User
 
 
@@ -23,5 +24,6 @@ class Letter(Document):
     cost = FloatField(default=0)
     model = StringField()
     tokens_consumed = IntField()
+    patient_details = EmbeddedDocumentField(PatientName)
 
     meta = {"collection": "letters"}  # Specify the collection name

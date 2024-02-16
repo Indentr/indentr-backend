@@ -172,6 +172,8 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
                         "compound": {
                             "should": [
                                 {"autocomplete": {"query": search_param, "path": path}},
+                                {"autocomplete": {"query": search_param, "path": "patient_details.forename"}},
+                                {"autocomplete": {"query": search_param, "path": "patient_details.surname"}},
                             ],
                             "filter": [
                                 {"equals": {"value": ObjectId(user_id), "path": "user_id"}},
@@ -180,6 +182,7 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
                         },
                     }
                 },
+                {"$sort": {"_id": -1}},
                 {"$limit": 15},
                 {"$project": returned_fields},
             ]

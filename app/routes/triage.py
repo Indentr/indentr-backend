@@ -321,6 +321,8 @@ async def search_triage_requests(body: SearchTriageRequests, access_token=Depend
                     "compound": {
                         "should": [
                             {"autocomplete": {"query": search_param, "path": "diagnosis"}},
+                            {"autocomplete": {"query": search_param, "path": "patient_details.forename"}},
+                            {"autocomplete": {"query": search_param, "path": "patient_details.surname"}},
                         ],
                         "filter": [
                             {"equals": {"value": ObjectId(practice_id), "path": "practice_id"}},
