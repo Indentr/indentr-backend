@@ -15,7 +15,7 @@ from app.database.schemas.config import Config
 from app.database.schemas.example_consent_letters import VectorExampleLetter
 from app.database.schemas.letter import Letter
 from app.database.schemas.letter_config import LetterConfig
-from app.database.schemas.patient import Patient
+from app.database.schemas.patient import Patient, PatientName
 from app.database.schemas.practice import Practice
 from app.database.schemas.pricing import Pricing
 from app.database.schemas.prompt import Prompt
@@ -422,6 +422,11 @@ def retrieve_pricing(practice_id: str):
 # Letter ---------------------------
 def create_new_letter(user_id: str, text: str, patient_id: str, input_tokens: int, output_tokens: int, cost: int, model: str):
     try:
+        # Fetch the patient object
+        patient = Patient.objects.get(id=patient_id)
+
+        patient_details = PatientName(forename=patient.forename, surname=patient.surname)
+
         # Create a new Letter document
         letter = Letter(
             consent_letter=text,
@@ -431,6 +436,7 @@ def create_new_letter(user_id: str, text: str, patient_id: str, input_tokens: in
             output_tokens=output_tokens,
             cost=cost,
             model=model,
+            patient_details=patient_details,
         )
 
         # Save the new letter to the database
@@ -662,6 +668,8 @@ def create_triage_request(practice_id: str, email: str, diagnosis: str, overview
     else:
         requested_date = None
 
+    patient_details = PatientName(forename=patient.forename, surname=patient.surname)
+
     # Create a new triage request document for existing patient
     new_triage = Triage(
         practice_id=practice_id,
@@ -671,6 +679,7 @@ def create_triage_request(practice_id: str, email: str, diagnosis: str, overview
         severity=severity,
         requested_date=requested_date,
         GPT_QA=json.dumps(GPT_QA),
+        patient_details=patient_details,
     )
 
     new_triage.save()
@@ -822,8 +831,19 @@ def create_audio_note(patient_id: str, user_id: str, practice_id: str, audio_byt
         # Convert BytesIO to bytes
         audio_bytes = audio_bytesio.getvalue()
 
+        # Fetch the patient object
+        patient = Patient.objects.get(id=patient_id)
+
+        patient_details = PatientName(forename=patient.forename, surname=patient.surname)
+
         audio_note = AudioNote(
-            patient_id=patient_id, user_id=user_id, practice_id=practice_id, audio=audio_bytes, transcript=transcript, formatted_notes=formatted_notes
+            patient_id=patient_id,
+            user_id=user_id,
+            practice_id=practice_id,
+            audio=audio_bytes,
+            transcript=transcript,
+            formatted_notes=formatted_notes,
+            patient_details=patient_details,
         )
         audio_note.save()
 
