@@ -336,7 +336,6 @@ async def search_triage_requests(body: SearchTriageRequests, access_token=Depend
         ]
 
         result = atlas_search(DB_URI, table, pipeline)
-        print(result)
         for i in result:
             i["_id"] = str(i["_id"])
             if "patient_id" in i:
