@@ -1,4 +1,11 @@
-from mongoengine import BinaryField, BooleanField, Document, ReferenceField, StringField
+from mongoengine import (
+    BinaryField,
+    BooleanField,
+    Document,
+    ReferenceField,
+    StringField,
+    signals,
+)
 
 from app.database.schemas.practice import Practice
 
@@ -32,4 +39,17 @@ class LetterConfig(Document):
     sign_off = StringField(default="From")
     dentist_naming = StringField(choices=DENTIST_NAMING, required=True, default="dentist_name")
 
+    @classmethod
+    def post_init(cls, sender, document, **kwargs):
+        practice_id = document.practice_id.id
+        practice_details = Practice.objects.get(id=practice_id)
+
+        custom_paragraph = f"Should you have any questions or require further clarification on any aspect of the treatment, please do not hesitate to contact us{' on ' + practice_details.phone if practice_details.phone else ''}{' or email us at ' + practice_details.primary_email if practice_details.primary_email else ''}. We are here to support you every step of the way and ensure that you are comfortable and informed throughout the process."
+
+        # Update the contact_details_text field
+        document.contact_details_text = custom_paragraph
+
     meta = {"collection": "letter_config"}  # Specify the collection name
+
+
+signals.post_init.connect(LetterConfig.post_init, sender=LetterConfig)
