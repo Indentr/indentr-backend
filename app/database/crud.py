@@ -420,7 +420,9 @@ def retrieve_pricing(practice_id: str):
 
 
 # Letter ---------------------------
-def create_new_letter(user_id: str, text: str, patient_id: str, input_tokens: int = None, output_tokens: int = None, cost: int = None, model: str = None):
+def create_new_letter(
+    user_id: str, text: str, patient_id: str, input_tokens: int = None, output_tokens: int = None, cost: int = None, model: str = None
+):
     try:
         # Fetch the patient object
         patient = Patient.objects.get(id=patient_id)
@@ -643,7 +645,9 @@ def update_letter(letter_id, text, user_id: str):
 
 
 # Triage ---------------------------
-def create_triage_request(practice_id: str, email: str, diagnosis: str, overview: str = None, severity: str = None, requested_date: str = None, GPT_QA: str = None):
+def create_triage_request(
+    practice_id: str, email: str, diagnosis: str, overview: str = None, severity: str = None, requested_date: str = None, GPT_QA: str = None
+):
     # Try to find the patient by email within the practice
     try:
         patient = Patient.objects.get(email=email, practice_id=practice_id)

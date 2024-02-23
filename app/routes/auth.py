@@ -9,9 +9,12 @@ from app.database.crud import (
     retrieve_allow_user_registrations,
     retrieve_user_by_email,
 )
-from app.utils.new_account_setup import insert_welcome_consent_letter, insert_instruction_triages
 from app.middleware.jwt import JWTBearer, decodeJWT, signJWT
 from app.models.login import UserLoginRequest, UserRegisterRequest
+from app.utils.new_account_setup import (
+    insert_instruction_triages,
+    insert_welcome_consent_letter,
+)
 
 router = APIRouter(prefix="/auth", tags=["Authorisation"])
 
