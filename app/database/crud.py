@@ -643,7 +643,7 @@ def update_letter(letter_id, text, user_id: str):
 
 
 # Triage ---------------------------
-def create_triage_request(practice_id: str, email: str, diagnosis: str, overview: str, severity: str, requested_date: str, GPT_QA: str):
+def create_triage_request(practice_id: str, email: str, diagnosis: str, overview: str = None, severity: str = None, requested_date: str = None, GPT_QA: str = None):
     # Try to find the patient by email within the practice
     try:
         patient = Patient.objects.get(email=email, practice_id=practice_id)
@@ -657,8 +657,6 @@ def create_triage_request(practice_id: str, email: str, diagnosis: str, overview
 
     if requested_date:
         requested_date = datetime.strptime(requested_date, "%Y-%m-%d")
-    else:
-        requested_date = None
 
     patient_details = PatientName(forename=patient.forename, surname=patient.surname)
 
