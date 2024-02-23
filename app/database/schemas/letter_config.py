@@ -27,7 +27,7 @@ class LetterConfig(Document):
     # Fees
     pricing = BooleanField(default=False)
     include_insurance_info = BooleanField(default=False)
-    patient_insurance_info = StringField(default="hello")
+    patient_insurance_info = StringField(default="")
 
     # Consent
     patient_signature = BooleanField(default=True)

@@ -9,6 +9,7 @@ from app.database.crud import (
     retrieve_allow_user_registrations,
     retrieve_user_by_email,
 )
+from app.utils.new_account_setup import insert_welcome_consent_letter, insert_instruction_triages
 from app.middleware.jwt import JWTBearer, decodeJWT, signJWT
 from app.models.login import UserLoginRequest, UserRegisterRequest
 
@@ -71,6 +72,8 @@ def post_user_registration(body: UserRegisterRequest):
 
         create_new_user(body.name, body.email, body.password, practice_id, "Owner")
         create_letter_config(practice_id)
+        insert_welcome_consent_letter(body.name, body.email, body.address)
+        insert_instruction_triages(practice_id)
 
         return {"message": "Registered successfully"}
 

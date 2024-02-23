@@ -420,7 +420,7 @@ def retrieve_pricing(practice_id: str):
 
 
 # Letter ---------------------------
-def create_new_letter(user_id: str, text: str, patient_id: str, input_tokens: int, output_tokens: int, cost: int, model: str):
+def create_new_letter(user_id: str, text: str, patient_id: str, input_tokens: int = None, output_tokens: int = None, cost: int = None, model: str = None):
     try:
         # Fetch the patient object
         patient = Patient.objects.get(id=patient_id)
@@ -477,10 +477,6 @@ def retrieve_last_three_letters(user_id: str):
         del patient_details["_id"]
         if "practice_id" in patient_details:
             del patient_details["practice_id"]
-        del patient_details["dob"]
-        del patient_details["gender"]
-        del patient_details["address"]
-        del patient_details["email"]
         letter_dict["patient_details"] = patient_details
         del letter_dict["patient_id"]
 
@@ -543,10 +539,6 @@ def retrieve_all_users_letters(user_id: str):
         del patient_details["_id"]
         if "practice_id" in patient_details:
             del patient_details["practice_id"]
-        del patient_details["dob"]
-        del patient_details["gender"]
-        del patient_details["address"]
-        del patient_details["email"]
         letter_dict["patient_details"] = patient_details
         del letter_dict["patient_id"]
 
