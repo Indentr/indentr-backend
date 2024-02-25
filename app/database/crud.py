@@ -921,7 +921,6 @@ def retrieve_note(note_id: str, user_id: str):
     del patient_details["dob"]
     del patient_details["gender"]
     del patient_details["address"]
-    del patient_details["email"]
     note_dict["patient_details"] = patient_details
     del note_dict["patient_id"]
 

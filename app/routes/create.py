@@ -279,6 +279,7 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
         response_html = header + treatment_section_result + fees_section_result + contact_details_text + signoff + signature_lines
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+        print(response_html)
         return {
             "html_content": response_html,
             "input_tokens": treatment_section_input_tokens + fees_section_input_tokens,

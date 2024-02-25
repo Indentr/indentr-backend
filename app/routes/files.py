@@ -25,6 +25,7 @@ from app.database.crud import (
     retrieve_patients_alphabet_status,
     retrieve_patients_last_three_letters,
     retrieve_patients_last_three_notes,
+    retrieve_patient_by_email,
     retrieve_user_letter,
     update_letter,
     update_note,
@@ -82,16 +83,20 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
         practice_id = token["practice_id"]
         letters = []
         notes = []
+        patient_details=[]
+
         if file_type == "letter":
             file = retrieve_user_letter(file_id, user_id)
         elif file_type == "note":
             file = retrieve_note(file_id, user_id)
+            patient_details=retrieve_patient_by_email(file["patient_details"]["email"])
+            del patient_details["_id"]
         elif file_type == "patient":
             file = retrieve_patient_by_id(file_id, practice_id)
             letters = retrieve_patients_last_three_letters(file_id)
             notes = retrieve_patients_last_three_notes(file_id)
 
-        return {"file": file, "letters": letters, "notes": notes}
+        return {"file": file, "letters": letters, "notes": notes, "patient_details": patient_details}
 
     except HTTPException as e:
         raise e
