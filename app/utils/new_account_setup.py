@@ -21,5 +21,9 @@ def insert_welcome_consent_letter(users_name: str, user_email: str, practice_add
 
 def insert_instruction_triages(practice_id):
     create_triage_request(practice_id=practice_id, email="instructions@indentr.com", diagnosis="Triage: instructions and set up", instruction=True)
-    create_triage_request(practice_id=practice_id, email="instructions@indentr.com", diagnosis="Audio note: instructions and walkthrough", instruction=True)
-    create_triage_request(practice_id=practice_id, email="instructions@indentr.com", diagnosis="Consent letter: instructions and guidance", instruction=True)
+    create_triage_request(
+        practice_id=practice_id, email="instructions@indentr.com", diagnosis="Audio note: instructions and walkthrough", instruction=True
+    )
+    create_triage_request(
+        practice_id=practice_id, email="instructions@indentr.com", diagnosis="Consent letter: instructions and guidance", instruction=True
+    )
