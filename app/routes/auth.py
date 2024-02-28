@@ -11,6 +11,10 @@ from app.database.crud import (
 )
 from app.middleware.jwt import JWTBearer, decodeJWT, signJWT
 from app.models.login import UserLoginRequest, UserRegisterRequest
+from app.utils.new_account_setup import (
+    insert_instruction_triages,
+    insert_welcome_consent_letter,
+)
 
 router = APIRouter(prefix="/auth", tags=["Authorisation"])
 
@@ -71,6 +75,8 @@ def post_user_registration(body: UserRegisterRequest):
 
         create_new_user(body.name, body.email, body.password, practice_id, "Owner")
         create_letter_config(practice_id)
+        insert_welcome_consent_letter(body.name, body.email, body.address)
+        insert_instruction_triages(practice_id)
 
         return {"message": "Registered successfully"}
 

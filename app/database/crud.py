@@ -420,7 +420,9 @@ def retrieve_pricing(practice_id: str):
 
 
 # Letter ---------------------------
-def create_new_letter(user_id: str, text: str, patient_id: str, input_tokens: int, output_tokens: int, cost: int, model: str):
+def create_new_letter(
+    user_id: str, text: str, patient_id: str, input_tokens: int = None, output_tokens: int = None, cost: int = None, model: str = None
+):
     try:
         # Fetch the patient object
         patient = Patient.objects.get(id=patient_id)
@@ -477,10 +479,6 @@ def retrieve_last_three_letters(user_id: str):
         del patient_details["_id"]
         if "practice_id" in patient_details:
             del patient_details["practice_id"]
-        del patient_details["dob"]
-        del patient_details["gender"]
-        del patient_details["address"]
-        del patient_details["email"]
         letter_dict["patient_details"] = patient_details
         del letter_dict["patient_id"]
 
@@ -543,10 +541,6 @@ def retrieve_all_users_letters(user_id: str):
         del patient_details["_id"]
         if "practice_id" in patient_details:
             del patient_details["practice_id"]
-        del patient_details["dob"]
-        del patient_details["gender"]
-        del patient_details["address"]
-        del patient_details["email"]
         letter_dict["patient_details"] = patient_details
         del letter_dict["patient_id"]
 
@@ -651,7 +645,16 @@ def update_letter(letter_id, text, user_id: str):
 
 
 # Triage ---------------------------
-def create_triage_request(practice_id: str, email: str, diagnosis: str, overview: str, severity: str, requested_date: str, GPT_QA: str):
+def create_triage_request(
+    practice_id: str,
+    email: str,
+    diagnosis: str,
+    overview: str = None,
+    severity: str = None,
+    requested_date: str = None,
+    GPT_QA: str = None,
+    instruction: bool = False,
+):
     # Try to find the patient by email within the practice
     try:
         patient = Patient.objects.get(email=email, practice_id=practice_id)
@@ -665,8 +668,6 @@ def create_triage_request(practice_id: str, email: str, diagnosis: str, overview
 
     if requested_date:
         requested_date = datetime.strptime(requested_date, "%Y-%m-%d")
-    else:
-        requested_date = None
 
     patient_details = PatientName(forename=patient.forename, surname=patient.surname)
 
@@ -680,6 +681,7 @@ def create_triage_request(practice_id: str, email: str, diagnosis: str, overview
         requested_date=requested_date,
         GPT_QA=json.dumps(GPT_QA),
         patient_details=patient_details,
+        instruction=instruction,
     )
 
     new_triage.save()
