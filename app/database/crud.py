@@ -646,7 +646,7 @@ def update_letter(letter_id, text, user_id: str):
 
 # Triage ---------------------------
 def create_triage_request(
-    practice_id: str, email: str, diagnosis: str, overview: str = None, severity: str = None, requested_date: str = None, GPT_QA: str = None
+    practice_id: str, email: str, diagnosis: str, overview: str = None, severity: str = None, requested_date: str = None, GPT_QA: str = None, instruction: bool = False
 ):
     # Try to find the patient by email within the practice
     try:
@@ -674,6 +674,7 @@ def create_triage_request(
         requested_date=requested_date,
         GPT_QA=json.dumps(GPT_QA),
         patient_details=patient_details,
+        instruction=instruction
     )
 
     new_triage.save()
