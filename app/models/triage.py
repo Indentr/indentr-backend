@@ -58,6 +58,7 @@ class DeleteTriageRequests(BaseModel):
 class AddPatientToPractice(BaseModel):
     patient_id: str
 
+
 # Request model
 class CheckEmail(BaseModel):
     email: str

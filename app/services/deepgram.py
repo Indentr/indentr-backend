@@ -7,6 +7,7 @@ from app.constants import DEEPGRAM_API_KEY
 # initiates logger
 log = logging.getLogger(__name__)
 
+
 async def dpg_speech_to_text(audio_buffer):
     try:
         # Initializes the Deepgram SDK

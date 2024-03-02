@@ -3,7 +3,6 @@ import logging
 import time
 import uuid
 
-
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -17,24 +16,24 @@ from app.database.crud import (
     retrieve_all_triage_requests_by_folder,
     retrieve_patient_by_email,
     retrieve_patient_by_id,
+    retrieve_patient_exists_by_email_and_practice,
     retrieve_practice_by_id,
     retrieve_prompt_by_title,
     retrieve_triage_request,
     update_patients_practice_id,
     update_triage_requests_folder,
     update_triage_requests_opened,
-    retrieve_patient_exists_by_email_and_practice,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.triage import (
     AddPatientToPractice,
+    CheckEmail,
     CreatePatientRequest,
     DeleteTriageRequests,
     GenerateQuestions,
     SearchTriageRequests,
     ToggleTriageFolderRequest,
     ToggleTriageOpenedRequest,
-    CheckEmail,
 )
 from app.services.email import generate_patient_mail, generate_practice_mail, send_email
 from app.services.openAI import ask_gpt
@@ -110,7 +109,6 @@ async def generate_triage_questions(body: GenerateQuestions):
 
     original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-3.5-turbo")
 
-
     try:
         questions = json.loads(original_response)
 
@@ -169,7 +167,6 @@ async def create_patient_request(body: CreatePatientRequest):
         response["severity"],
         patient_details["requested_date"],
         symptom_details,
-        
     )
 
     practice = retrieve_practice_by_id(practice_id)
@@ -439,4 +436,4 @@ async def check_patient_by_email(body: CheckEmail):
         raise e
     except Exception as e:
         log.debug(f"Unhandled error in request . Error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+

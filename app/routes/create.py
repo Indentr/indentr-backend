@@ -457,7 +457,3 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
     except HTTPException as e:
         log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
         raise e
-
-
-
-

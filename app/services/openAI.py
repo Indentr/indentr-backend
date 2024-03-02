@@ -55,6 +55,7 @@ async def ask_gpt(prompt: str, system_prompt: str, model_name: str):
         log.error(f"An error occurred: {str(e)}")
         raise
 
+
 async def generate_embedding(embedding_text: str):
     response = client.embeddings.create(input=embedding_text, model="text-embedding-ada-002")
     embedding = response.data[0].embedding

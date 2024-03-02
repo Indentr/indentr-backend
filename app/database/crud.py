@@ -189,7 +189,6 @@ def retrieve_user_by_email(email: str):
     return user.to_mongo().to_dict()
 
 
-
 def retrieve_all_practice_users(practice_id: str):
     # Query all users with the given practice_id
     practice_members = User.objects(practice_id=practice_id).only("name", "email", "role").select_related()
@@ -361,13 +360,10 @@ def retrieve_all_practices_patients_filtered_by_char(practice_id: str, starts_wi
         raise HTTPException(status_code=404, detail="No patients found") from None
 
 
-def retrieve_patient_by_email(email: str, practice_id: str = None ):
+def retrieve_patient_by_email(email: str):
     try:
         # Retrieve the patient document based on email
-        if(practice_id != None):
-            patient = Patient.objects.get(email=email, practice_id=practice_id)
-        else:
-            patient = Patient.objects.get(email=email)
+        patient = Patient.objects.get(email=email)
 
         patient_dict = patient.to_mongo().to_dict()
         if "practice_id" in patient_dict:
@@ -671,7 +667,7 @@ def create_triage_request(
     severity: str = None,
     requested_date: str = None,
     GPT_QA: str = None,
-    instruction: bool = False
+    instruction: bool = False,
 ):
     # Try to find the patient by email within the practice
     try:
