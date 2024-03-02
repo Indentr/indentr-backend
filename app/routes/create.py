@@ -21,7 +21,7 @@ from app.database.crud import (
     retrieve_prompt_by_title,
     retrieve_user_by_id,
     update_formatted_notes,
-    check_patient_exists_by_email,
+    check_patient_exists_by_email_and_practice,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
@@ -478,7 +478,7 @@ async def check_patient_by_email(body: Email, access_token=Depends(JWTBearer()))
         practice_id = token["practice_id"]
         email = body.email
 
-        result = check_patient_exists_by_email(email)
+        result = check_patient_exists_by_email_and_practice(email, practice_id)
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
 
