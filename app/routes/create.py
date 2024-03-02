@@ -34,6 +34,7 @@ from app.models.create import (
     SymptomResponse,
     TreatmentPlanData,
     TreatmentPlanResponse,
+    Email,
 )
 from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt
@@ -461,27 +462,31 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
 
 
 
-@router.post("/search-patients")
-async def check_patient_by_email(body: PatientSearch, access_token=Depends(JWTBearer())):
+@router.post("/check-patient-by-email")
+async def check_patient_by_email(body: Email, access_token=Depends(JWTBearer())):
     """
     # Searches the practice's list of patients for a match
-    Uses the mongodb search functionality to get top 3/4 closest patient matches.
+    Returns true if a match is found
     """
-    try:
-        start = time.time()
-        request_id = uuid.uuid4().hex
-        log.info(f"Request {request_id} received for saving patient details.")
+    start = time.time()
+    request_id = uuid.uuid4().hex
 
+    try:
+        log.info(f"Request {request_id} received for checking patient by email.")
         token = decodeJWT(access_token)
-        token["user_id"]
+
         practice_id = token["practice_id"]
+        email = body.email
 
         result = check_patient_exists_by_email(email)
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
 
-        return result
+        return {"result": result}
 
     except HTTPException as e:
         log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
         raise e
+    except Exception as e:
+        log.debug(f"Unhandled error in request {request_id}. Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
