@@ -1,7 +1,6 @@
 import logging
 
 import openai
-import requests
 import tiktoken
 from openai import OpenAI
 

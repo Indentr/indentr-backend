@@ -23,7 +23,7 @@ from app.database.crud import (
     update_patients_practice_id,
     update_triage_requests_folder,
     update_triage_requests_opened,
-    check_patient_exists_by_email_and_practice
+    retrieve_patient_exists_by_email_and_practice,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.triage import (
@@ -424,12 +424,11 @@ async def check_patient_by_email(body: CheckEmail):
     """
     start = time.time()
 
-
     try:
         email = body.email
         practice_id = body.practiceId
 
-        result = check_patient_exists_by_email_and_practice(email, practice_id)
+        result = retrieve_patient_exists_by_email_and_practice(email, practice_id)
 
         log.debug(f"Request  completed successfully in {round((time.time() - start), 2)} seconds.")
 

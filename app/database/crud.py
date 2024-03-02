@@ -189,17 +189,6 @@ def retrieve_user_by_email(email: str):
     return user.to_mongo().to_dict()
 
 
-# Function to check if a patient exists
-def check_patient_exists_by_email_and_practice(email: str, practice_id: str) -> bool:
-    try:
-        # Attempt to retrieve the patient by email and practice_id
-        patient = Patient.objects.get(email=email, practice_id=practice_id)
-        # If the function successfully retrieves a patient, return True
-        return True
-    except DoesNotExist:
-        # If a DoesNotExist exception is caught, it means no patient was found with the given criteria, so return False
-        return False
-
 
 def retrieve_all_practice_users(practice_id: str):
     # Query all users with the given practice_id
@@ -372,10 +361,14 @@ def retrieve_all_practices_patients_filtered_by_char(practice_id: str, starts_wi
         raise HTTPException(status_code=404, detail="No patients found") from None
 
 
-def retrieve_patient_by_email(email: str):
+def retrieve_patient_by_email(email: str, practice_id: str = None ):
     try:
         # Retrieve the patient document based on email
-        patient = Patient.objects.get(email=email)
+        if(practice_id != None):
+            patient = Patient.objects.get(email=email, practice_id=practice_id)
+        else:
+            patient = Patient.objects.get(email=email)
+
         patient_dict = patient.to_mongo().to_dict()
         if "practice_id" in patient_dict:
             patient_dict["practice_id"] = str(patient_dict["practice_id"])
@@ -384,6 +377,18 @@ def retrieve_patient_by_email(email: str):
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Patient not found") from None
+
+
+# Function to check if a patient exists
+def retrieve_patient_exists_by_email_and_practice(email: str, practice_id: str) -> bool:
+    try:
+        # Attempt to retrieve the patient by email and practice_id
+        Patient.objects.get(email=email, practice_id=practice_id)
+        # If the function successfully retrieves a patient, return True
+        return True
+    except DoesNotExist:
+        # If a DoesNotExist exception is caught, it means no patient was found with the given criteria, so return False
+        return False
 
 
 def retrieve_patient_by_id(patient_id: str, practice_id):
