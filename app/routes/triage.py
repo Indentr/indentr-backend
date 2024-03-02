@@ -436,4 +436,3 @@ async def check_patient_by_email(body: CheckEmail):
         raise e
     except Exception as e:
         log.debug(f"Unhandled error in request . Error: {str(e)}")
-
