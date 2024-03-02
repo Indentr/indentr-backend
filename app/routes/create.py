@@ -21,6 +21,7 @@ from app.database.crud import (
     retrieve_prompt_by_title,
     retrieve_user_by_id,
     update_formatted_notes,
+    check_patient_exists_by_email,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
@@ -453,6 +454,33 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
 
         return {"message": "Letter saved successfully", "letter_id": str(letter_id)}
+
+    except HTTPException as e:
+        log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
+        raise e
+
+
+
+@router.post("/search-patients")
+async def check_patient_by_email(body: PatientSearch, access_token=Depends(JWTBearer())):
+    """
+    # Searches the practice's list of patients for a match
+    Uses the mongodb search functionality to get top 3/4 closest patient matches.
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received for saving patient details.")
+
+        token = decodeJWT(access_token)
+        token["user_id"]
+        practice_id = token["practice_id"]
+
+        result = check_patient_exists_by_email(email)
+
+        log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
+
+        return result
 
     except HTTPException as e:
         log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")

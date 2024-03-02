@@ -189,6 +189,18 @@ def retrieve_user_by_email(email: str):
     return user.to_mongo().to_dict()
 
 
+# Function to check if a patient exists
+def check_patient_exists_by_email(email: str) -> bool:
+    try:
+        # Attempt to retrieve the user by email
+        retrieve_user_by_email(email)
+        # If the function successfully retrieves a user, return True
+        return True
+    except HTTPException:
+        # If a HTTPException is caught, it means no user was found, so return False
+        return False
+
+
 def retrieve_all_practice_users(practice_id: str):
     # Query all users with the given practice_id
     practice_members = User.objects(practice_id=practice_id).only("name", "email", "role").select_related()
