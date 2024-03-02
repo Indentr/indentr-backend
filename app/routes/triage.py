@@ -16,6 +16,7 @@ from app.database.crud import (
     retrieve_all_triage_requests_by_folder,
     retrieve_patient_by_email,
     retrieve_patient_by_id,
+    retrieve_patient_exists_by_email_and_practice,
     retrieve_practice_by_id,
     retrieve_prompt_by_title,
     retrieve_triage_request,
@@ -26,6 +27,7 @@ from app.database.crud import (
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.triage import (
     AddPatientToPractice,
+    CheckEmail,
     CreatePatientRequest,
     DeleteTriageRequests,
     GenerateQuestions,
@@ -146,7 +148,7 @@ async def create_patient_request(body: CreatePatientRequest):
         {create_triage_request_prompt}
     """
 
-    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-3.5-turbo")
+    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-4-turbo-preview")
 
     try:
         response = json.loads(original_response)
@@ -160,6 +162,7 @@ async def create_patient_request(body: CreatePatientRequest):
         practice_id,
         patient_details["email"],
         response["diagnosis"],
+        patient_details["appointment_reason"],
         response["overview"],
         response["severity"],
         patient_details["requested_date"],
@@ -408,3 +411,28 @@ async def add_new_patient_to_practice(body: AddPatientToPractice, access_token=D
 
     except HTTPException as e:
         raise e
+
+
+@router.post("/check-patient-by-email")
+async def check_patient_by_email(body: CheckEmail):
+    """
+    Searches the practice's list of patients for a match.
+    Returns true if a match is found.
+    """
+    start = time.time()
+
+    try:
+        email = body.email
+        practice_id = body.practiceId
+
+        result = retrieve_patient_exists_by_email_and_practice(email, practice_id)
+
+        log.debug(f"Request  completed successfully in {round((time.time() - start), 2)} seconds.")
+
+        return {"result": result}
+
+    except HTTPException as e:
+        log.debug(f"Request  failed and took {round((time.time() - start), 2)} seconds.")
+        raise e
+    except Exception as e:
+        log.debug(f"Unhandled error in request . Error: {str(e)}")

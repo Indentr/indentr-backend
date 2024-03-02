@@ -8,6 +8,7 @@ def send_email(subject: str, body: str, sender: str, recipient: str, password: s
     msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = recipient
+
     with smtplib.SMTP_SSL("smtp.zoho.eu", 465) as smtp_server:
         smtp_server.login(sender, password)
         smtp_server.sendmail(sender, recipient, msg.as_string())
