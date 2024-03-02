@@ -109,7 +109,6 @@ async def generate_triage_questions(body: GenerateQuestions):
     """
 
     original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-3.5-turbo")
-    print(original_response)
 
 
     try:
@@ -165,10 +164,12 @@ async def create_patient_request(body: CreatePatientRequest):
         practice_id,
         patient_details["email"],
         response["diagnosis"],
+        patient_details["appointment_reason"],
         response["overview"],
         response["severity"],
         patient_details["requested_date"],
         symptom_details,
+        
     )
 
     practice = retrieve_practice_by_id(practice_id)
@@ -422,26 +423,21 @@ async def check_patient_by_email(body: CheckEmail):
     Returns true if a match is found.
     """
     start = time.time()
-    
-    print(f"Request ID:  - Start checking patient by email.")  # Debugging
+
 
     try:
         email = body.email
         practice_id = body.practiceId
 
-        print(f"Checking for email: {email} in practice ID: {practice_id}")  # Debugging
         result = check_patient_exists_by_email_and_practice(email, practice_id)
 
-        print(f"Check result: {result}")  # Debugging
         log.debug(f"Request  completed successfully in {round((time.time() - start), 2)} seconds.")
 
         return {"result": result}
 
     except HTTPException as e:
-        print(f"HTTPException encountered. Request failed. Error: {str(e)}")  # Debugging
         log.debug(f"Request  failed and took {round((time.time() - start), 2)} seconds.")
         raise e
     except Exception as e:
-        print(f"Unhandled exception. Request  failed. Error: {str(e)}")  # Debugging
         log.debug(f"Unhandled error in request . Error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

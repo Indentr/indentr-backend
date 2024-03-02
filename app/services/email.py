@@ -9,17 +9,11 @@ def send_email(subject: str, body: str, sender: str, recipient: str, password: s
     msg["From"] = sender
     msg["To"] = recipient
 
-    try:
-        with smtplib.SMTP_SSL("smtp.zoho.eu", 465) as smtp_server:
-            smtp_server.login(sender, password)
-            smtp_server.sendmail(sender, recipient, msg.as_string())
-        print("Email sent successfully")
-    except smtplib.SMTPAuthenticationError:
-        print("Authentication failed: Check your username/password")
-    except smtplib.SMTPException as e:
-        print(f"SMTP error occurred: {e}")
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    
+    with smtplib.SMTP_SSL("smtp.zoho.eu", 465) as smtp_server:
+        smtp_server.login(sender, password)
+        smtp_server.sendmail(sender, recipient, msg.as_string())
+ 
 
 
 def generate_practice_mail(patient: Dict, diagnosis: str, overview: str):

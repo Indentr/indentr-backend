@@ -661,11 +661,12 @@ def create_triage_request(
     practice_id: str,
     email: str,
     diagnosis: str,
+    reason_for_request: str,
     overview: str = None,
     severity: str = None,
     requested_date: str = None,
     GPT_QA: str = None,
-    instruction: bool = False,
+    instruction: bool = False
 ):
     # Try to find the patient by email within the practice
     try:
@@ -694,6 +695,7 @@ def create_triage_request(
         GPT_QA=json.dumps(GPT_QA),
         patient_details=patient_details,
         instruction=instruction,
+        reason_for_request=reason_for_request,
     )
 
     new_triage.save()

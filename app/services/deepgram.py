@@ -21,4 +21,5 @@ async def dpg_speech_to_text(audio_buffer):
         return response
 
     except Exception as e:
-        print(f"Exception: {e}")
+        log.debug(f"Exception: {e}")
+        raise e
