@@ -21,7 +21,6 @@ from app.database.crud import (
     retrieve_prompt_by_title,
     retrieve_user_by_id,
     update_formatted_notes,
-    check_patient_exists_by_email_and_practice,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
@@ -34,7 +33,6 @@ from app.models.create import (
     SymptomResponse,
     TreatmentPlanData,
     TreatmentPlanResponse,
-    Email,
 )
 from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt
@@ -462,31 +460,4 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
 
 
 
-@router.post("/check-patient-by-email")
-async def check_patient_by_email(body: Email, access_token=Depends(JWTBearer())):
-    """
-    # Searches the practice's list of patients for a match
-    Returns true if a match is found
-    """
-    start = time.time()
-    request_id = uuid.uuid4().hex
 
-    try:
-        log.info(f"Request {request_id} received for checking patient by email.")
-        token = decodeJWT(access_token)
-
-        practice_id = token["practice_id"]
-        email = body.email
-
-        result = check_patient_exists_by_email_and_practice(email, practice_id)
-
-        log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
-
-        return {"result": result}
-
-    except HTTPException as e:
-        log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
-        raise e
-    except Exception as e:
-        log.debug(f"Unhandled error in request {request_id}. Error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")

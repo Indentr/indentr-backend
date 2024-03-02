@@ -155,7 +155,5 @@ class SaveAudioNotes(BaseModel):
     audioFile: UploadFile
     patientEmail: str
 
-# Request model
-class Email(BaseModel):
-    email: str
+
  

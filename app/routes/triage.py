@@ -3,6 +3,7 @@ import logging
 import time
 import uuid
 
+
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -22,6 +23,7 @@ from app.database.crud import (
     update_patients_practice_id,
     update_triage_requests_folder,
     update_triage_requests_opened,
+    check_patient_exists_by_email_and_practice
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.triage import (
@@ -32,6 +34,7 @@ from app.models.triage import (
     SearchTriageRequests,
     ToggleTriageFolderRequest,
     ToggleTriageOpenedRequest,
+    CheckEmail,
 )
 from app.services.email import generate_patient_mail, generate_practice_mail, send_email
 from app.services.openAI import ask_gpt
@@ -106,6 +109,8 @@ async def generate_triage_questions(body: GenerateQuestions):
     """
 
     original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-3.5-turbo")
+    print(original_response)
+
 
     try:
         questions = json.loads(original_response)
@@ -146,7 +151,7 @@ async def create_patient_request(body: CreatePatientRequest):
         {create_triage_request_prompt}
     """
 
-    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-3.5-turbo")
+    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-4-turbo-preview")
 
     try:
         response = json.loads(original_response)
@@ -408,3 +413,35 @@ async def add_new_patient_to_practice(body: AddPatientToPractice, access_token=D
 
     except HTTPException as e:
         raise e
+
+
+@router.post("/check-patient-by-email")
+async def check_patient_by_email(body: CheckEmail):
+    """
+    Searches the practice's list of patients for a match.
+    Returns true if a match is found.
+    """
+    start = time.time()
+    
+    print(f"Request ID:  - Start checking patient by email.")  # Debugging
+
+    try:
+        email = body.email
+        practice_id = body.practiceId
+
+        print(f"Checking for email: {email} in practice ID: {practice_id}")  # Debugging
+        result = check_patient_exists_by_email_and_practice(email, practice_id)
+
+        print(f"Check result: {result}")  # Debugging
+        log.debug(f"Request  completed successfully in {round((time.time() - start), 2)} seconds.")
+
+        return {"result": result}
+
+    except HTTPException as e:
+        print(f"HTTPException encountered. Request failed. Error: {str(e)}")  # Debugging
+        log.debug(f"Request  failed and took {round((time.time() - start), 2)} seconds.")
+        raise e
+    except Exception as e:
+        print(f"Unhandled exception. Request  failed. Error: {str(e)}")  # Debugging
+        log.debug(f"Unhandled error in request . Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
