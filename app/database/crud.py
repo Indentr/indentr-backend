@@ -685,7 +685,7 @@ def create_triage_request(
     practice_id: str,
     email: str,
     diagnosis: str,
-    reason_for_request: str,
+    reason_for_request: str = None,
     overview: str = None,
     severity: str = None,
     requested_date: str = None,
