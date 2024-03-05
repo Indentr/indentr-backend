@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
 
@@ -12,6 +14,12 @@ class UserRegisterRequest(BaseModel):
     password: str
     practice_name: str
     practice_email: str
-    practice_url: str
+    practice_url: Optional[str] = None
     address: str
     phone: str
+    session_id: str
+    subscription_id: str
+
+
+class CheckEmail(BaseModel):
+    email: str
