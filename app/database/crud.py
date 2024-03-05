@@ -929,6 +929,34 @@ def retrieve_note(note_id: str, user_id: str):
     return note_dict
 
 
+def retrieve_last_three_notes(user_id: str):
+    try:
+        notes = AudioNote.objects(user_id=user_id).only("patient_id", "formatted_notes", "createdAt").order_by("-_id").limit(3).select_related()
+
+        notes_list = []
+
+    except DoesNotExist:
+        # Handle the case where no notes are found
+        return []
+
+    for note in notes:
+        created_at = note.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
+        note_dict = note.to_mongo().to_dict()
+        note_dict["createdAt"] = created_at
+        note_dict["_id"] = str(note.id)
+        patient_details = note.patient_id.to_mongo().to_dict()
+        del patient_details["_id"]
+        if "practice_id" in patient_details:
+            del patient_details["practice_id"]
+        note_dict["patient_details"] = patient_details
+        del note_dict["patient_id"]
+
+        notes_list.append(note_dict)
+
+    return notes_list
+
+
+
 def retrieve_notes_alphabet_status(user_id: str):
     try:
         pipeline = [
