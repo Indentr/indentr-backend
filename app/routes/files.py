@@ -231,9 +231,9 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
             if "patient_id" in i:
                 patient_details = retrieve_patient_by_id(str(i["patient_id"]), practice_id)
                 del patient_details["dob"]
-                del patient_details["gender"]
-                del patient_details["address"]
-                del patient_details["email"]
+                # del patient_details["gender"]
+                # del patient_details["address"]
+                # del patient_details["email"]
                 del i["patient_id"]
                 i["patient_details"] = patient_details
 

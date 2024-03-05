@@ -8,9 +8,10 @@ from app.database.crud import (
     create_new_user,
     retrieve_allow_user_registrations,
     retrieve_user_by_email,
+    retrieve_practice_by_email
 )
 from app.middleware.jwt import JWTBearer, decodeJWT, signJWT
-from app.models.login import UserLoginRequest, UserRegisterRequest
+from app.models.login import UserLoginRequest, UserRegisterRequest, CheckEmail
 from app.utils.new_account_setup import (
     insert_instruction_triages,
     insert_welcome_consent_letter,
@@ -79,6 +80,62 @@ def post_user_registration(body: UserRegisterRequest):
         insert_instruction_triages(practice_id)
 
         return {"message": "Registered successfully"}
+
+    except HTTPException as e:
+        raise e
+
+
+
+
+@router.post("/check-email")
+def checks_if_email_in_use(body: CheckEmail):
+    """
+    This route checks to see if the user is able to signup with an email by checking there isn't another account with the same email
+    """
+
+    try:
+        try:
+            # Attempt to retrieve the user by email
+            existing_user = retrieve_user_by_email(body.email)
+        except HTTPException as e:
+            # Handle the 404 exception if user is not found
+            if e.status_code == 404:
+                existing_user = None
+            else:
+                raise
+
+        # Check if the email already exists
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already in use")
+
+        return {"valid": True}
+
+    except HTTPException as e:
+        raise e
+
+
+@router.post("/check-practice-email")
+def checks_if_practice_email_in_use(body: CheckEmail):
+    """
+    This route checks to see if the user is able to signup with an email by checking there isn't another account with the same email
+    """
+
+    try:
+        try:
+            # Attempt to retrieve the user by email
+            existing_practice = retrieve_practice_by_email(body.email)
+        except HTTPException as e:
+            # Handle the 404 exception if user is not found
+            if e.status_code == 404:
+                existing_practice = None
+            else:
+                raise
+
+        # Check if the email already exists
+        if existing_practice:
+            raise HTTPException(status_code=400, detail="Email already in use")
+
+        return {"valid": True}
 
     except HTTPException as e:
         raise e

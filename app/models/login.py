@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Optional
 
 
 class UserLoginRequest(BaseModel):
@@ -12,6 +13,11 @@ class UserRegisterRequest(BaseModel):
     password: str
     practice_name: str
     practice_email: str
-    practice_url: str
+    practice_url: Optional[str] = None
     address: str
     phone: str
+    session_id: str
+
+
+class CheckEmail(BaseModel):
+    email: str
