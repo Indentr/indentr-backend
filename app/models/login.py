@@ -17,7 +17,10 @@ class UserRegisterRequest(BaseModel):
     address: str
     phone: str
     session_id: str
+    subscription_id: str
 
 
 class CheckEmail(BaseModel):
     email: str
+
+
