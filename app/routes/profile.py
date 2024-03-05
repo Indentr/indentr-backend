@@ -10,6 +10,7 @@ from app.database.crud import (
     delete_member,
     retrieve_all_practice_users,
     retrieve_last_three_letters,
+    retrieve_last_three_notes,
     retrieve_last_three_triage_requests,
     retrieve_letter_config,
     retrieve_practice_by_id,
@@ -56,6 +57,27 @@ def get_profile(access_token=Depends(JWTBearer())):
     except HTTPException as e:
         raise e  # Reraise the HTTPException
 
+@router.get("/last-three-notes")
+def get_last_three_notes(access_token=Depends(JWTBearer())):
+    """
+    Gets the users last three notes
+    """
+
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.debug(f"Request {request_id} received for getting last 3 triage_requests and letters.")
+
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+
+        notes = retrieve_last_three_notes(user_id)
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {"notes": notes}
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
 
 @router.get("/overview")
 def get_overview(access_token=Depends(JWTBearer())):
@@ -72,6 +94,7 @@ def get_overview(access_token=Depends(JWTBearer())):
 
         letters = retrieve_last_three_letters(user_id)
         triage_requests = retrieve_last_three_triage_requests(user_id)
+        notes = retrieve_last_three_notes(user_id)
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
