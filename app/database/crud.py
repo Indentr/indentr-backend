@@ -462,7 +462,7 @@ def delete_letter(user_id: str, file_id: str):
 
 def retrieve_last_three_letters(user_id: str):
     try:
-        letters = Letter.objects(user_id=user_id).only("consent_letter", "patient_id", "createdAt").order_by("-_id").limit(3)
+        letters = Letter.objects(user_id=user_id).only("consent_letter", "patient_id", "createdAt").order_by("-_id").limit(3).select_related()
 
         letters_list = []
 
