@@ -8,7 +8,8 @@ from app.database.crud import (
     create_new_user,
     retrieve_allow_user_registrations,
     retrieve_user_by_email,
-    retrieve_practice_by_email
+    retrieve_practice_by_email,
+    update_practice_details
 )
 from app.middleware.jwt import JWTBearer, decodeJWT, signJWT
 from app.models.login import UserLoginRequest, UserRegisterRequest, CheckEmail
@@ -31,7 +32,7 @@ def post_user_login(body: UserLoginRequest):
     """
 
     try:
-        user_document = retrieve_user_by_email(body.email)
+        user_document = retrieve_user_by_email(body.email.lower())
 
         if user_document and check_password_hash(user_document["password"], body.password):
             user_id = str(user_document["_id"])
@@ -60,7 +61,7 @@ def post_user_registration(body: UserRegisterRequest):
 
         try:
             # Attempt to retrieve the user by email
-            existing_user = retrieve_user_by_email(body.email)
+            existing_user = retrieve_user_by_email(body.email.lower())
         except HTTPException as e:
             # Handle the 404 exception if user is not found
             if e.status_code == 404:
@@ -72,14 +73,14 @@ def post_user_registration(body: UserRegisterRequest):
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already in use")
 
-        practice_id = create_new_practice(body.practice_name, body.practice_email, body.practice_url, body.address, body.phone)
+        practice_id = create_new_practice(body.practice_name, body.practice_email.lower(), body.practice_url, body.address, body.phone, body.session_id, subscription_id=body.subscription_id)
 
-        create_new_user(body.name, body.email, body.password, practice_id, "Owner")
+        new_user = create_new_user(body.name, body.email.lower(), body.password, practice_id, "Owner")
         create_letter_config(practice_id)
-        insert_welcome_consent_letter(body.name, body.email, body.address)
+        insert_welcome_consent_letter(body.name, body.email.lower(), body.address)
         insert_instruction_triages(practice_id)
 
-        return {"message": "Registered successfully"}
+        return signJWT(new_user["_id"], new_user["practice_id"])
 
     except HTTPException as e:
         raise e
@@ -96,7 +97,7 @@ def checks_if_email_in_use(body: CheckEmail):
     try:
         try:
             # Attempt to retrieve the user by email
-            existing_user = retrieve_user_by_email(body.email)
+            existing_user = retrieve_user_by_email(body.email.lower())
         except HTTPException as e:
             # Handle the 404 exception if user is not found
             if e.status_code == 404:
@@ -123,7 +124,7 @@ def checks_if_practice_email_in_use(body: CheckEmail):
     try:
         try:
             # Attempt to retrieve the user by email
-            existing_practice = retrieve_practice_by_email(body.email)
+            existing_practice = retrieve_practice_by_email(body.email.lower())
         except HTTPException as e:
             # Handle the 404 exception if user is not found
             if e.status_code == 404:
@@ -152,3 +153,5 @@ def authenticate_user(access_token=Depends(JWTBearer())):
     practice_id = token["user_id"]
 
     return signJWT(user_id, practice_id)
+
+    
