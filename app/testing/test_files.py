@@ -24,6 +24,8 @@ def register_and_login():
             "practice_url": "https://www.willowsdental.com",
             "address": "1 Prestatyn, Wales, W1",
             "phone": "07880788392",
+            "session_id": "1234567890",
+            "subscription_id": "1234567890"
         },
     )
     loginResponse = client.post("/auth/login", json={"email": "johnterry@gmail.com", "password": "password"})
