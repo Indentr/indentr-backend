@@ -26,7 +26,7 @@ def register_test_user():
             "address": "1 Prestatyn, Wales, W1",
             "phone": "07880788392",
             "session_id": "1234567890",
-            "subscription_id": "1234567890"
+            "subscription_id": "1234567890",
         },
     )
 
@@ -46,7 +46,7 @@ def test_register_existing_user(register_test_user):
             "address": "1 Prestatyn, Wales, W1",
             "phone": "07880788392",
             "session_id": "1234567890",
-            "subscription_id": "1234567890"
+            "subscription_id": "1234567890",
         },
     )
 

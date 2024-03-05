@@ -28,7 +28,7 @@ def register_and_login():
             "address": "1 Prestatyn, Wales, W1",
             "phone": "07880788392",
             "session_id": "1234567890",
-            "subscription_id": "1234567890"
+            "subscription_id": "1234567890",
         },
     )
     loginResponse = client.post("/auth/login", json={"email": "johnterry@gmail.com", "password": "password"})
@@ -153,7 +153,15 @@ def test_get_settings(insert_treatment_plan):
 
 def test_register_member(insert_treatment_plan):
     token = insert_treatment_plan
-    practice_id = create_new_practice("Willows Dental", "willows@dental.com", "https://www.willowsdental.com", "1 Prestatyn", "07880788392", session_id="0788078839234543", subscription_id="078807883923464")
+    practice_id = create_new_practice(
+        "Willows Dental",
+        "willows@dental.com",
+        "https://www.willowsdental.com",
+        "1 Prestatyn",
+        "07880788392",
+        session_id="0788078839234543",
+        subscription_id="078807883923464",
+    )
 
     response = client.post(
         "/profile/register",
@@ -179,7 +187,15 @@ def test_register_member(insert_treatment_plan):
 
 def test_delete_member(insert_treatment_plan):
     token = insert_treatment_plan
-    practice_id = create_new_practice("Willows Dental", "willows@dental.com", "https://www.willowsdental.com", "1 Prestatyn", "07880788392", session_id="0788078839234543", subscription_id="078807883923464")
+    practice_id = create_new_practice(
+        "Willows Dental",
+        "willows@dental.com",
+        "https://www.willowsdental.com",
+        "1 Prestatyn",
+        "07880788392",
+        session_id="0788078839234543",
+        subscription_id="078807883923464",
+    )
     new_user = create_new_user("Spongebob Squarepants", "spongeebob@gmail.com", "gary123", practice_id, "Member")
 
     response = client.post(
