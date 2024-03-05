@@ -7,12 +7,11 @@ from app.database.crud import (
     create_new_practice,
     create_new_user,
     retrieve_allow_user_registrations,
-    retrieve_user_by_email,
     retrieve_practice_by_email,
-    update_practice_details
+    retrieve_user_by_email,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT, signJWT
-from app.models.login import UserLoginRequest, UserRegisterRequest, CheckEmail
+from app.models.login import CheckEmail, UserLoginRequest, UserRegisterRequest
 from app.utils.new_account_setup import (
     insert_instruction_triages,
     insert_welcome_consent_letter,
@@ -73,7 +72,15 @@ def post_user_registration(body: UserRegisterRequest):
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already in use")
 
-        practice_id = create_new_practice(body.practice_name, body.practice_email.lower(), body.practice_url, body.address, body.phone, body.session_id, subscription_id=body.subscription_id)
+        practice_id = create_new_practice(
+            body.practice_name,
+            body.practice_email.lower(),
+            body.practice_url,
+            body.address,
+            body.phone,
+            body.session_id,
+            subscription_id=body.subscription_id,
+        )
 
         new_user = create_new_user(body.name, body.email.lower(), body.password, practice_id, "Owner")
         create_letter_config(practice_id)
@@ -84,8 +91,6 @@ def post_user_registration(body: UserRegisterRequest):
 
     except HTTPException as e:
         raise e
-
-
 
 
 @router.post("/check-email")
@@ -153,5 +158,3 @@ def authenticate_user(access_token=Depends(JWTBearer())):
     practice_id = token["user_id"]
 
     return signJWT(user_id, practice_id)
-
-    

@@ -40,14 +40,23 @@ def retrieve_prompt_by_title(title: str):
 
 
 # Practice ------------------------
-def create_new_practice(practice_name: str, email: str, url: str, address: str, phone: str, session_id: str, triage_email: str = None, subscription_id: str = None):
+def create_new_practice(
+    practice_name: str, email: str, url: str, address: str, phone: str, session_id: str, triage_email: str = None, subscription_id: str = None
+):
     # Default triage email destination to practice email if it is unset
     if not triage_email:
         triage_email = email
 
     # Create a Practice document
     new_practice = Practice(
-        practice_name=practice_name, primary_email=email, website_url=url, address=address, phone=phone, triage_email=triage_email, stripe_session=session_id, stripe_subscription=subscription_id
+        practice_name=practice_name,
+        primary_email=email,
+        website_url=url,
+        address=address,
+        phone=phone,
+        triage_email=triage_email,
+        stripe_session=session_id,
+        stripe_subscription=subscription_id,
     )
     new_practice.save()
 
@@ -82,7 +91,15 @@ def retrieve_practice_by_id(practice_id: str):
         raise HTTPException(status_code=404, detail="Practice not found") from None
 
 
-def update_practice_details(practice_id: str, name: str = None, email: str = None, address: str = None, website: str = None, stripe_session: str = None, stripe_subscription: str = None):
+def update_practice_details(
+    practice_id: str,
+    name: str = None,
+    email: str = None,
+    address: str = None,
+    website: str = None,
+    stripe_session: str = None,
+    stripe_subscription: str = None,
+):
     try:
         practice = Practice.objects.get(id=practice_id)
         if name:
@@ -121,7 +138,6 @@ def update_practice_details(practice_id: str, name: str = None, email: str = Non
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Practice not found") from None
-
 
 
 # User ---------------------------
@@ -961,7 +977,6 @@ def retrieve_last_three_notes(user_id: str):
         notes_list.append(note_dict)
 
     return notes_list
-
 
 
 def retrieve_notes_alphabet_status(user_id: str):

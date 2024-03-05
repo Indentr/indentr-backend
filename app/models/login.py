@@ -1,5 +1,6 @@
-from pydantic import BaseModel
 from typing import Optional
+
+from pydantic import BaseModel
 
 
 class UserLoginRequest(BaseModel):
@@ -22,5 +23,3 @@ class UserRegisterRequest(BaseModel):
 
 class CheckEmail(BaseModel):
     email: str
-
-

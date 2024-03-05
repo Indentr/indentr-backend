@@ -57,6 +57,7 @@ def get_profile(access_token=Depends(JWTBearer())):
     except HTTPException as e:
         raise e  # Reraise the HTTPException
 
+
 @router.get("/last-three-notes")
 def get_last_three_notes(access_token=Depends(JWTBearer())):
     """
@@ -79,6 +80,7 @@ def get_last_three_notes(access_token=Depends(JWTBearer())):
     except HTTPException as e:
         raise e  # Reraise the HTTPException
 
+
 @router.get("/overview")
 def get_overview(access_token=Depends(JWTBearer())):
     """
@@ -98,7 +100,7 @@ def get_overview(access_token=Depends(JWTBearer())):
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
-        return {"letters": letters, "triage_requests": triage_requests}
+        return {"letters": letters, "triage_requests": triage_requests, "notes": notes}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
