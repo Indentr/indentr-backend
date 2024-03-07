@@ -1,13 +1,16 @@
+import stripe
 from fastapi import APIRouter, Depends
 from fastapi.exceptions import HTTPException
 from werkzeug.security import check_password_hash
 
+from app.constants import GRATIS_PASSWORD, STRIPE_SECRET_KEY
 from app.database.crud import (
     create_letter_config,
     create_new_practice,
     create_new_user,
     retrieve_allow_user_registrations,
     retrieve_practice_by_email,
+    retrieve_practice_by_id,
     retrieve_user_by_email,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT, signJWT
@@ -16,6 +19,8 @@ from app.utils.new_account_setup import (
     insert_instruction_triages,
     insert_welcome_consent_letter,
 )
+
+stripe.api_key = STRIPE_SECRET_KEY
 
 router = APIRouter(prefix="/auth", tags=["Authorisation"])
 
@@ -29,16 +34,30 @@ def post_user_login(body: UserLoginRequest):
     If the user's credentials are valid, the `signJWT` function generates an access
     token, which is then returned in the response.
     """
-
     try:
         user_document = retrieve_user_by_email(body.email.lower())
 
-        if user_document and check_password_hash(user_document["password"], body.password):
-            user_id = str(user_document["_id"])
-            practice_id = str(user_document["practice_id"])
+        if not user_document or not check_password_hash(user_document["password"], body.password):
+            raise HTTPException(status_code=403, detail="Email or password is incorrect")
+
+        user_id = str(user_document["_id"])
+        practice_id = str(user_document["practice_id"])
+        practice = retrieve_practice_by_id(practice_id)
+
+        if "gratis_password" in practice and practice["gratis_password"] == GRATIS_PASSWORD:
+            return signJWT(user_id, practice_id)
+
+        if "stripe_customer_id" not in practice:
+            raise HTTPException(status_code=403, detail="No active subscription found")
+
+        customer = stripe.Customer.retrieve(practice["stripe_customer_id"], expand=["subscriptions.data"])
+        subscriptions = customer.subscriptions.data
+        has_active_subscription = any(sub.status == "active" for sub in subscriptions)
+
+        if has_active_subscription:
             return signJWT(user_id, practice_id)
         else:
-            raise HTTPException(status_code=403, detail="Access denied")
+            raise HTTPException(status_code=403, detail="Your subscription is inactive. Please update your billing information.")
 
     except HTTPException as e:
         raise e
@@ -78,8 +97,9 @@ def post_user_registration(body: UserRegisterRequest):
             body.practice_url,
             body.address,
             body.phone,
-            body.session_id,
-            subscription_id=body.subscription_id,
+            body.stripe_customer_id,
+            stripe_plan_id=body.stripe_plan_id,
+            gratis_password=body.gratis_password,
         )
 
         new_user = create_new_user(body.name, body.email.lower(), body.password, practice_id, "Owner")
