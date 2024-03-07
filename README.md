@@ -97,3 +97,21 @@ mongodump --uri="<connection-string>" --db=databaseName --collection=sourceColle
 ```bash
 mongorestore --uri="<connection-string>" --db=databaseName --collection=destinationCollection dump/development_db/sourceCollection.bson
 ```
+
+
+
+
+## Stripe
+### Using stripe webhook locally
+In order to have stripe forward events to backend server you need to use instruct stripe to do so using the CLI command: (This is not required in production as this can be set up in stripe dashboard)
+```bash
+stripe listen --forward-to 127.0.0.1:8000/webhook
+```
+
+once running successfully you will get a secret which will look something like:
+```bash
+whsec_81529b559abde705ce90ddd7bf53fea68d72be1d0a79317f6e6b892b9012932e
+```
+
+paste your secret into .env file under STRIPE_ENDPOINT_SECRET
+Keep this terminal tab running in order to receive stripe webhooks.
