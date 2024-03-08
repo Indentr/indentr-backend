@@ -323,7 +323,11 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
 
 @router.post("/uploadTranscript")
 async def upload_transcript(
-    audioFile: UploadFile = File(...), transcript: str = Form(...), patientEmail: str = Form(...), access_token=Depends(JWTBearer())
+    audioFile: UploadFile = File(...),
+    transcript: str = Form(...),
+    patientEmail: str = Form(...),
+    length_of_recording: str = Form(...),
+    access_token=Depends(JWTBearer()),
 ):
     try:
         start = time.time()
@@ -357,13 +361,13 @@ async def upload_transcript(
         """
 
         formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes", "gpt-4-1106-preview")
-        note_id = create_audio_note(patient_id, user_id, practice_id, audio_buffer, transcript, formatted_notes)
+        note_id = create_audio_note(patient_id, user_id, practice_id, audio_buffer, transcript, formatted_notes, length_of_recording)
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
         # Convert ObjectId to string for JSON serialization
         return {
-            "formatted_notes": formatted_notes,
+            "formatted_notes": "formatted_notes",
             "note_id": note_id,
         }
 
@@ -438,6 +442,7 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
 
         token = decodeJWT(access_token)
         user_id = token["user_id"]
+        practice_id = token["practice_id"]
 
         patient_details = json.loads(body.patient_details)
         treatment_plan = json.loads(body.treatment_plan)
@@ -449,7 +454,7 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
         patient = retrieve_patient_by_email(patient_details["email"])
         html_string = wrap_image_in_div(treatment_plan)
 
-        letter_id = create_new_letter(user_id, html_string, patient["_id"], input_tokens, output_tokens, cost, model)
+        letter_id = create_new_letter(user_id, html_string, patient["_id"], practice_id, input_tokens, output_tokens, cost, model)
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
 
         return {"message": "Letter saved successfully", "letter_id": str(letter_id)}
