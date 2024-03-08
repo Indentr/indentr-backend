@@ -34,12 +34,13 @@ def register_and_login():
     token = data["access_token"]
     decoded_token = decodeJWT(token)
     user_id = decoded_token["user_id"]
-    return token, user_id
+    practice_id = decoded_token["practice_id"]
+    return token, user_id, practice_id
 
 
 @pytest.fixture
 def insert_consent_letter(register_and_login):
-    token, user_id = register_and_login
+    token, user_id, practice_id = register_and_login
     # letter_id = "64dceaf941371bcccfaa5978"
     consent_letter = "<p>4 Privat Drive,<br>Little Whinging,<br>Surrey,<br>CR3 OBD</p><p></p><p>Dear Harry Potter,</p><p></p><p>Further to your recent appointment at which we discussed your treatment options, I have reviewed your symptoms and would like to propose a treatment plan for your dental concerns.</p><p></p><p>Based on your symptoms, it appears that you are experiencing toothache and have noticed some dark spots on one of your teeth during a routine checkup. After considering your responses to the questions, I recommend the following treatment plan:</p><p></p><p>Treatment for Toothache:</p><ul><li><p>Examination and assessment of the affected tooth</p></li><li><p>X-rays to evaluate the extent of the problem</p></li><li><p>Possible treatment options may include:</p><ul><li><p>Root canal treatment if the tooth can be saved</p></li><li><p>Extraction of the tooth if it cannot be saved</p></li></ul></li><li><p>Prescription of pain relief medication, if necessary</p></li></ul><p></p><p>Treatment for Cavity:</p><ul><li><p>Examination and assessment of the affected tooth</p></li><li><p>X-rays to determine the extent of the cavity</p></li><li><p>Possible treatment options may include:</p><ul><li><p>Removal of the decayed portion of the tooth and placement of a dental filling</p></li><li><p>In more severe cases, a dental crown may be recommended</p></li></ul></li><li><p>Recommendation for improved oral hygiene routine and regular dental checkups</p></li></ul><p></p><p>Please note that the proposed treatment plan is subject to a thorough examination and may be adjusted based on the findings during the appointment. It is important to address these dental concerns to prevent further complications and maintain your oral health.</p><p></p><p>If you have any questions or concerns regarding the proposed treatment plan, please do not hesitate to contact our dental practice. We are here to provide you with the necessary information and support to make informed decisions about your dental care.</p><p></p><p>We look forward to seeing you at your next appointment to discuss the treatment plan in more detail and address any additional questions or concerns you may have.</p><p></p><p>Yours sincerely,</p>"
     patient_details = {
@@ -60,12 +61,12 @@ def insert_consent_letter(register_and_login):
         patient_details["email"],
     )
 
-    letter_id = create_new_letter(user_id, consent_letter, patient["_id"], 3000, 4000, 0.15, "gpt-4-turbo-preview")
-    return token, letter_id, consent_letter, patient_details, user_id
+    letter_id = create_new_letter(user_id, consent_letter, patient["_id"], practice_id, 3000, 4000, 0.15, "gpt-4-turbo-preview")
+    return token, letter_id, consent_letter, patient_details, user_id, practice_id
 
 
 def test_get_all_user_letters(insert_consent_letter):
-    token, letter_id, consent_letter, patient_details, user_id = insert_consent_letter
+    token, letter_id, consent_letter, patient_details, user_id, practice_id = insert_consent_letter
     response = client.post(
         "/files/get-files/",
         json={"file_type": "letter"},
@@ -81,7 +82,7 @@ def test_get_all_user_letters(insert_consent_letter):
 
 
 def test_get_consent_letter(insert_consent_letter):
-    token, letter_id, consent_letter, patient_details, user_id = insert_consent_letter
+    token, letter_id, consent_letter, patient_details, user_id, practice_id = insert_consent_letter
     file_type = "letter"
     response = client.get(
         f"/files/{file_type}/{letter_id}",
@@ -99,7 +100,7 @@ def test_get_consent_letter(insert_consent_letter):
 
 
 def test_get_nonexistent_consent_letter(insert_consent_letter):
-    token, letter_id, consent_letter, patient_details, user_id = insert_consent_letter
+    token, letter_id, consent_letter, patient_details, user_id, practice_id = insert_consent_letter
     non_existent_id = ObjectId()  # generates random objectId
     file_type = "letter"
     response = client.get(
@@ -116,7 +117,7 @@ def test_get_nonexistent_consent_letter(insert_consent_letter):
 
 
 def test_save_consent_letter(insert_consent_letter):
-    token, letter_id, consent_letter, patient_details, user_id = insert_consent_letter
+    token, letter_id, consent_letter, patient_details, user_id, practice_id = insert_consent_letter
     consent_letter_document_template = {
         "_id": str(ObjectId(letter_id)),
         "consent_letter": "<p>4 Privat Drive,<br>Little Whinging,<br>Surrey,<br>CR3 OBD</p><p></p><p>Dear Harry Potter,</p><p></p><p>Further to your recent appointment at which we discussed your treatment options, I have reviewed your symptoms and would like to propose a treatment plan for your dental concerns.</p><p></p><p>Based on your symptoms, it appears that you are experiencing toothache and have noticed some dark spots on one of your teeth during a routine checkup. After considering your responses to the questions, I recommend the following treatment plan:</p><p></p><p>Treatment for Toothache:</p><ul><li><p>Examination and assessment of the affected tooth</p></li><li><p>X-rays to evaluate the extent of the problem</p></li><li><p>Possible treatment options may include:</p><ul><li><p>Root canal treatment if the tooth can be saved</p></li><li><p>Extraction of the tooth if it cannot be saved</p></li></ul></li><li><p>Prescription of pain relief medication, if necessary</p></li></ul><p></p><p>Treatment for Cavity:</p><ul><li><p>Examination and assessment of the affected tooth</p></li><li><p>X-rays to determine the extent of the cavity</p></li><li><p>Possible treatment options may include:</p><ul><li><p>Removal of the decayed portion of the tooth and placement of a dental filling</p></li><li><p>In more severe cases, a dental crown may be recommended</p></li></ul></li><li><p>Recommendation for improved oral hygiene routine and regular dental checkups</p></li></ul><p></p><p>Please note that the proposed treatment plan is subject to a thorough examination and may be adjusted based on the findings during the appointment. It is important to address these dental concerns to prevent further complications and maintain your oral health.</p><p></p><p>If you have any questions or concerns regarding the proposed treatment plan, please do not hesitate to contact our dental practice. We are here to provide you with the necessary information and support to make informed decisions about your dental care.</p><p></p><p>We look forward to seeing you at your next appointment to discuss the treatment plan in more detail and address any additional questions or concerns you may have.</p><p></p><p>Yours sincerely,</p>",
@@ -139,7 +140,7 @@ def test_save_consent_letter(insert_consent_letter):
 
 
 def test_save_nonexistent_consent_letter(insert_consent_letter):
-    token, letter_id, consent_letter, patient_details, user_id = insert_consent_letter
+    token, letter_id, consent_letter, patient_details, user_id, practice_id = insert_consent_letter
     random_letter_id = ObjectId()
     consent_letter_document_template = {
         "_id": str(random_letter_id),  # left empty as this will make up random objectId

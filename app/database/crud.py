@@ -479,7 +479,14 @@ def retrieve_pricing(practice_id: str):
 
 # Letter ---------------------------
 def create_new_letter(
-    user_id: str, text: str, patient_id: str, input_tokens: int = None, output_tokens: int = None, cost: int = None, model: str = None
+    user_id: str,
+    text: str,
+    patient_id: str,
+    practice_id: str,
+    input_tokens: int = None,
+    output_tokens: int = None,
+    cost: int = None,
+    model: str = None,
 ):
     try:
         # Fetch the patient object
@@ -681,12 +688,19 @@ def retrieve_user_letter(letter_id, user_id):
     letter_dict = letter.to_mongo().to_dict()
     letter_dict["createdAt"] = created_at
     letter_dict["_id"] = str(letter.id)
+    letter_dict["practice_id"] = str(letter.practice_id)
     letter_dict["user_id"] = str(letter.user_id.id)
     letter_dict["patient_id"] = str(letter.patient_id.id)
     if "tokens_consumed" in letter_dict:
         del letter_dict["tokens_consumed"]
 
     return letter_dict
+
+
+def retrieve_letter_count_for_billing_cycle(practice_id: str, start_date: datetime, end_date: datetime):
+    letters_count = Letter.objects.filter(practice_id=practice_id, createdAt__gte=start_date, createdAt__lte=end_date).count()
+
+    return letters_count
 
 
 # Function to update the consent letter
@@ -888,7 +902,9 @@ def update_triage_requests_folder(triage_requests: List[str], folder: str, pract
 
 
 # Note ---------------------------
-def create_audio_note(patient_id: str, user_id: str, practice_id: str, audio_bytesio: BytesIO, transcript: str, formatted_notes: str) -> str:
+def create_audio_note(
+    patient_id: str, user_id: str, practice_id: str, audio_bytesio: BytesIO, transcript: str, formatted_notes: str, length_of_recording: int
+) -> str:
     try:
         # Convert BytesIO to bytes
         audio_bytes = audio_bytesio.getvalue()
@@ -906,6 +922,7 @@ def create_audio_note(patient_id: str, user_id: str, practice_id: str, audio_byt
             transcript=transcript,
             formatted_notes=formatted_notes,
             patient_details=patient_details,
+            length_of_recording=length_of_recording,
         )
         audio_note.save()
 
@@ -1105,6 +1122,14 @@ def retrieve_patients_last_three_notes(patient_id: str):
         notes_list.append(note_dict)
 
     return notes_list
+
+
+def retrieve_audio_note_time_for_billing_cycle(practice_id: str, start_date: datetime, end_date: datetime):
+    audio_notes = AudioNote.objects.filter(practice_id=practice_id, createdAt__gte=start_date, createdAt__lte=end_date)
+
+    total_time = sum(note.length_of_recording for note in audio_notes)
+
+    return total_time
 
 
 # Function to update the consent letter

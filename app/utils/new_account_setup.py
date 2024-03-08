@@ -16,7 +16,7 @@ def insert_welcome_consent_letter(users_name: str, user_email: str, practice_add
 	"""
     user = retrieve_user_by_email(user_email)
     patient = retrieve_patient_by_email("welcomeletter@indentr.com")
-    create_new_letter(user["_id"], letter, patient["_id"])
+    create_new_letter(user["_id"], letter, patient["_id"], user["practice_id"])
 
 
 def insert_instruction_triages(practice_id):
