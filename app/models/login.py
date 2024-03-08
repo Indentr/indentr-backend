@@ -17,8 +17,9 @@ class UserRegisterRequest(BaseModel):
     practice_url: Optional[str] = None
     address: str
     phone: str
-    session_id: str
-    subscription_id: str
+    stripe_customer_id: str
+    stripe_plan_id: str
+    gratis_password: Optional[str] = None
 
 
 class CheckEmail(BaseModel):

@@ -1,8 +1,9 @@
+import certifi
 from pymongo import MongoClient
 
 
 def atlas_search(MONGO_URI: str, table_name: str, pipeline: list):
-    client = MongoClient(MONGO_URI)
+    client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
     database_name = MONGO_URI.split("/")[-1].split("?")[0]
 
     try:

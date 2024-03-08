@@ -41,7 +41,15 @@ def retrieve_prompt_by_title(title: str):
 
 # Practice ------------------------
 def create_new_practice(
-    practice_name: str, email: str, url: str, address: str, phone: str, session_id: str, triage_email: str = None, subscription_id: str = None
+    practice_name: str,
+    email: str,
+    url: str,
+    address: str,
+    phone: str,
+    stripe_customer_id: str,
+    triage_email: str = None,
+    stripe_plan_id: str = None,
+    gratis_password=None,
 ):
     # Default triage email destination to practice email if it is unset
     if not triage_email:
@@ -55,8 +63,9 @@ def create_new_practice(
         address=address,
         phone=phone,
         triage_email=triage_email,
-        stripe_session=session_id,
-        stripe_subscription=subscription_id,
+        stripe_customer_id=stripe_customer_id,
+        stripe_plan_id=stripe_plan_id,
+        gratis_password=gratis_password,
     )
     new_practice.save()
 
@@ -71,6 +80,15 @@ def create_new_practice(
 # Function to find a practice by email
 def retrieve_practice_by_email(email: str):
     practice = Practice.objects(primary_email=email).first()
+
+    if not practice:
+        raise HTTPException(status_code=404, detail="Practice not found")
+
+    return practice.to_mongo().to_dict()
+
+
+def retrieve_practice_by_stripe_customer_id(stripe_customer_id: str):
+    practice = Practice.objects(stripe_customer_id=stripe_customer_id).first()
 
     if not practice:
         raise HTTPException(status_code=404, detail="Practice not found")
@@ -97,8 +115,9 @@ def update_practice_details(
     email: str = None,
     address: str = None,
     website: str = None,
-    stripe_session: str = None,
-    stripe_subscription: str = None,
+    stripe_customer_id: str = None,
+    stripe_plan_id: str = None,
+    gratis_password: str = None,
 ):
     try:
         practice = Practice.objects.get(id=practice_id)
@@ -128,11 +147,14 @@ def update_practice_details(
         if website:
             practice.website_url = website
 
-        if stripe_session:
-            practice.stripe_session = stripe_session
+        if stripe_customer_id:
+            practice.stripe_customer_id = stripe_customer_id
 
-        if stripe_subscription:
-            practice.stripe_subscription = stripe_subscription
+        if stripe_plan_id:
+            practice.stripe_plan_id = stripe_plan_id
+
+        if gratis_password:
+            practice.gratis_password = gratis_password
 
         practice.save()
 
@@ -788,7 +810,7 @@ def retrieve_all_triage_requests_by_folder(practice_id: str, folder: str):
     try:
         triage_requests = (
             Triage.objects(practice_id=practice_id, folder=folder)
-            .only("opened", "severity", "diagnosis", "patient_id", "practice_id", "folder")
+            .only("opened", "severity", "diagnosis", "patient_id", "practice_id", "folder", "created_at")
             .order_by("-_id")
             .select_related()
         )
