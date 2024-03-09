@@ -5,10 +5,8 @@ import uuid
 from calendar import monthrange
 from datetime import datetime
 
-import stripe
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
-from app.constants import STRIPE_SECRET_KEY
 from app.database.crud import (
     create_new_user,
     delete_member,
@@ -39,8 +37,7 @@ from app.models.user import (
     UserRegistration,
 )
 from app.services.openAI import ask_gpt
-
-stripe.api_key = STRIPE_SECRET_KEY
+from app.services.stripe import retrieve_stripe_customer_details
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
@@ -115,7 +112,7 @@ def get_overview(access_token=Depends(JWTBearer())):
 
 
 @router.get("/settings")
-def get_account_settings(access_token=Depends(JWTBearer())):
+async def get_account_settings(access_token=Depends(JWTBearer())):
     """
     Retrieves the user's profile information along with their latest letters.
     """
@@ -126,15 +123,20 @@ def get_account_settings(access_token=Depends(JWTBearer())):
         user = retrieve_user_by_id(user_id)
         practice_members = retrieve_all_practice_users(practice_id)
         practice = retrieve_practice_by_id(practice_id)
+        plan_name = "gratis"
 
-        return {"user": user, "practice_members": practice_members, "practice": practice}
+        if "stripe_customer_id" in practice:
+            stripe_customer_details = await retrieve_stripe_customer_details(practice["stripe_customer_id"])
+            plan_name = stripe_customer_details["plan_name"]
+
+        return {"user": user, "practice_members": practice_members, "practice": practice, "plan_name": plan_name}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
 
 
 @router.get("/billing")
-def get_account_settings_billing(access_token=Depends(JWTBearer())):
+async def get_account_settings_billing(access_token=Depends(JWTBearer())):
     """
     Retrieves the user's billing details, this includes:
     - The plan they are on
@@ -148,29 +150,19 @@ def get_account_settings_billing(access_token=Depends(JWTBearer())):
         plan_name = "gratis"
         allowed_audio_note_hours = "999999"
         allowed_consent_letters = "999999"
+        current_date = datetime.now().date()
+        start_date = datetime(current_date.year, current_date.month, 1)
+        end_date = datetime(current_date.year, current_date.month, monthrange(current_date.year, current_date.month)[1])
 
-        if "stripe_customer_id" not in practice:
-            current_date = datetime.now().date()
-            start_date = datetime(current_date.year, current_date.month, 1)
-            end_date = datetime(current_date.year, current_date.month, monthrange(current_date.year, current_date.month)[1])
-
-        else:
-            customer = stripe.Customer.retrieve(practice["stripe_customer_id"], expand=["subscriptions.data"])
-
-            # get the active subscription and plan details
-            subscriptions = customer.subscriptions.data
-            active_subscription = next((sub for sub in subscriptions if sub.status == "active"), None)
-            plan = active_subscription.plan if active_subscription else None
-            plan_name = plan.metadata.nickname
-            allowed_audio_note_hours = plan.metadata.allowed_audio_note_hours
-            allowed_consent_letters = plan.metadata.allowed_consent_letters
-
-            # retrieve the number of letters created in the current billing cycle
-            start_date = datetime.fromtimestamp(active_subscription.current_period_start) if active_subscription else None
-            end_date = datetime.fromtimestamp(active_subscription.current_period_end) if active_subscription else None
+        if "stripe_customer_id" in practice:
+            stripe_customer_details = await retrieve_stripe_customer_details(practice["stripe_customer_id"])
+            start_date = stripe_customer_details["start_date"]
+            end_date = stripe_customer_details["end_date"]
+            plan_name = stripe_customer_details["plan_name"]
+            allowed_consent_letters = stripe_customer_details["allowed_consent_letters"]
+            allowed_audio_note_hours = stripe_customer_details["allowed_audio_note_hours"]
 
         letter_count = retrieve_letter_count_for_billing_cycle(practice_id, start_date, end_date)
-
         audio_note_time = retrieve_audio_note_time_for_billing_cycle(practice_id, start_date, end_date)
 
         return {
