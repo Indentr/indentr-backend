@@ -224,10 +224,10 @@ async def edit_practice_field(body: EditPracticeField, access_token=Depends(JWTB
         name = body.text if body.record == "name" else None
         email = body.text if body.record == "email" else None
         address = body.text if body.record == "address" else None
-        website = body.text if body.record == "website" else None
+        phone = body.text if body.record == "phone" else None
 
         # Update the user's details in MongoDB
-        update_practice_details(practice_id, name, email, address, website)
+        update_practice_details(practice_id, name, email, address, phone)
         return {"message": "Edit successful"}
 
     except HTTPException as e:

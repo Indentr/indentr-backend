@@ -112,7 +112,7 @@ def update_practice_details(
     name: str = None,
     email: str = None,
     address: str = None,
-    website: str = None,
+    phone: str = None,
     stripe_customer_id: str = None,
     gratis_password: str = None,
 ):
@@ -141,8 +141,8 @@ def update_practice_details(
         if address:
             practice.address = address
 
-        if website:
-            practice.website_url = website
+        if phone:
+            practice.phone = phone
 
         if stripe_customer_id:
             practice.stripe_customer_id = stripe_customer_id
