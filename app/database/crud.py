@@ -493,6 +493,7 @@ def create_new_letter(
             consent_letter=text,
             patient_id=patient_id,
             user_id=user_id,
+            practice_id=practice_id,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cost=cost,
