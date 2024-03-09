@@ -98,7 +98,6 @@ def post_user_registration(body: UserRegisterRequest):
             body.address,
             body.phone,
             body.stripe_customer_id,
-            stripe_plan_id=body.stripe_plan_id,
             gratis_password=body.gratis_password,
         )
 

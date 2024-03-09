@@ -48,7 +48,6 @@ def create_new_practice(
     phone: str,
     stripe_customer_id: str,
     triage_email: str = None,
-    stripe_plan_id: str = None,
     gratis_password=None,
 ):
     # Default triage email destination to practice email if it is unset
@@ -64,7 +63,6 @@ def create_new_practice(
         phone=phone,
         triage_email=triage_email,
         stripe_customer_id=stripe_customer_id,
-        stripe_plan_id=stripe_plan_id,
         gratis_password=gratis_password,
     )
     new_practice.save()
@@ -116,7 +114,6 @@ def update_practice_details(
     address: str = None,
     website: str = None,
     stripe_customer_id: str = None,
-    stripe_plan_id: str = None,
     gratis_password: str = None,
 ):
     try:
@@ -149,9 +146,6 @@ def update_practice_details(
 
         if stripe_customer_id:
             practice.stripe_customer_id = stripe_customer_id
-
-        if stripe_plan_id:
-            practice.stripe_plan_id = stripe_plan_id
 
         if gratis_password:
             practice.gratis_password = gratis_password

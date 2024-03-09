@@ -18,7 +18,6 @@ class UserRegisterRequest(BaseModel):
     address: str
     phone: str
     stripe_customer_id: str
-    stripe_plan_id: str
     gratis_password: Optional[str] = None
 
 
