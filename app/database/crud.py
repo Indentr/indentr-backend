@@ -899,7 +899,7 @@ def update_triage_requests_folder(triage_requests: List[str], folder: str, pract
 
 
 # Triage Settings
-def create_traige_settings(practice_id: str):
+def create_triage_settings(practice_id: str):
     triage_setting = TriageSettings(practice_id=practice_id)
 
     triage_setting.save()
