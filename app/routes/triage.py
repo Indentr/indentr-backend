@@ -20,6 +20,7 @@ from app.database.crud import (
     retrieve_practice_by_id,
     retrieve_prompt_by_title,
     retrieve_triage_request,
+    retrieve_triage_settings,
     update_patients_practice_id,
     update_triage_requests_folder,
     update_triage_requests_opened,
@@ -51,8 +52,9 @@ def check_practice_id_valid(practice_id: str):
     """
     try:
         retrieve_practice_by_id(practice_id)
+        triage_settings = retrieve_triage_settings(practice_id)
 
-        return {"success": True}
+        return triage_settings
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
