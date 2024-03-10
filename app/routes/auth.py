@@ -8,7 +8,6 @@ from app.database.crud import (
     create_letter_config,
     create_new_practice,
     create_new_user,
-    retrieve_allow_user_registrations,
     retrieve_practice_by_email,
     retrieve_practice_by_id,
     retrieve_user_by_email,
@@ -73,10 +72,6 @@ def post_user_registration(body: UserRegisterRequest):
     """
 
     try:
-        # Check if user registrations are turned on
-        if not retrieve_allow_user_registrations():
-            raise HTTPException(status_code=403, detail="User registrations are not allowed at the moment.")
-
         try:
             # Attempt to retrieve the user by email
             existing_user = retrieve_user_by_email(body.email.lower())
