@@ -167,6 +167,7 @@ async def create_patient_request(body: CreatePatientRequest):
         response["severity"],
         patient_details["requested_date"],
         symptom_details,
+        relief=response["instructions"],
     )
 
     practice = retrieve_practice_by_id(practice_id)
@@ -181,7 +182,7 @@ async def create_patient_request(body: CreatePatientRequest):
     patient_mail_text = generate_patient_mail(practice, patient)
     send_email("Appointment request sent", patient_mail_text, TRIAGE_MAIL, patient_details["email"], TRIAGE_MAIL_PASSWORD)
 
-    return {"success": True}
+    return {"success": True, "instructions": response["instructions"]}
 
 
 @router.get("/get-requests/{folder}")
