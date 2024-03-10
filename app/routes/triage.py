@@ -167,7 +167,7 @@ async def create_patient_request(body: CreatePatientRequest):
         response["severity"],
         patient_details["requested_date"],
         symptom_details,
-        relief=response["instructions"],
+        patient_instruction=response["instructions"],
     )
 
     practice = retrieve_practice_by_id(practice_id)
@@ -179,7 +179,7 @@ async def create_patient_request(body: CreatePatientRequest):
     practice_mail_text = generate_practice_mail(patient, response["diagnosis"], response["overview"])
     send_email("New triage request", practice_mail_text, TRIAGE_MAIL, practice["triage_email"], TRIAGE_MAIL_PASSWORD)
 
-    patient_mail_text = generate_patient_mail(practice, patient)
+    patient_mail_text = generate_patient_mail(practice, patient, response["instructions"])
     send_email("Appointment request sent", patient_mail_text, TRIAGE_MAIL, patient_details["email"], TRIAGE_MAIL_PASSWORD)
 
     return {"success": True, "instructions": response["instructions"]}

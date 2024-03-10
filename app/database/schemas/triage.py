@@ -28,6 +28,6 @@ class Triage(Document):
     folder = StringField(default="ongoing")
     patient_details = EmbeddedDocumentField(PatientName)
     instruction = BooleanField(default=False)
-    relief = StringField()
+    patient_instruction = StringField()
 
     meta = {"collection": "triage_responses"}

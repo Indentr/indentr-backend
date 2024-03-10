@@ -722,7 +722,7 @@ def create_triage_request(
     requested_date: str = None,
     GPT_QA: str = None,
     instruction: bool = False,
-    relief: str = None,
+    patient_instruction: str = None,
 ):
     # Try to find the patient by email within the practice
     try:
@@ -752,7 +752,7 @@ def create_triage_request(
         patient_details=patient_details,
         instruction=instruction,
         reason_for_request=reason_for_request,
-        relief=relief,
+        patient_instruction=patient_instruction,
     )
 
     new_triage.save()
