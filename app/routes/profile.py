@@ -20,16 +20,18 @@ from app.database.crud import (
     retrieve_practice_by_id,
     retrieve_price_list,
     retrieve_prompt_by_title,
+    retrieve_triage_settings,
     retrieve_user_by_email,
     retrieve_user_by_id,
     update_letter_config,
     update_letter_image,
     update_practice_details,
     update_price_list,
+    update_triage_settings,
     update_user_details,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
-from app.models.profile import UpdateLetterConfig
+from app.models.profile import TriageSettings, UpdateLetterConfig
 from app.models.user import (
     DeleteUser,
     EditPracticeField,
@@ -359,7 +361,7 @@ async def saveImg(file: UploadFile = File(...), access_token=Depends(JWTBearer()
         raise e  # Reraise the HTTPException
 
 
-@router.post("/format-price-list")
+@router.post("/format-price-list/")
 async def format_price_list(price_list: str = Form(...), access_token=Depends(JWTBearer())):
     try:
         start = time.time()
@@ -396,7 +398,7 @@ async def format_price_list(price_list: str = Form(...), access_token=Depends(JW
         raise e  # Reraise the HTTPException
 
 
-@router.post("/save-price-list")
+@router.post("/save-price-list/")
 async def save_price_list(price_list_string: str = Form(...), access_token=Depends(JWTBearer())):
     try:
         start = time.time()
@@ -415,6 +417,48 @@ async def save_price_list(price_list_string: str = Form(...), access_token=Depen
         return {
             "message": "Prices were saved successfully!",
         }
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
+@router.get("/get-triage-settings/")
+async def gets_triage_settings(access_token=Depends(JWTBearer())):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.info(f"Request {request_id} received for saving triage settings.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        triage_settings = retrieve_triage_settings(practice_id)
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return triage_settings
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
+@router.post("/save-triage-settings/")
+async def save_triage_settings(body: TriageSettings, access_token=Depends(JWTBearer())):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.info(f"Request {request_id} received for saving triage settings.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        update_triage_settings(practice_id, body.primary_color, body.show_page_runner, body.show_requested_date)
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {"message": "Triage settings saved"}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException

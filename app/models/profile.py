@@ -23,3 +23,9 @@ class UpdateLetterConfig(BaseModel):
     contact_details_text: str
     sign_off: str
     dentist_naming: Literal["dentist_name", "dentist_practice_name", "practice_name"]
+
+
+class TriageSettings(BaseModel):
+    primary_color: str
+    show_page_runner: bool
+    show_requested_date: bool
