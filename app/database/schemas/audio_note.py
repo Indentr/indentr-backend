@@ -5,6 +5,7 @@ from mongoengine import (
     DateTimeField,
     Document,
     EmbeddedDocumentField,
+    IntField,
     ReferenceField,
     StringField,
 )
@@ -18,10 +19,11 @@ class AudioNote(Document):
     patient_id = ReferenceField(Patient, required=True)
     user_id = ReferenceField(User, required=True)
     practice_id = ReferenceField(Practice, required=True)
-    audio = BinaryField(required=True)  # Storing audio as Base64 string
+    audio = BinaryField(required=True)
     transcript = StringField(required=True)
     formatted_notes = StringField(required=True)
     createdAt = DateTimeField(default=datetime.utcnow)
     patient_details = EmbeddedDocumentField(PatientName)
+    length_of_recording = IntField()
 
     meta = {"collection": "audio_note"}  # Specify the collection name

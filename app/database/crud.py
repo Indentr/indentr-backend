@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 
 from bson import ObjectId
 from fastapi import HTTPException
-from mongoengine import DoesNotExist, NotUniqueError
+from mongoengine import DoesNotExist
 from werkzeug.security import generate_password_hash
 
 from app.database.schemas.audio_note import AudioNote
@@ -20,6 +20,7 @@ from app.database.schemas.practice import Practice
 from app.database.schemas.pricing import Pricing
 from app.database.schemas.prompt import Prompt
 from app.database.schemas.triage import Triage
+from app.database.schemas.triage_settings import TriageSettings
 from app.database.schemas.user import User
 
 
@@ -40,14 +41,30 @@ def retrieve_prompt_by_title(title: str):
 
 
 # Practice ------------------------
-def create_new_practice(practice_name: str, email: str, url: str, address: str, phone: str, triage_email: str = None):
+def create_new_practice(
+    practice_name: str,
+    email: str,
+    url: str,
+    address: str,
+    phone: str,
+    stripe_customer_id: str = None,
+    triage_email: str = None,
+    gratis_password=None,
+):
     # Default triage email destination to practice email if it is unset
     if not triage_email:
         triage_email = email
 
     # Create a Practice document
     new_practice = Practice(
-        practice_name=practice_name, primary_email=email, website_url=url, address=address, phone=phone, triage_email=triage_email
+        practice_name=practice_name,
+        primary_email=email,
+        website_url=url,
+        address=address,
+        phone=phone,
+        triage_email=triage_email,
+        stripe_customer_id=stripe_customer_id,
+        gratis_password=gratis_password,
     )
     new_practice.save()
 
@@ -69,6 +86,15 @@ def retrieve_practice_by_email(email: str):
     return practice.to_mongo().to_dict()
 
 
+def retrieve_practice_by_stripe_customer_id(stripe_customer_id: str):
+    practice = Practice.objects(stripe_customer_id=stripe_customer_id).first()
+
+    if not practice:
+        raise HTTPException(status_code=404, detail="Practice not found")
+
+    return practice.to_mongo().to_dict()
+
+
 def retrieve_practice_by_id(practice_id: str):
     try:
         practice = Practice.objects.get(id=practice_id)
@@ -82,7 +108,15 @@ def retrieve_practice_by_id(practice_id: str):
         raise HTTPException(status_code=404, detail="Practice not found") from None
 
 
-def update_practice_details(practice_id: str, name: str = None, email: str = None, address: str = None, website: str = None):
+def update_practice_details(
+    practice_id: str,
+    name: str = None,
+    email: str = None,
+    address: str = None,
+    phone: str = None,
+    stripe_customer_id: str = None,
+    gratis_password: str = None,
+):
     try:
         practice = Practice.objects.get(id=practice_id)
         if name:
@@ -108,8 +142,14 @@ def update_practice_details(practice_id: str, name: str = None, email: str = Non
         if address:
             practice.address = address
 
-        if website:
-            practice.website_url = website
+        if phone:
+            practice.phone = phone
+
+        if stripe_customer_id:
+            practice.stripe_customer_id = stripe_customer_id
+
+        if gratis_password:
+            practice.gratis_password = gratis_password
 
         practice.save()
 
@@ -241,36 +281,37 @@ def update_user_details(user_id: str, name: str = None, email: str = None, passw
 
 # Patient ----------------------------
 def create_new_patient(forename: str, surname: str, dob: str, gender: str, address: str, email: str, practice_id: Optional[str] = None):
-    try:
-        # Check if a patient with the same email already exists
-        existing_patient = Patient.objects(email=email).first()
-        if existing_patient:
-            raise HTTPException(status_code=400, detail="Patient with this email already exists")
+    # try:
+    # Check if a patient with the same email already exists
+    existing_patient = Patient.objects(email=email, practice_id=practice_id).first()
+    if existing_patient:
+        raise HTTPException(status_code=400, detail="Patient with this email already exists")
 
-        # Create a new instance of the Patient document with the provided patient details
-        new_patient = Patient(
-            forename=forename.capitalize(),
-            surname=surname.capitalize(),
-            dob=dob,
-            gender=gender,
-            address=address,
-            email=email,
-            practice_id=practice_id,
-        )
+    # Create a new instance of the Patient document with the provided patient details
+    new_patient = Patient(
+        forename=forename.capitalize(),
+        surname=surname.capitalize(),
+        dob=dob,
+        gender=gender,
+        address=address,
+        email=email,
+        practice_id=practice_id,
+    )
 
-        # Save the new patient instance to the database
-        new_patient.save()
+    # Save the new patient instance to the database
+    new_patient.save()
 
-        patient_dict = new_patient.to_mongo().to_dict()
-        patient_dict["_id"] = str(patient_dict["_id"])
-        if "practice_id" in patient_dict:
-            patient_dict["practice_id"] = str(patient_dict["practice_id"])
+    patient_dict = new_patient.to_mongo().to_dict()
+    patient_dict["_id"] = str(patient_dict["_id"])
+    if "practice_id" in patient_dict:
+        patient_dict["practice_id"] = str(patient_dict["practice_id"])
 
-        return patient_dict
+    return patient_dict
 
-    except NotUniqueError:
-        # Handle the case where a patient with the same email already exists
-        raise HTTPException(status_code=400, detail="Patient with this email already exists") from None
+
+# except NotUniqueError:
+#     # Handle the case where a patient with the same email already exists
+#     raise HTTPException(status_code=400, detail="Patient with this email already exists within your practice") from None
 
 
 def delete_patient(practice_id: str, patient_id: str):
@@ -360,10 +401,11 @@ def retrieve_all_practices_patients_filtered_by_char(practice_id: str, starts_wi
         raise HTTPException(status_code=404, detail="No patients found") from None
 
 
-def retrieve_patient_by_email(email: str):
+def retrieve_patient_by_email(email: str, practice_id: str):
     try:
         # Retrieve the patient document based on email
-        patient = Patient.objects.get(email=email)
+        patient = Patient.objects.get(email=email, practice_id=practice_id)
+
         patient_dict = patient.to_mongo().to_dict()
         if "practice_id" in patient_dict:
             patient_dict["practice_id"] = str(patient_dict["practice_id"])
@@ -420,7 +462,16 @@ def retrieve_pricing(practice_id: str):
 
 
 # Letter ---------------------------
-def create_new_letter(user_id: str, text: str, patient_id: str, input_tokens: int, output_tokens: int, cost: int, model: str):
+def create_new_letter(
+    user_id: str,
+    text: str,
+    patient_id: str,
+    practice_id: str,
+    input_tokens: int = None,
+    output_tokens: int = None,
+    cost: int = None,
+    model: str = None,
+):
     try:
         # Fetch the patient object
         patient = Patient.objects.get(id=patient_id)
@@ -432,6 +483,7 @@ def create_new_letter(user_id: str, text: str, patient_id: str, input_tokens: in
             consent_letter=text,
             patient_id=patient_id,
             user_id=user_id,
+            practice_id=practice_id,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cost=cost,
@@ -460,7 +512,7 @@ def delete_letter(user_id: str, file_id: str):
 
 def retrieve_last_three_letters(user_id: str):
     try:
-        letters = Letter.objects(user_id=user_id).only("consent_letter", "patient_id", "createdAt").order_by("-_id").limit(3)
+        letters = Letter.objects(user_id=user_id).only("consent_letter", "patient_id", "createdAt").order_by("-_id").limit(3).select_related()
 
         letters_list = []
 
@@ -477,10 +529,6 @@ def retrieve_last_three_letters(user_id: str):
         del patient_details["_id"]
         if "practice_id" in patient_details:
             del patient_details["practice_id"]
-        del patient_details["dob"]
-        del patient_details["gender"]
-        del patient_details["address"]
-        del patient_details["email"]
         letter_dict["patient_details"] = patient_details
         del letter_dict["patient_id"]
 
@@ -543,10 +591,6 @@ def retrieve_all_users_letters(user_id: str):
         del patient_details["_id"]
         if "practice_id" in patient_details:
             del patient_details["practice_id"]
-        del patient_details["dob"]
-        del patient_details["gender"]
-        del patient_details["address"]
-        del patient_details["email"]
         letter_dict["patient_details"] = patient_details
         del letter_dict["patient_id"]
 
@@ -629,12 +673,19 @@ def retrieve_user_letter(letter_id, user_id):
     letter_dict = letter.to_mongo().to_dict()
     letter_dict["createdAt"] = created_at
     letter_dict["_id"] = str(letter.id)
+    letter_dict["practice_id"] = str(letter.practice_id)
     letter_dict["user_id"] = str(letter.user_id.id)
     letter_dict["patient_id"] = str(letter.patient_id.id)
     if "tokens_consumed" in letter_dict:
         del letter_dict["tokens_consumed"]
 
     return letter_dict
+
+
+def retrieve_letter_count_for_billing_cycle(practice_id: str, start_date: datetime, end_date: datetime):
+    letters_count = Letter.objects.filter(practice_id=practice_id, createdAt__gte=start_date, createdAt__lte=end_date).count()
+
+    return letters_count
 
 
 # Function to update the consent letter
@@ -651,7 +702,17 @@ def update_letter(letter_id, text, user_id: str):
 
 
 # Triage ---------------------------
-def create_triage_request(practice_id: str, email: str, diagnosis: str, overview: str, severity: str, requested_date: str, GPT_QA: str):
+def create_triage_request(
+    practice_id: str,
+    email: str,
+    diagnosis: str,
+    reason_for_request: str = None,
+    overview: str = None,
+    severity: str = None,
+    requested_date: str = None,
+    GPT_QA: str = None,
+    instruction: bool = False,
+):
     # Try to find the patient by email within the practice
     try:
         patient = Patient.objects.get(email=email, practice_id=practice_id)
@@ -665,8 +726,6 @@ def create_triage_request(practice_id: str, email: str, diagnosis: str, overview
 
     if requested_date:
         requested_date = datetime.strptime(requested_date, "%Y-%m-%d")
-    else:
-        requested_date = None
 
     patient_details = PatientName(forename=patient.forename, surname=patient.surname)
 
@@ -680,6 +739,8 @@ def create_triage_request(practice_id: str, email: str, diagnosis: str, overview
         requested_date=requested_date,
         GPT_QA=json.dumps(GPT_QA),
         patient_details=patient_details,
+        instruction=instruction,
+        reason_for_request=reason_for_request,
     )
 
     new_triage.save()
@@ -748,7 +809,7 @@ def retrieve_all_triage_requests_by_folder(practice_id: str, folder: str):
     try:
         triage_requests = (
             Triage.objects(practice_id=practice_id, folder=folder)
-            .only("opened", "severity", "diagnosis", "patient_id", "practice_id", "folder")
+            .only("opened", "severity", "diagnosis", "patient_id", "practice_id", "folder", "created_at")
             .order_by("-_id")
             .select_related()
         )
@@ -825,8 +886,47 @@ def update_triage_requests_folder(triage_requests: List[str], folder: str, pract
         raise HTTPException(status_code=404, detail=str(e)) from None
 
 
+# Triage Settings
+def create_triage_settings(practice_id: str):
+    triage_setting = TriageSettings(practice_id=practice_id)
+
+    triage_setting.save()
+
+
+def retrieve_triage_settings(practice_id: str):
+    triage_setting = TriageSettings.objects(practice_id=practice_id).first()
+
+    if not triage_setting:
+        return {"primary_color": "#1a73e8", "show_page_runner": True, "show_requested_date": True}
+
+    triage_setting_dict = triage_setting.to_mongo().to_dict()
+    triage_setting_dict["_id"] = str(triage_setting_dict["_id"])
+    triage_setting_dict["practice_id"] = str(triage_setting_dict["practice_id"])
+
+    return triage_setting_dict
+
+
+def update_triage_settings(practice_id: str, primary_color: str, show_page_runner: bool, show_requested_date: bool):
+    triage_setting = TriageSettings.objects(practice_id=practice_id).first()
+
+    if not triage_setting:
+        newTriageSettings = TriageSettings(
+            practice_id=practice_id, primary_color=primary_color, show_page_runner=show_page_runner, show_requested_date=show_requested_date
+        )
+        newTriageSettings.save()
+        # raise HTTPException(status_code=404, detail="No triage setting document found")
+
+    else:
+        triage_setting.primary_color = primary_color
+        triage_setting.show_page_runner = show_page_runner
+        triage_setting.show_requested_date = show_requested_date
+        triage_setting.save()
+
+
 # Note ---------------------------
-def create_audio_note(patient_id: str, user_id: str, practice_id: str, audio_bytesio: BytesIO, transcript: str, formatted_notes: str) -> str:
+def create_audio_note(
+    patient_id: str, user_id: str, practice_id: str, audio_bytesio: BytesIO, transcript: str, formatted_notes: str, length_of_recording: int
+) -> str:
     try:
         # Convert BytesIO to bytes
         audio_bytes = audio_bytesio.getvalue()
@@ -844,6 +944,7 @@ def create_audio_note(patient_id: str, user_id: str, practice_id: str, audio_byt
             transcript=transcript,
             formatted_notes=formatted_notes,
             patient_details=patient_details,
+            length_of_recording=length_of_recording,
         )
         audio_note.save()
 
@@ -925,6 +1026,33 @@ def retrieve_note(note_id: str, user_id: str):
     del note_dict["patient_id"]
 
     return note_dict
+
+
+def retrieve_last_three_notes(user_id: str):
+    try:
+        notes = AudioNote.objects(user_id=user_id).only("patient_id", "formatted_notes", "createdAt").order_by("-_id").limit(3).select_related()
+
+        notes_list = []
+
+    except DoesNotExist:
+        # Handle the case where no notes are found
+        return []
+
+    for note in notes:
+        created_at = note.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
+        note_dict = note.to_mongo().to_dict()
+        note_dict["createdAt"] = created_at
+        note_dict["_id"] = str(note.id)
+        patient_details = note.patient_id.to_mongo().to_dict()
+        del patient_details["_id"]
+        if "practice_id" in patient_details:
+            del patient_details["practice_id"]
+        note_dict["patient_details"] = patient_details
+        del note_dict["patient_id"]
+
+        notes_list.append(note_dict)
+
+    return notes_list
 
 
 def retrieve_notes_alphabet_status(user_id: str):
@@ -1016,6 +1144,14 @@ def retrieve_patients_last_three_notes(patient_id: str):
         notes_list.append(note_dict)
 
     return notes_list
+
+
+def retrieve_audio_note_time_for_billing_cycle(practice_id: str, start_date: datetime, end_date: datetime):
+    audio_notes = AudioNote.objects.filter(practice_id=practice_id, createdAt__gte=start_date, createdAt__lte=end_date)
+
+    total_time = sum(note.length_of_recording for note in audio_notes)
+
+    return total_time
 
 
 # Function to update the consent letter

@@ -89,7 +89,7 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
             file = retrieve_user_letter(file_id, user_id)
         elif file_type == "note":
             file = retrieve_note(file_id, user_id)
-            patient_details = retrieve_patient_by_email(file["patient_details"]["email"])
+            patient_details = retrieve_patient_by_email(file["patient_details"]["email"], practice_id)
             del patient_details["_id"]
         elif file_type == "patient":
             file = retrieve_patient_by_id(file_id, practice_id)
@@ -231,9 +231,9 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
             if "patient_id" in i:
                 patient_details = retrieve_patient_by_id(str(i["patient_id"]), practice_id)
                 del patient_details["dob"]
-                del patient_details["gender"]
-                del patient_details["address"]
-                del patient_details["email"]
+                # del patient_details["gender"]
+                # del patient_details["address"]
+                # del patient_details["email"]
                 del i["patient_id"]
                 i["patient_details"] = patient_details
 

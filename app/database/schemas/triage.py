@@ -17,6 +17,7 @@ from app.database.schemas.practice import Practice
 class Triage(Document):
     practice_id = ReferenceField(Practice, required=True)
     patient_id = ReferenceField(Patient, required=True)
+    reason_for_request = StringField()
     diagnosis = StringField()
     general_overview = StringField()
     severity = IntField()
@@ -26,5 +27,6 @@ class Triage(Document):
     GPT_QA = StringField()
     folder = StringField(default="ongoing")
     patient_details = EmbeddedDocumentField(PatientName)
+    instruction = BooleanField(default=False)
 
     meta = {"collection": "triage_responses"}

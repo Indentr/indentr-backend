@@ -89,7 +89,7 @@ async def fees_section(
 def format_address(address: str):
     address_parts = address.split(", ")
     # generates the HTML lines dynamically
-    html_lines = "\n".join([f"<p style='text-align: right'>{part},</p>" for part in address_parts])
+    html_lines = "".join([f"<p style='text-align: right'>{part},</p>" for part in address_parts])
     # formats the address into the HTML string
     return (f"""{html_lines}""") + ("<p></p><p></p>")
 

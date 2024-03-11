@@ -21,7 +21,7 @@ class Patient(Document):
     dob = DateField()
     gender = StringField()
     address = StringField()
-    email = EmailField(required=True, unique=True)
+    email = EmailField(required=True)
     practice_id = ReferenceField(Practice)
 
-    meta = {"collection": "patients"}  # Specify the collection name
+    meta = {"collection": "patients", "indexes": [{"fields": ["email", "practice_id"], "unique": True}]}

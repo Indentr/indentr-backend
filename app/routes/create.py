@@ -14,7 +14,9 @@ from app.database.crud import (
     create_audio_note,
     create_new_letter,
     create_new_patient,
+    retrieve_audio_note_time_for_billing_cycle,
     retrieve_letter_config,
+    retrieve_letter_count_for_billing_cycle,
     retrieve_patient_by_email,
     retrieve_practice_by_id,
     retrieve_pricing,
@@ -36,6 +38,7 @@ from app.models.create import (
 )
 from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt
+from app.services.stripe import retrieve_stripe_customer_details
 from app.utils.create_letter_utils import (
     dentist_signature,
     fees_section,
@@ -204,7 +207,6 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
         log.info(f"Request {request_id} received.")
 
         gpt_model = "gpt-4-turbo-preview"
-        # gpt_model = "gpt-3.5-turbo-1106"
 
         token = decodeJWT(access_token)
         user_id = token["user_id"]
@@ -231,6 +233,26 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
         pricing_list = retrieve_pricing(practice_id) if letter_config["pricing"] else ""
         practice = retrieve_practice_by_id(practice_id)
         user = retrieve_user_by_id(user_id)
+
+        if "stripe_customer_id" in practice:
+            stripe_customer_details = await retrieve_stripe_customer_details(practice["stripe_customer_id"])
+            start_date = stripe_customer_details["start_date"]
+            end_date = stripe_customer_details["end_date"]
+            allowed_consent_letters = stripe_customer_details["allowed_consent_letters"]
+            active_subscription = stripe_customer_details["active_subscription"]
+            letter_count = retrieve_letter_count_for_billing_cycle(practice_id, start_date, end_date)
+
+            if not active_subscription:
+                log.debug(f"Error processing {request_id}: no active plan")
+                raise HTTPException(status_code=500, detail="No plan is active") from None
+
+            if letter_count >= int(allowed_consent_letters):
+                log.debug(f"Error processing {request_id}: Reached consent letter quota")
+                raise HTTPException(status_code=500, detail="You have reached your monthly quota for creating consent letters.") from None
+
+        elif "gratis_password" not in practice:
+            log.debug(f"Error processing {request_id}: User not stripe or gratis customer")
+            raise HTTPException(status_code=500, detail="User not stripe or gratis customer") from None
 
         patientDetails = json.loads(body.patientDetails)
         dentistNotes = json.loads(body.dentistNotes) if body.dentistNotes else None
@@ -323,7 +345,11 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
 
 @router.post("/uploadTranscript")
 async def upload_transcript(
-    audioFile: UploadFile = File(...), transcript: str = Form(...), patientEmail: str = Form(...), access_token=Depends(JWTBearer())
+    audioFile: UploadFile = File(...),
+    transcript: str = Form(...),
+    patientEmail: str = Form(...),
+    length_of_recording: str = Form(...),
+    access_token=Depends(JWTBearer()),
 ):
     try:
         start = time.time()
@@ -335,8 +361,7 @@ async def upload_transcript(
         user_id = token["user_id"]
         practice_id = token["practice_id"]
 
-        patient = retrieve_patient_by_email(patientEmail)
-        patient_id = patient["_id"]
+        patient = retrieve_patient_by_email(patientEmail, practice_id)
 
         upload_transcript_prompt = retrieve_prompt_by_title("upload_transcript")
 
@@ -357,7 +382,7 @@ async def upload_transcript(
         """
 
         formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes", "gpt-4-1106-preview")
-        note_id = create_audio_note(patient_id, user_id, practice_id, audio_buffer, transcript, formatted_notes)
+        note_id = create_audio_note(patient["_id"], user_id, practice_id, audio_buffer, transcript, formatted_notes, length_of_recording)
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
@@ -401,7 +426,29 @@ async def upload_audio(request: Request, access_token: str = Depends(JWTBearer()
         request_id = uuid.uuid4().hex
         log.info(f"Request {request_id} received for voice-to-text endpoint.")
 
-        decodeJWT(access_token)
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+        practice = retrieve_practice_by_id(practice_id)
+
+        if "stripe_customer_id" in practice:
+            stripe_customer_details = await retrieve_stripe_customer_details(practice["stripe_customer_id"])
+            start_date = stripe_customer_details["start_date"]
+            end_date = stripe_customer_details["end_date"]
+            allowed_audio_note_hours = stripe_customer_details["allowed_audio_note_hours"]
+            active_subscription = stripe_customer_details["active_subscription"]
+            audio_note_time = retrieve_audio_note_time_for_billing_cycle(practice_id, start_date, end_date)
+
+            if not active_subscription:
+                log.debug(f"Error processing {request_id}: no active plan")
+                raise HTTPException(status_code=500, detail="No plan is active") from None
+
+            if audio_note_time >= int(allowed_audio_note_hours):
+                log.debug(f"Error processing {request_id}: Reached audio note montly quota")
+                raise HTTPException(status_code=500, detail="Reached audio note montly quota") from None
+
+        elif "gratis_password" not in practice:
+            log.debug(f"Error processing {request_id}: User not stripe or gratis customer")
+            raise HTTPException(status_code=500, detail="User not stripe or gratis customer") from None
 
         # Read the audio data from the request stream
         audio_data = b""
@@ -418,7 +465,7 @@ async def upload_audio(request: Request, access_token: str = Depends(JWTBearer()
         response = await dpg_speech_to_text(audio_buffer)
         transcript = response.results.channels[0].alternatives[0].transcript
 
-        return {"transcripts": transcript}
+        return {"transcript": transcript}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
@@ -438,6 +485,7 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
 
         token = decodeJWT(access_token)
         user_id = token["user_id"]
+        practice_id = token["practice_id"]
 
         patient_details = json.loads(body.patient_details)
         treatment_plan = json.loads(body.treatment_plan)
@@ -449,7 +497,7 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
         patient = retrieve_patient_by_email(patient_details["email"])
         html_string = wrap_image_in_div(treatment_plan)
 
-        letter_id = create_new_letter(user_id, html_string, patient["_id"], input_tokens, output_tokens, cost, model)
+        letter_id = create_new_letter(user_id, html_string, patient["_id"], practice_id, input_tokens, output_tokens, cost, model)
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
 
         return {"message": "Letter saved successfully", "letter_id": str(letter_id)}

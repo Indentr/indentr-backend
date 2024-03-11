@@ -2,6 +2,8 @@ import json
 import logging
 import time
 import uuid
+from calendar import monthrange
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
@@ -9,22 +11,27 @@ from app.database.crud import (
     create_new_user,
     delete_member,
     retrieve_all_practice_users,
+    retrieve_audio_note_time_for_billing_cycle,
     retrieve_last_three_letters,
+    retrieve_last_three_notes,
     retrieve_last_three_triage_requests,
     retrieve_letter_config,
+    retrieve_letter_count_for_billing_cycle,
     retrieve_practice_by_id,
     retrieve_price_list,
     retrieve_prompt_by_title,
+    retrieve_triage_settings,
     retrieve_user_by_email,
     retrieve_user_by_id,
     update_letter_config,
     update_letter_image,
     update_practice_details,
     update_price_list,
+    update_triage_settings,
     update_user_details,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
-from app.models.profile import UpdateLetterConfig
+from app.models.profile import TriageSettings, UpdateLetterConfig
 from app.models.user import (
     DeleteUser,
     EditPracticeField,
@@ -32,6 +39,7 @@ from app.models.user import (
     UserRegistration,
 )
 from app.services.openAI import ask_gpt
+from app.services.stripe import retrieve_stripe_customer_details
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
@@ -57,6 +65,29 @@ def get_profile(access_token=Depends(JWTBearer())):
         raise e  # Reraise the HTTPException
 
 
+@router.get("/last-three-notes")
+def get_last_three_notes(access_token=Depends(JWTBearer())):
+    """
+    Gets the users last three notes
+    """
+
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.debug(f"Request {request_id} received for getting last 3 triage_requests and letters.")
+
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+
+        notes = retrieve_last_three_notes(user_id)
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {"notes": notes}
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
 @router.get("/overview")
 def get_overview(access_token=Depends(JWTBearer())):
     """
@@ -72,17 +103,18 @@ def get_overview(access_token=Depends(JWTBearer())):
 
         letters = retrieve_last_three_letters(user_id)
         triage_requests = retrieve_last_three_triage_requests(user_id)
+        notes = retrieve_last_three_notes(user_id)
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
-        return {"letters": letters, "triage_requests": triage_requests}
+        return {"letters": letters, "triage_requests": triage_requests, "notes": notes}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
 
 
 @router.get("/settings")
-def get_account_settings(access_token=Depends(JWTBearer())):
+async def get_account_settings(access_token=Depends(JWTBearer())):
     """
     Retrieves the user's profile information along with their latest letters.
     """
@@ -93,22 +125,57 @@ def get_account_settings(access_token=Depends(JWTBearer())):
         user = retrieve_user_by_id(user_id)
         practice_members = retrieve_all_practice_users(practice_id)
         practice = retrieve_practice_by_id(practice_id)
+        plan_name = "gratis"
 
-        return {"user": user, "practice_members": practice_members, "practice": practice}
+        if "stripe_customer_id" in practice:
+            stripe_customer_details = await retrieve_stripe_customer_details(practice["stripe_customer_id"])
+            plan_name = stripe_customer_details["plan_name"]
+
+        return {"user": user, "practice_members": practice_members, "practice": practice, "plan_name": plan_name}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
 
 
 @router.get("/billing")
-def get_account_settings_billing(access_token=Depends(JWTBearer())):
+async def get_account_settings_billing(access_token=Depends(JWTBearer())):
     """
-    Retrieves the user's profile information along with their latest letters.
+    Retrieves the user's billing details, this includes:
+    - The plan they are on
+    - The number of letters they have created this billing cycle
+    - The number of hours/minutes of dental note recording they have done this billing cycle.
     """
     try:
-        practice_users_token_consumption = 0
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+        practice = retrieve_practice_by_id(practice_id)
+        plan_name = "gratis"
+        allowed_audio_note_hours = "999999"
+        allowed_consent_letters = "999999"
+        current_date = datetime.now().date()
+        start_date = datetime(current_date.year, current_date.month, 1)
+        end_date = datetime(current_date.year, current_date.month, monthrange(current_date.year, current_date.month)[1])
 
-        return {"tokens_consumed": practice_users_token_consumption}
+        if "stripe_customer_id" in practice:
+            stripe_customer_details = await retrieve_stripe_customer_details(practice["stripe_customer_id"])
+            start_date = stripe_customer_details["start_date"]
+            end_date = stripe_customer_details["end_date"]
+            plan_name = stripe_customer_details["plan_name"]
+            allowed_consent_letters = stripe_customer_details["allowed_consent_letters"]
+            allowed_audio_note_hours = stripe_customer_details["allowed_audio_note_hours"]
+
+        letter_count = retrieve_letter_count_for_billing_cycle(practice_id, start_date, end_date)
+        audio_note_time = retrieve_audio_note_time_for_billing_cycle(practice_id, start_date, end_date)
+
+        return {
+            "plan_name": plan_name,
+            "allowed_consent_letters": allowed_consent_letters,
+            "allowed_audio_note_hours": allowed_audio_note_hours,
+            "letter_count": letter_count,
+            "audio_note_time": audio_note_time,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
@@ -151,10 +218,10 @@ async def edit_practice_field(body: EditPracticeField, access_token=Depends(JWTB
         name = body.text if body.record == "name" else None
         email = body.text if body.record == "email" else None
         address = body.text if body.record == "address" else None
-        website = body.text if body.record == "website" else None
+        phone = body.text if body.record == "phone" else None
 
         # Update the user's details in MongoDB
-        update_practice_details(practice_id, name, email, address, website)
+        update_practice_details(practice_id, name, email, address, phone)
         return {"message": "Edit successful"}
 
     except HTTPException as e:
@@ -294,7 +361,7 @@ async def saveImg(file: UploadFile = File(...), access_token=Depends(JWTBearer()
         raise e  # Reraise the HTTPException
 
 
-@router.post("/format-price-list")
+@router.post("/format-price-list/")
 async def format_price_list(price_list: str = Form(...), access_token=Depends(JWTBearer())):
     try:
         start = time.time()
@@ -331,7 +398,7 @@ async def format_price_list(price_list: str = Form(...), access_token=Depends(JW
         raise e  # Reraise the HTTPException
 
 
-@router.post("/save-price-list")
+@router.post("/save-price-list/")
 async def save_price_list(price_list_string: str = Form(...), access_token=Depends(JWTBearer())):
     try:
         start = time.time()
@@ -350,6 +417,48 @@ async def save_price_list(price_list_string: str = Form(...), access_token=Depen
         return {
             "message": "Prices were saved successfully!",
         }
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
+@router.get("/get-triage-settings/")
+async def gets_triage_settings(access_token=Depends(JWTBearer())):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.info(f"Request {request_id} received for saving triage settings.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        triage_settings = retrieve_triage_settings(practice_id)
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return triage_settings
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
+@router.post("/save-triage-settings/")
+async def save_triage_settings(body: TriageSettings, access_token=Depends(JWTBearer())):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.info(f"Request {request_id} received for saving triage settings.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        update_triage_settings(practice_id, body.primary_color, body.show_page_runner, body.show_requested_date)
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {"message": "Triage settings saved"}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException

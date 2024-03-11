@@ -11,6 +11,7 @@ from mongoengine import (
 )
 
 from app.database.schemas.patient import Patient, PatientName
+from app.database.schemas.practice import Practice
 from app.database.schemas.user import User
 
 
@@ -18,6 +19,7 @@ class Letter(Document):
     consent_letter = StringField()
     patient_id = ReferenceField(Patient, required=True)
     user_id = ReferenceField(User, required=True)
+    practice_id = ReferenceField(Practice, required=True)
     createdAt = DateTimeField(default=datetime.utcnow)
     input_tokens = IntField(default=0)
     output_tokens = IntField(default=0)

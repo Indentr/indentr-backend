@@ -7,7 +7,7 @@ from starlette_context.middleware import RawContextMiddleware
 
 from app.constants import ALLOWED_ORIGINS, DB_URI
 from app.database.db import connect_to_mongoengine
-from app.routes import auth, create, files, profile, triage, vector_letter
+from app.routes import auth, create, files, profile, triage, vector_letter, webhook
 
 middleware = [Middleware(RawContextMiddleware)]
 
@@ -55,3 +55,4 @@ app.include_router(files.router)
 app.include_router(create.router)
 app.include_router(triage.router)
 app.include_router(vector_letter.router)
+app.include_router(webhook.router)

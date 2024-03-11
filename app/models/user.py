@@ -10,7 +10,7 @@ class EditUserField(BaseModel):
 
 class EditPracticeField(BaseModel):
     text: str
-    record: Literal["name", "email", "address", "website"]
+    record: Literal["name", "email", "address", "phone"]
 
 
 class DeleteUser(BaseModel):

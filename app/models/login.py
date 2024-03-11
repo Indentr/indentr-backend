@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
 
@@ -12,6 +14,12 @@ class UserRegisterRequest(BaseModel):
     password: str
     practice_name: str
     practice_email: str
-    practice_url: str
     address: str
     phone: str
+    stripe_customer_id: Optional[str] = None
+    practice_url: Optional[str] = None
+    gratis_password: Optional[str] = None
+
+
+class CheckEmail(BaseModel):
+    email: str

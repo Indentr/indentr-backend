@@ -8,5 +8,7 @@ class Practice(Document):
     address = StringField()
     phone = StringField()
     triage_email = EmailField(required=False, unique=False)
+    stripe_customer_id = StringField()
+    gratis_password = StringField()
 
     meta = {"collection": "dental_practices"}  # Specify the collection name

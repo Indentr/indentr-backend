@@ -1,6 +1,11 @@
+import logging
+
 from deepgram import DeepgramClient, PrerecordedOptions
 
 from app.constants import DEEPGRAM_API_KEY
+
+# initiates logger
+log = logging.getLogger(__name__)
 
 
 async def dpg_speech_to_text(audio_buffer):
@@ -21,4 +26,5 @@ async def dpg_speech_to_text(audio_buffer):
         return response
 
     except Exception as e:
-        print(f"Exception: {e}")
+        log.debug(f"Exception: {e}")
+        raise e
