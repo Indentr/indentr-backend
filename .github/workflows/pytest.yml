@@ -25,6 +25,7 @@ jobs:
           echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> $GITHUB_ENV
           echo "JWT_ALGORITHM=${{ secrets.JWT_ALGORITHM }}" >> $GITHUB_ENV
           echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
+          echo "GRATIS_PASSWORD=${{ secrets.GRATIS_PASSWORD }}" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: |
