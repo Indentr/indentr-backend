@@ -345,10 +345,7 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
 
 @router.post("/uploadTranscript")
 async def upload_transcript(
-    audioFile: UploadFile = File(...),
     transcript: str = Form(...),
-    patientEmail: str = Form(...),
-    length_of_recording: str = Form(...),
     access_token=Depends(JWTBearer()),
 ):
     try:
@@ -356,6 +353,41 @@ async def upload_transcript(
         request_id = uuid.uuid4().hex
 
         log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
+
+        token = decodeJWT(access_token)
+
+        upload_transcript_prompt = retrieve_prompt_by_title("upload_transcript")
+
+        # AI formatting of dental voice notes
+        prompt = f"""
+            START OF TRANSCRIPT
+
+            {transcript}
+
+            END OF TRANSCRIPT
+
+            {upload_transcript_prompt}
+        """
+
+        formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes", "gpt-4-1106-preview")
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        # Convert ObjectId to string for JSON serialization
+        return {
+            "formatted_notes": formatted_notes,
+        }
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+@router.post("/save-note")
+def update_note(body: SaveNote, access_token=Depends(JWTBearer())):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.info(f"Request {request_id} received for updateNote endpoint.")
 
         token = decodeJWT(access_token)
         user_id = token["user_id"]
@@ -370,44 +402,7 @@ async def upload_transcript(
         # Create a BytesIO object to mimic file reading
         audio_buffer = BytesIO(audio_content)
 
-        # AI formatting of dental voice notes
-        prompt = f"""
-            START OF TRANSCRIPT
-
-            {transcript}
-
-            END OF TRANSCRIPT
-
-            {upload_transcript_prompt}
-        """
-
-        formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes", "gpt-4-1106-preview")
         note_id = create_audio_note(patient["_id"], user_id, practice_id, audio_buffer, transcript, formatted_notes, length_of_recording)
-
-        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
-
-        # Convert ObjectId to string for JSON serialization
-        return {
-            "formatted_notes": formatted_notes,
-            "note_id": note_id,
-        }
-
-    except HTTPException as e:
-        raise e  # Reraise the HTTPException
-
-
-@router.post("/save-note")
-def update_note(body: SaveNote, access_token=Depends(JWTBearer())):
-    try:
-        start = time.time()
-        request_id = uuid.uuid4().hex
-
-        log.info(f"Request {request_id} received for updateNote endpoint.")
-
-        updated_note = json.loads(body.updated_note)
-        note_id = json.loads(body.note_id)
-
-        update_formatted_notes(note_id, updated_note)
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
