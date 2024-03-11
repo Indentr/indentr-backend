@@ -494,7 +494,7 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
         cost = body.cost
         model = json.loads(body.model)
 
-        patient = retrieve_patient_by_email(patient_details["email"])
+        patient = retrieve_patient_by_email(patient_details["email"], practice_id)
         html_string = wrap_image_in_div(treatment_plan)
 
         letter_id = create_new_letter(user_id, html_string, patient["_id"], practice_id, input_tokens, output_tokens, cost, model)
