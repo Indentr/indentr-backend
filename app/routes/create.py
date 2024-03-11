@@ -346,6 +346,7 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
 @router.post("/uploadTranscript")
 async def upload_transcript(
     transcript: str = Form(...),
+    length_of_recording: str = Form(...),
     access_token=Depends(JWTBearer()),
 ):
     try:
@@ -381,6 +382,7 @@ async def upload_transcript(
     except HTTPException as e:
         raise e  # Reraise the HTTPException
 
+
 @router.post("/save-note")
 def update_note(body: SaveNote, access_token=Depends(JWTBearer())):
     try:
@@ -393,14 +395,15 @@ def update_note(body: SaveNote, access_token=Depends(JWTBearer())):
         user_id = token["user_id"]
         practice_id = token["practice_id"]
 
+        patientEmail = json.loads(body.patientEmail)
         patient = retrieve_patient_by_email(patientEmail, practice_id)
 
-        upload_transcript_prompt = retrieve_prompt_by_title("upload_transcript")
+        #upload_transcript_prompt = retrieve_prompt_by_title("upload_transcript")
 
         # Read the file contents into a memory buffer
-        audio_content = await audioFile.read()
+        #audio_content = await audioFile.read()
         # Create a BytesIO object to mimic file reading
-        audio_buffer = BytesIO(audio_content)
+        #audio_buffer = BytesIO(audio_content)
 
         note_id = create_audio_note(patient["_id"], user_id, practice_id, audio_buffer, transcript, formatted_notes, length_of_recording)
 
