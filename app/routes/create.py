@@ -384,7 +384,12 @@ async def upload_transcript(
 
 
 @router.post("/save-note")
-def update_note(body: SaveNote, access_token=Depends(JWTBearer())):
+def update_note(
+    audioFile: UploadFile = File(...),
+    transcript: str = Form(...),
+    patientEmail: str = Form(...),
+    length_of_recording: str = Form(...),
+    access_token=Depends(JWTBearer()),):
     try:
         start = time.time()
         request_id = uuid.uuid4().hex
