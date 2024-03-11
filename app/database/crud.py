@@ -416,18 +416,6 @@ def retrieve_patient_by_email(email: str, practice_id: str):
         raise HTTPException(status_code=404, detail="Patient not found") from None
 
 
-# Function to check if a patient exists
-def retrieve_patient_exists_by_email_and_practice(email: str, practice_id: str) -> bool:
-    try:
-        # Attempt to retrieve the patient by email and practice_id
-        Patient.objects.get(email=email, practice_id=practice_id)
-        # If the function successfully retrieves a patient, return True
-        return True
-    except DoesNotExist:
-        # If a DoesNotExist exception is caught, it means no patient was found with the given criteria, so return False
-        return False
-
-
 def retrieve_patient_by_id(patient_id: str, practice_id):
     try:
         # Retrieve the patient document based on patient_id

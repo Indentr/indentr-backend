@@ -16,7 +16,6 @@ from app.database.crud import (
     retrieve_all_triage_requests_by_folder,
     retrieve_patient_by_email,
     retrieve_patient_by_id,
-    retrieve_patient_exists_by_email_and_practice,
     retrieve_practice_by_id,
     retrieve_prompt_by_title,
     retrieve_triage_request,
@@ -76,7 +75,7 @@ async def generate_triage_questions(body: GenerateQuestions):
     if body.existing_patient:
         # check if email exists within that practice's list of patients
         try:
-            patient = retrieve_patient_by_email(patient_details["email"])
+            patient = retrieve_patient_by_email(patient_details["email"], practice_id)
             if "practice_id" not in patient or patient["practice_id"] != practice_id:
                 raise HTTPException(status_code=404, detail="Email not associated with practice")
 
@@ -84,21 +83,14 @@ async def generate_triage_questions(body: GenerateQuestions):
             raise HTTPException(status_code=404, detail="Email not associated with practice") from e
 
     else:
-        # if the patient is new then add them to the db but without a practice
-        try:
-            # check if the patient already exists within the system
-            patient = retrieve_patient_by_email(patient_details["email"])
-
-        except HTTPException:
-            # if the patient doesn't exist then add them to the db
-            create_new_patient(
-                patient_details["forename"],
-                patient_details["surname"],
-                patient_details["dob"],
-                patient_details["gender"],
-                patient_details["address"],
-                patient_details["email"],
-            )
+        create_new_patient(
+            patient_details["forename"],
+            patient_details["surname"],
+            patient_details["dob"],
+            patient_details["gender"],
+            patient_details["address"],
+            patient_details["email"],
+        )
 
     log.info(f"Request {request_id} received for triage symptom questions.")
 
@@ -426,8 +418,14 @@ async def check_patient_by_email(body: CheckEmail):
     try:
         email = body.email
         practice_id = body.practiceId
+        result = False
 
-        result = retrieve_patient_exists_by_email_and_practice(email, practice_id)
+        try:
+            retrieve_patient_by_email(email, practice_id)
+            result = True
+
+        except HTTPException:
+            result = False
 
         log.debug(f"Request  completed successfully in {round((time.time() - start), 2)} seconds.")
 
@@ -436,5 +434,3 @@ async def check_patient_by_email(body: CheckEmail):
     except HTTPException as e:
         log.debug(f"Request  failed and took {round((time.time() - start), 2)} seconds.")
         raise e
-    except Exception as e:
-        log.debug(f"Unhandled error in request . Error: {str(e)}")
