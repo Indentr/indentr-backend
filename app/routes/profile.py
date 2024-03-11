@@ -65,7 +65,7 @@ def get_profile(access_token=Depends(JWTBearer())):
         raise e  # Reraise the HTTPException
 
 
-@router.get("/last-three-notes")
+@router.get("/last-three-notes/")
 def get_last_three_notes(access_token=Depends(JWTBearer())):
     """
     Gets the users last three notes
@@ -88,7 +88,7 @@ def get_last_three_notes(access_token=Depends(JWTBearer())):
         raise e  # Reraise the HTTPException
 
 
-@router.get("/overview")
+@router.get("/overview/")
 def get_overview(access_token=Depends(JWTBearer())):
     """
     Retrieves the user's profile information along with their latest letters.
@@ -113,7 +113,7 @@ def get_overview(access_token=Depends(JWTBearer())):
         raise e  # Reraise the HTTPException
 
 
-@router.get("/settings")
+@router.get("/settings/")
 async def get_account_settings(access_token=Depends(JWTBearer())):
     """
     Retrieves the user's profile information along with their latest letters.
@@ -137,7 +137,7 @@ async def get_account_settings(access_token=Depends(JWTBearer())):
         raise e  # Reraise the HTTPException
 
 
-@router.get("/billing")
+@router.get("/billing/")
 async def get_account_settings_billing(access_token=Depends(JWTBearer())):
     """
     Retrieves the user's billing details, this includes:
@@ -181,7 +181,7 @@ async def get_account_settings_billing(access_token=Depends(JWTBearer())):
         raise e  # Reraise the HTTPException
 
 
-@router.post("/edit-user-field")
+@router.post("/edit-user-field/")
 async def edit_user_field(body: EditUserField, access_token=Depends(JWTBearer())):
     """
     Edits the users name or email or password depending on what gets sent in the body.
@@ -204,7 +204,7 @@ async def edit_user_field(body: EditUserField, access_token=Depends(JWTBearer())
         raise e  # Reraise the HTTPException
 
 
-@router.post("/edit-practice-field")
+@router.post("/edit-practice-field/")
 async def edit_practice_field(body: EditPracticeField, access_token=Depends(JWTBearer())):
     """
     Edits the users name or email or password depending on what gets sent in the body.
@@ -228,7 +228,7 @@ async def edit_practice_field(body: EditPracticeField, access_token=Depends(JWTB
         raise e  # Reraise the HTTPException
 
 
-@router.post("/register")
+@router.post("/register/")
 def create_new_account(body: UserRegistration, access_token=Depends(JWTBearer())):
     """
     This route handles user registration once a user is already authenticated.
@@ -260,7 +260,7 @@ def create_new_account(body: UserRegistration, access_token=Depends(JWTBearer())
         raise e
 
 
-@router.post("/delete")
+@router.post("/delete/")
 def deletes_member_account(body: DeleteUser, access_token=Depends(JWTBearer())):
     """
     This route handles when an account owner wants to delete a sub account from their practice
@@ -276,7 +276,7 @@ def deletes_member_account(body: DeleteUser, access_token=Depends(JWTBearer())):
         raise e
 
 
-@router.get("/get-letter-config")
+@router.get("/get-letter-config/")
 async def gets_letter_config(access_token=Depends(JWTBearer())):
     try:
         start = time.time()
@@ -297,7 +297,7 @@ async def gets_letter_config(access_token=Depends(JWTBearer())):
         raise e  # Reraise the HTTPException
 
 
-@router.post("/update-letter-config")
+@router.post("/update-letter-config/")
 async def updates_letter_config(body: UpdateLetterConfig, access_token=Depends(JWTBearer())):
     """
     This endpoint updates a practice's letter config document in mongo.
