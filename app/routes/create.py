@@ -346,7 +346,6 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
 @router.post("/uploadTranscript")
 async def upload_transcript(
     transcript: str = Form(...),
-    length_of_recording: str = Form(...),
     access_token=Depends(JWTBearer()),
 ):
     try:
@@ -384,31 +383,30 @@ async def upload_transcript(
 
 
 @router.post("/save-note")
-def update_note(
+async def update_note(
     audioFile: UploadFile = File(...),
-    transcript: str = Form(...),
     patientEmail: str = Form(...),
     length_of_recording: str = Form(...),
+    formatted_notes: str = Form(...),
     access_token=Depends(JWTBearer()),):
     try:
-        start = time.time()
+        sstart = time.time()
         request_id = uuid.uuid4().hex
 
-        log.info(f"Request {request_id} received for updateNote endpoint.")
+        log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
 
         token = decodeJWT(access_token)
         user_id = token["user_id"]
         practice_id = token["practice_id"]
 
-        patientEmail = json.loads(body.patientEmail)
         patient = retrieve_patient_by_email(patientEmail, practice_id)
 
-        #upload_transcript_prompt = retrieve_prompt_by_title("upload_transcript")
+        upload_transcript_prompt = retrieve_prompt_by_title("upload_transcript")
 
         # Read the file contents into a memory buffer
-        #audio_content = await audioFile.read()
+        audio_content = await audioFile.read()
         # Create a BytesIO object to mimic file reading
-        #audio_buffer = BytesIO(audio_content)
+        audio_buffer = BytesIO(audio_content)
 
         note_id = create_audio_note(patient["_id"], user_id, practice_id, audio_buffer, transcript, formatted_notes, length_of_recording)
 
