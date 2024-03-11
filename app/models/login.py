@@ -16,7 +16,7 @@ class UserRegisterRequest(BaseModel):
     practice_email: str
     address: str
     phone: str
-    stripe_customer_id: str
+    stripe_customer_id: Optional[str] = None
     practice_url: Optional[str] = None
     gratis_password: Optional[str] = None
 

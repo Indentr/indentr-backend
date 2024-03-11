@@ -47,7 +47,7 @@ def create_new_practice(
     url: str,
     address: str,
     phone: str,
-    stripe_customer_id: str,
+    stripe_customer_id: str = None,
     triage_email: str = None,
     gratis_password=None,
 ):

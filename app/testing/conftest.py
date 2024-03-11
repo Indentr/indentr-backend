@@ -1,3 +1,4 @@
+import certifi
 import pytest
 from mongoengine import connect
 
@@ -8,7 +9,7 @@ from app.constants import TEST_DB_URI
 @pytest.fixture(autouse=True)
 def cleanup_database(request):
     # Get the MongoDB database reference
-    db = connect(host=TEST_DB_URI, uuidRepresentation="unspecified").get_database()
+    db = connect(host=TEST_DB_URI, uuidRepresentation="unspecified", tlsCAFile=certifi.where()).get_database()
 
     # Get a list of all collections in the test database
     collections = db.list_collection_names()
