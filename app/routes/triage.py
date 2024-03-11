@@ -59,6 +59,40 @@ def check_practice_id_valid(practice_id: str):
         raise e  # Reraise the HTTPException
 
 
+@router.post("/check-patient-by-email")
+async def check_patient_by_email(body: CheckEmail):
+    """
+    Searches the practice's list of patients for a match.
+    Returns true if a match is found.
+    """
+    start = time.time()
+
+    try:
+        email = body.email
+        practice_id = body.practiceId
+        result = False
+
+        try:
+            retrieve_patient_by_email(email, practice_id)
+            result = True
+
+        except HTTPException:
+            try:
+                retrieve_patient_by_email(email, None)
+                result = True
+
+            except HTTPException:
+                result = False
+
+        log.debug(f"Request  completed successfully in {round((time.time() - start), 2)} seconds.")
+
+        return {"result": result}
+
+    except HTTPException as e:
+        log.debug(f"Request  failed and took {round((time.time() - start), 2)} seconds.")
+        raise e
+
+
 @router.post("/generate-questions")
 async def generate_triage_questions(body: GenerateQuestions):
     """
@@ -79,18 +113,27 @@ async def generate_triage_questions(body: GenerateQuestions):
             if "practice_id" not in patient or patient["practice_id"] != practice_id:
                 raise HTTPException(status_code=404, detail="Email not associated with practice")
 
-        except HTTPException as e:
-            raise HTTPException(status_code=404, detail="Email not associated with practice") from e
+        except HTTPException:
+            try:
+                patient = retrieve_patient_by_email(patient_details["email"], None)
+
+            except HTTPException as e:
+                raise HTTPException(status_code=404, detail="Email not associated with practice") from e
 
     else:
-        create_new_patient(
-            patient_details["forename"],
-            patient_details["surname"],
-            patient_details["dob"],
-            patient_details["gender"],
-            patient_details["address"],
-            patient_details["email"],
-        )
+        # check if email exists within the whole system
+        try:
+            patient = retrieve_patient_by_email(patient_details["email"], None)
+
+        except HTTPException:
+            create_new_patient(
+                patient_details["forename"],
+                patient_details["surname"],
+                patient_details["dob"],
+                patient_details["gender"],
+                patient_details["address"],
+                patient_details["email"],
+            )
 
     log.info(f"Request {request_id} received for triage symptom questions.")
 
@@ -142,7 +185,7 @@ async def create_patient_request(body: CreatePatientRequest):
         {create_triage_request_prompt}
     """
 
-    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-4-turbo-preview")
+    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-3.5-turbo")
 
     try:
         response = json.loads(original_response)
@@ -152,27 +195,30 @@ async def create_patient_request(body: CreatePatientRequest):
         error_detail = f"Error decoding GPT response: {str(e)}"
         raise HTTPException(status_code=500, detail=error_detail) from e
 
+    requested_date = None if not patient_details["requested_date"] else patient_details["requested_date"]
+
     create_triage_request(
-        practice_id,
-        patient_details["email"],
-        response["diagnosis"],
-        patient_details["appointment_reason"],
-        response["overview"],
-        response["severity"],
-        patient_details["requested_date"],
-        symptom_details,
+        practice_id=practice_id,
+        email=patient_details["email"],
+        diagnosis=response["diagnosis"],
+        reason_for_request=patient_details["appointment_reason"],
+        overview=response["overview"],
+        severity=response["severity"],
+        requested_date=requested_date,
+        GPT_QA=symptom_details,
     )
 
     practice = retrieve_practice_by_id(practice_id)
-    patient = retrieve_patient_by_email(patient_details["email"])
+    if "forename" not in patient_details:
+        patient_details = retrieve_patient_by_email(patient_details["email"], practice_id)
 
     if "triage_email" not in practice:
         practice["triage_email"] = practice["primary_email"]
 
-    practice_mail_text = generate_practice_mail(patient, response["diagnosis"], response["overview"])
+    practice_mail_text = generate_practice_mail(patient_details, response["diagnosis"], response["overview"])
     send_email("New triage request", practice_mail_text, TRIAGE_MAIL, practice["triage_email"], TRIAGE_MAIL_PASSWORD)
 
-    patient_mail_text = generate_patient_mail(practice, patient)
+    patient_mail_text = generate_patient_mail(practice, patient_details)
     send_email("Appointment request sent", patient_mail_text, TRIAGE_MAIL, patient_details["email"], TRIAGE_MAIL_PASSWORD)
 
     return {"success": True}
@@ -404,33 +450,4 @@ async def add_new_patient_to_practice(body: AddPatientToPractice, access_token=D
         return {"success": True, "message": "Added patient to practice!"}
 
     except HTTPException as e:
-        raise e
-
-
-@router.post("/check-patient-by-email")
-async def check_patient_by_email(body: CheckEmail):
-    """
-    Searches the practice's list of patients for a match.
-    Returns true if a match is found.
-    """
-    start = time.time()
-
-    try:
-        email = body.email
-        practice_id = body.practiceId
-        result = False
-
-        try:
-            retrieve_patient_by_email(email, practice_id)
-            result = True
-
-        except HTTPException:
-            result = False
-
-        log.debug(f"Request  completed successfully in {round((time.time() - start), 2)} seconds.")
-
-        return {"result": result}
-
-    except HTTPException as e:
-        log.debug(f"Request  failed and took {round((time.time() - start), 2)} seconds.")
         raise e
