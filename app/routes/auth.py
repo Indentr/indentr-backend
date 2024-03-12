@@ -25,7 +25,7 @@ stripe.api_key = STRIPE_SECRET_KEY
 router = APIRouter(prefix="/auth", tags=["Authorisation"])
 
 
-@router.post("/login")
+@router.post("/login/")
 def post_user_login(body: UserLoginRequest):
     """
     This route handles user login requests. It expects a `UserLoginRequest` object
@@ -63,7 +63,7 @@ def post_user_login(body: UserLoginRequest):
         raise e
 
 
-@router.post("/register")
+@router.post("/register/")
 def post_user_registration(body: UserRegisterRequest):
     """
     This route handles user registration requests. It expects a `UserRegisterRequest`
@@ -109,7 +109,7 @@ def post_user_registration(body: UserRegisterRequest):
         raise e
 
 
-@router.post("/check-email")
+@router.post("/check-email/")
 def checks_if_email_in_use(body: CheckEmail):
     """
     This route checks to see if the user is able to signup with an email by checking there isn't another account with the same email
@@ -136,7 +136,7 @@ def checks_if_email_in_use(body: CheckEmail):
         raise e
 
 
-@router.post("/check-practice-email")
+@router.post("/check-practice-email/")
 def checks_if_practice_email_in_use(body: CheckEmail):
     """
     This route checks to see if the user is able to signup with an email by checking there isn't another account with the same email
@@ -163,7 +163,7 @@ def checks_if_practice_email_in_use(body: CheckEmail):
         raise e
 
 
-@router.get("/user")
+@router.get("/user/")
 def authenticate_user(access_token=Depends(JWTBearer())):
     """
     Checks if `access_token` is valid and then signs a new JWT based on the user_id
