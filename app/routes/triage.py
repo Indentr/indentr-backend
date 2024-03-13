@@ -197,20 +197,24 @@ async def create_patient_request(body: CreatePatientRequest):
 
     requested_date = None if not patient_details["requested_date"] else patient_details["requested_date"]
 
+    appointment_reason = patient_details["appointment_reason"]
+
+    if not patient_details["forename"]:
+        patient_details = retrieve_patient_by_email(patient_details["email"], practice_id)
+
     create_triage_request(
         practice_id=practice_id,
         email=patient_details["email"],
         diagnosis=response["diagnosis"],
-        reason_for_request=patient_details["appointment_reason"],
+        reason_for_request=appointment_reason,
         overview=response["overview"],
         severity=response["severity"],
         requested_date=requested_date,
         GPT_QA=symptom_details,
+        patient_instruction=response["instructions"],
     )
 
     practice = retrieve_practice_by_id(practice_id)
-    if "forename" not in patient_details:
-        patient_details = retrieve_patient_by_email(patient_details["email"], practice_id)
 
     if "triage_email" not in practice:
         practice["triage_email"] = practice["primary_email"]
@@ -218,10 +222,11 @@ async def create_patient_request(body: CreatePatientRequest):
     practice_mail_text = generate_practice_mail(patient_details, response["diagnosis"], response["overview"])
     send_email("New triage request", practice_mail_text, TRIAGE_MAIL, practice["triage_email"], TRIAGE_MAIL_PASSWORD)
 
-    patient_mail_text = generate_patient_mail(practice, patient_details)
+    patient_mail_text = generate_patient_mail(practice, patient_details, response["instructions"])
+
     send_email("Appointment request sent", patient_mail_text, TRIAGE_MAIL, patient_details["email"], TRIAGE_MAIL_PASSWORD)
 
-    return {"success": True}
+    return {"success": True, "instructions": response["instructions"]}
 
 
 @router.get("/get-requests/{folder}")

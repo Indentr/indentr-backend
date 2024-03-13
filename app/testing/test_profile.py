@@ -79,11 +79,11 @@ def insert_treatment_plan(register_and_login):
     for _i in range(0, 4):
         create_new_letter(user_id, consent_letter, patients[_i]["_id"], practice_id, 3000, 4000, 0.15, "gpt-4-turbo-preview")
 
-    return token
+    return token, practice_id
 
 
 def test_successful_profile_get(insert_treatment_plan):
-    token = insert_treatment_plan
+    token, practice_id = insert_treatment_plan
     response = client.get(
         "/profile/",
         headers={
@@ -99,7 +99,7 @@ def test_successful_profile_get(insert_treatment_plan):
 
 
 def test_profile_when_user_is_none(insert_treatment_plan):
-    token = insert_treatment_plan
+    token, practice_id = insert_treatment_plan
     decoded_token = decodeJWT(token)
     user_id = decoded_token["user_id"]
     delete_user(user_id)
@@ -118,7 +118,7 @@ def test_profile_when_user_is_none(insert_treatment_plan):
 
 
 def test_get_overview(insert_treatment_plan):
-    token = insert_treatment_plan
+    token, practice_id = insert_treatment_plan
     response = client.get(
         "/profile/overview",
         headers={
@@ -135,7 +135,7 @@ def test_get_overview(insert_treatment_plan):
 
 
 def test_get_settings(insert_treatment_plan):
-    token = insert_treatment_plan
+    token, practice_id = insert_treatment_plan
     response = client.get(
         "/profile/settings",
         headers={
@@ -152,15 +152,7 @@ def test_get_settings(insert_treatment_plan):
 
 
 def test_register_member(insert_treatment_plan):
-    token = insert_treatment_plan
-    practice_id = create_new_practice(
-        "Willows Dental",
-        "willows@dental.com",
-        "https://www.willowsdental.com",
-        "1 Prestatyn",
-        "07880788392",
-        gratis_password="YOUSHALLPASS!",
-    )
+    token, practice_id = insert_treatment_plan
 
     response = client.post(
         "/profile/register",
@@ -172,7 +164,6 @@ def test_register_member(insert_treatment_plan):
             "name": "Spongebob Squarepants",
             "email": "spongeebob@gmail.com",
             "password": "gary123",
-            "practice_id": str(practice_id),
         },
     )
 
@@ -185,7 +176,7 @@ def test_register_member(insert_treatment_plan):
 
 
 def test_delete_member(insert_treatment_plan):
-    token = insert_treatment_plan
+    token, practice_id = insert_treatment_plan
     practice_id = create_new_practice(
         "Willows Dental",
         "willows@dental.com",

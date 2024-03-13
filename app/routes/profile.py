@@ -237,6 +237,10 @@ def create_new_account(body: UserRegistration, access_token=Depends(JWTBearer())
     """
 
     try:
+        # Extract user's email from JWT token
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
         # Check if the email already exists and registrations are turned on
         try:
             # Attempt to retrieve the user by email
@@ -252,7 +256,7 @@ def create_new_account(body: UserRegistration, access_token=Depends(JWTBearer())
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already in use")
 
-        new_user = create_new_user(body.name, body.email, body.password, body.practice_id, "Member")
+        new_user = create_new_user(body.name, body.email, body.password, practice_id, "Member")
 
         return {"new_user": new_user, "message": "Registered successfully"}
 
