@@ -409,6 +409,7 @@ def retrieve_patient_by_email(email: str, practice_id: str):
         patient_dict = patient.to_mongo().to_dict()
         if "practice_id" in patient_dict:
             patient_dict["practice_id"] = str(patient_dict["practice_id"])
+            patient_dict["dob"] = patient.dob.strftime('%Y-%m-%d')
 
         return patient_dict
 
@@ -721,7 +722,7 @@ def create_triage_request(
         # if the patient doesn't exist within the practice
         # Check if the patient already exists within our system
         try:
-            patient = Patient.objects.get(email=email)
+            patient = Patient.objects.get(email=email, practice_id=None)
         except Patient.DoesNotExist as err:
             raise HTTPException(status_code=404, detail="No patient exists with that email") from err
 
