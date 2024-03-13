@@ -384,44 +384,67 @@ async def upload_transcript(
 
 @router.post("/save-note")
 async def update_note(
-    #audioFile: UploadFile = File(...),
+    audioFile: UploadFile = File(...),
     transcript: str = Form(...),
-    #patientEmail: str = Form(...),
-    #length_of_recording: str = Form(...),
-    access_token=Depends(JWTBearer())
+    patientEmail: str = Form(...),
+    formatted_notes: str = Form(...),
+    length_of_recording: str = Form(...),
+    access_token: str = Depends(JWTBearer()),
 ):
-    try:
-        print(transcript)
-        sstart = time.time()
-        request_id = uuid.uuid4().hex
+    start = time.time()
+    request_id = uuid.uuid4().hex
+    log.info(f"Request {request_id} received for saving a note. Email: {patientEmail}")
 
-        log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
+    try:
+        # Attempting to parse transcript to ensure it's valid JSON, this might need adjusting
+        try:
+            parsed_transcript = json.loads(transcript)
+            log.info(f"Transcript parsed successfully for request {request_id}.")
+        except json.JSONDecodeError as e:
+            log.error(f"Failed to parse transcript for request {request_id}: {e}")
+            parsed_transcript = transcript  # Assuming plain text if not JSON
+
+        log.info(f"Patient email: {patientEmail}")
+        log.info(f"Length of recording: {length_of_recording}")
+        log.info(f"Audio file received: {audioFile.filename}")
 
         token = decodeJWT(access_token)
-        user_id = token["user_id"]
-        practice_id = token["practice_id"]
+        user_id = token.get("user_id")
+        practice_id = token.get("practice_id")
+        log.info(f"Token decoded, user ID: {user_id}, practice ID: {practice_id}")
 
         patient = retrieve_patient_by_email(patientEmail, practice_id)
+        if patient:
+            log.info(f"Patient retrieved successfully for email {patientEmail}")
+        else:
+            log.error(f"No patient found for email {patientEmail}")
+            raise HTTPException(status_code=404, detail="Patient not found")
 
-        upload_transcript_prompt = retrieve_prompt_by_title("upload_transcript")
+        # Ensure length_of_recording is an integer
+        length_of_recording_int = int(length_of_recording)
 
-        # Read the file contents into a memory buffer
         audio_content = await audioFile.read()
-        # Create a BytesIO object to mimic file reading
-        audio_buffer = BytesIO(audio_content)
+        note_id = create_audio_note(
+            patient["_id"], 
+            user_id, 
+            practice_id, 
+            BytesIO(audio_content), 
+            parsed_transcript, 
+            formatted_notes,  # Assuming 'formatted_notes' needs to be passed, was missing in the function call
+            length_of_recording_int
+        )
+        log.info(f"Note {note_id} saved successfully.")
 
-        note_id = create_audio_note(patient["_id"], user_id, practice_id, audio_buffer, transcript, formatted_notes, length_of_recording)
-
-        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
-
-        # Convert ObjectId to string for JSON serialization
-        return {
-            "message": "Note saved successfully",
-        }
+        elapsed_time = round(time.time() - start, 2)
+        log.debug(f"Request {request_id} completed in {elapsed_time} seconds.")
+        return {"message": "Note saved successfully", "note_id": note_id}
 
     except HTTPException as e:
-        raise e  # Reraise the HTTPException
-
+        log.error(f"HTTPException during request {request_id}: {e.detail}")
+        raise e
+    except Exception as e:
+        log.error(f"Unhandled error during request {request_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/voice-to-text")
 async def upload_audio(request: Request, access_token: str = Depends(JWTBearer())):
