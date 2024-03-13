@@ -22,4 +22,3 @@ class UserRegistration(BaseModel):
     name: str
     email: str
     password: str
-    practice_id: str
