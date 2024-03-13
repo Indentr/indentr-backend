@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 
 from bson import ObjectId
 from fastapi import HTTPException
-from mongoengine import DoesNotExist, NotUniqueError
+from mongoengine import DoesNotExist
 from werkzeug.security import generate_password_hash
 
 from app.database.schemas.audio_note import AudioNote
@@ -20,6 +20,7 @@ from app.database.schemas.practice import Practice
 from app.database.schemas.pricing import Pricing
 from app.database.schemas.prompt import Prompt
 from app.database.schemas.triage import Triage
+from app.database.schemas.triage_settings import TriageSettings
 from app.database.schemas.user import User
 
 
@@ -46,7 +47,7 @@ def create_new_practice(
     url: str,
     address: str,
     phone: str,
-    stripe_customer_id: str,
+    stripe_customer_id: str = None,
     triage_email: str = None,
     gratis_password=None,
 ):
@@ -280,36 +281,37 @@ def update_user_details(user_id: str, name: str = None, email: str = None, passw
 
 # Patient ----------------------------
 def create_new_patient(forename: str, surname: str, dob: str, gender: str, address: str, email: str, practice_id: Optional[str] = None):
-    try:
-        # Check if a patient with the same email already exists
-        existing_patient = Patient.objects(email=email).first()
-        if existing_patient:
-            raise HTTPException(status_code=400, detail="Patient with this email already exists")
+    # try:
+    # Check if a patient with the same email already exists
+    existing_patient = Patient.objects(email=email, practice_id=practice_id).first()
+    if existing_patient:
+        raise HTTPException(status_code=400, detail="Patient with this email already exists")
 
-        # Create a new instance of the Patient document with the provided patient details
-        new_patient = Patient(
-            forename=forename.capitalize(),
-            surname=surname.capitalize(),
-            dob=dob,
-            gender=gender,
-            address=address,
-            email=email,
-            practice_id=practice_id,
-        )
+    # Create a new instance of the Patient document with the provided patient details
+    new_patient = Patient(
+        forename=forename.capitalize(),
+        surname=surname.capitalize(),
+        dob=dob,
+        gender=gender,
+        address=address,
+        email=email,
+        practice_id=practice_id,
+    )
 
-        # Save the new patient instance to the database
-        new_patient.save()
+    # Save the new patient instance to the database
+    new_patient.save()
 
-        patient_dict = new_patient.to_mongo().to_dict()
-        patient_dict["_id"] = str(patient_dict["_id"])
-        if "practice_id" in patient_dict:
-            patient_dict["practice_id"] = str(patient_dict["practice_id"])
+    patient_dict = new_patient.to_mongo().to_dict()
+    patient_dict["_id"] = str(patient_dict["_id"])
+    if "practice_id" in patient_dict:
+        patient_dict["practice_id"] = str(patient_dict["practice_id"])
 
-        return patient_dict
+    return patient_dict
 
-    except NotUniqueError:
-        # Handle the case where a patient with the same email already exists
-        raise HTTPException(status_code=400, detail="Patient with this email already exists") from None
+
+# except NotUniqueError:
+#     # Handle the case where a patient with the same email already exists
+#     raise HTTPException(status_code=400, detail="Patient with this email already exists within your practice") from None
 
 
 def delete_patient(practice_id: str, patient_id: str):
@@ -399,10 +401,10 @@ def retrieve_all_practices_patients_filtered_by_char(practice_id: str, starts_wi
         raise HTTPException(status_code=404, detail="No patients found") from None
 
 
-def retrieve_patient_by_email(email: str):
+def retrieve_patient_by_email(email: str, practice_id: str):
     try:
         # Retrieve the patient document based on email
-        patient = Patient.objects.get(email=email)
+        patient = Patient.objects.get(email=email, practice_id=practice_id)
 
         patient_dict = patient.to_mongo().to_dict()
         if "practice_id" in patient_dict:
@@ -412,18 +414,6 @@ def retrieve_patient_by_email(email: str):
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="Patient not found") from None
-
-
-# Function to check if a patient exists
-def retrieve_patient_exists_by_email_and_practice(email: str, practice_id: str) -> bool:
-    try:
-        # Attempt to retrieve the patient by email and practice_id
-        Patient.objects.get(email=email, practice_id=practice_id)
-        # If the function successfully retrieves a patient, return True
-        return True
-    except DoesNotExist:
-        # If a DoesNotExist exception is caught, it means no patient was found with the given criteria, so return False
-        return False
 
 
 def retrieve_patient_by_id(patient_id: str, practice_id):
@@ -896,6 +886,43 @@ def update_triage_requests_folder(triage_requests: List[str], folder: str, pract
     except DoesNotExist as e:
         # Handle the case where a Triage object is not found
         raise HTTPException(status_code=404, detail=str(e)) from None
+
+
+# Triage Settings
+def create_triage_settings(practice_id: str):
+    triage_setting = TriageSettings(practice_id=practice_id)
+
+    triage_setting.save()
+
+
+def retrieve_triage_settings(practice_id: str):
+    triage_setting = TriageSettings.objects(practice_id=practice_id).first()
+
+    if not triage_setting:
+        return {"primary_color": "#1a73e8", "show_page_runner": True, "show_requested_date": True}
+
+    triage_setting_dict = triage_setting.to_mongo().to_dict()
+    triage_setting_dict["_id"] = str(triage_setting_dict["_id"])
+    triage_setting_dict["practice_id"] = str(triage_setting_dict["practice_id"])
+
+    return triage_setting_dict
+
+
+def update_triage_settings(practice_id: str, primary_color: str, show_page_runner: bool, show_requested_date: bool):
+    triage_setting = TriageSettings.objects(practice_id=practice_id).first()
+
+    if not triage_setting:
+        newTriageSettings = TriageSettings(
+            practice_id=practice_id, primary_color=primary_color, show_page_runner=show_page_runner, show_requested_date=show_requested_date
+        )
+        newTriageSettings.save()
+        # raise HTTPException(status_code=404, detail="No triage setting document found")
+
+    else:
+        triage_setting.primary_color = primary_color
+        triage_setting.show_page_runner = show_page_runner
+        triage_setting.show_requested_date = show_requested_date
+        triage_setting.save()
 
 
 # Note ---------------------------

@@ -25,8 +25,7 @@ def register_test_user():
             "practice_url": "https://www.willowsdental.com",
             "address": "1 Prestatyn, Wales, W1",
             "phone": "07880788392",
-            "session_id": "1234567890",
-            "subscription_id": "1234567890",
+            "gratis_password": "YOUSHALLPASS!",
         },
     )
 
@@ -45,8 +44,7 @@ def test_register_existing_user(register_test_user):
             "practice_url": "https://www.willowsdental.com",
             "address": "1 Prestatyn, Wales, W1",
             "phone": "07880788392",
-            "session_id": "1234567890",
-            "subscription_id": "1234567890",
+            "gratis_password": "YOUSHALLPASS!",
         },
     )
 
@@ -85,7 +83,7 @@ def test_login_with_incorrect_password(register_test_user):
 
     assert response.status_code == 403, response.text
     data = response.json()
-    assert data["detail"] == "Access denied"
+    assert data["detail"] == "Email or password is incorrect"
 
 
 def test_authenticate_user(register_test_user):
