@@ -206,7 +206,7 @@ async def create_patient_request(body: CreatePatientRequest):
         severity=response["severity"],
         requested_date=requested_date,
         GPT_QA=symptom_details,
-        patient_instruction=response["instructions"]
+        patient_instruction=response["instructions"],
     )
 
     practice = retrieve_practice_by_id(practice_id)
