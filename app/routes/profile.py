@@ -237,7 +237,7 @@ def create_new_account(body: UserRegistration, access_token=Depends(JWTBearer())
     """
 
     try:
-         # Extract user's email from JWT token
+        # Extract user's email from JWT token
         token = decodeJWT(access_token)
         practice_id = token["practice_id"]
 

@@ -409,7 +409,7 @@ def retrieve_patient_by_email(email: str, practice_id: str):
         patient_dict = patient.to_mongo().to_dict()
         if "practice_id" in patient_dict:
             patient_dict["practice_id"] = str(patient_dict["practice_id"])
-            patient_dict["dob"] = patient.dob.strftime('%Y-%m-%d')
+            patient_dict["dob"] = patient.dob.strftime("%Y-%m-%d")
 
         return patient_dict
 
