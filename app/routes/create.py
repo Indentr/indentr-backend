@@ -22,7 +22,6 @@ from app.database.crud import (
     retrieve_pricing,
     retrieve_prompt_by_title,
     retrieve_user_by_id,
-    update_formatted_notes,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
@@ -30,7 +29,6 @@ from app.models.create import (
     PatientSearch,
     SaveFile,
     SaveFileResponse,
-    SaveNote,
     SymptomData,
     SymptomResponse,
     TreatmentPlanData,
@@ -354,8 +352,6 @@ async def upload_transcript(
 
         log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
 
-        token = decodeJWT(access_token)
-
         upload_transcript_prompt = retrieve_prompt_by_title("upload_transcript")
 
         # AI formatting of dental voice notes
@@ -382,69 +378,56 @@ async def upload_transcript(
         raise e  # Reraise the HTTPException
 
 
-@router.post("/save-note")
-async def update_note(
+@router.post("/create-note")
+async def create_note(
     audioFile: UploadFile = File(...),
     transcript: str = Form(...),
     patientEmail: str = Form(...),
     formatted_notes: str = Form(...),
-    length_of_recording: str = Form(...),
+    length_of_recording: int = Form(...),
     access_token: str = Depends(JWTBearer()),
 ):
     start = time.time()
     request_id = uuid.uuid4().hex
-    log.info(f"Request {request_id} received for saving a note. Email: {patientEmail}")
+    log.info(f"Request {request_id} received for saving a note.")
 
     try:
-        # Attempting to parse transcript to ensure it's valid JSON, this might need adjusting
+        # Attempting to parse transcript to ensure it's valid JSON
         try:
             parsed_transcript = json.loads(transcript)
-            log.info(f"Transcript parsed successfully for request {request_id}.")
         except json.JSONDecodeError as e:
             log.error(f"Failed to parse transcript for request {request_id}: {e}")
             parsed_transcript = transcript  # Assuming plain text if not JSON
 
-        log.info(f"Patient email: {patientEmail}")
-        log.info(f"Length of recording: {length_of_recording}")
-        log.info(f"Audio file received: {audioFile.filename}")
-
         token = decodeJWT(access_token)
         user_id = token.get("user_id")
         practice_id = token.get("practice_id")
-        log.info(f"Token decoded, user ID: {user_id}, practice ID: {practice_id}")
 
         patient = retrieve_patient_by_email(patientEmail, practice_id)
+
         if patient:
             log.info(f"Patient retrieved successfully for email {patientEmail}")
         else:
             log.error(f"No patient found for email {patientEmail}")
             raise HTTPException(status_code=404, detail="Patient not found")
 
-        # Ensure length_of_recording is an integer
-        length_of_recording_int = int(length_of_recording)
-
         audio_content = await audioFile.read()
         note_id = create_audio_note(
-            patient["_id"], 
-            user_id, 
-            practice_id, 
-            BytesIO(audio_content), 
-            parsed_transcript, 
-            formatted_notes,  # Assuming 'formatted_notes' needs to be passed, was missing in the function call
-            length_of_recording_int
+            patient["_id"], user_id, practice_id, BytesIO(audio_content), parsed_transcript, formatted_notes, length_of_recording
         )
-        log.info(f"Note {note_id} saved successfully.")
 
-        elapsed_time = round(time.time() - start, 2)
-        log.debug(f"Request {request_id} completed in {elapsed_time} seconds.")
+        log.info(f"Request {request_id} completed in {round(time.time() - start, 2)} seconds. Note {note_id} saved successfully.")
+
         return {"message": "Note saved successfully", "note_id": note_id}
 
     except HTTPException as e:
         log.error(f"HTTPException during request {request_id}: {e.detail}")
         raise e
+
     except Exception as e:
         log.error(f"Unhandled error during request {request_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from None
+
 
 @router.post("/voice-to-text")
 async def upload_audio(request: Request, access_token: str = Depends(JWTBearer())):
@@ -520,7 +503,7 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
         cost = body.cost
         model = json.loads(body.model)
 
-        patient = retrieve_patient_by_email(patient_details["email"])
+        patient = retrieve_patient_by_email(patient_details["email"], practice_id)
         html_string = wrap_image_in_div(treatment_plan)
 
         letter_id = create_new_letter(user_id, html_string, patient["_id"], practice_id, input_tokens, output_tokens, cost, model)
