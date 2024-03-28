@@ -1,12 +1,10 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.database.crud import (
-    create_new_letter,
-    create_new_patient,
-    create_new_practice,
-    create_new_user,
-)
+from app.database.crud.letter import create_new_letter
+from app.database.crud.patient import create_new_patient
+from app.database.crud.practice import create_new_practice
+from app.database.crud.user import create_new_user
 from app.database.schemas.user import User
 from app.main import app
 from app.middleware.jwt import decodeJWT

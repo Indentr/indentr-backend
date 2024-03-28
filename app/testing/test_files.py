@@ -4,7 +4,8 @@ import pytest
 from bson import ObjectId
 from fastapi.testclient import TestClient
 
-from app.database.crud import create_new_letter, create_new_patient
+from app.database.crud.letter import create_new_letter
+from app.database.crud.patient import create_new_patient
 from app.main import app
 from app.middleware.jwt import decodeJWT
 

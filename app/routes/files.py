@@ -8,27 +8,31 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.constants import DB_URI
 from app.database.atlas_search import atlas_search
-from app.database.crud import (
-    delete_letter,
+from app.database.crud.audio_note import (
     delete_note,
+    retrieve_all_users_notes,
+    retrieve_all_users_notes_filtered_by_char,
+    retrieve_note,
+    retrieve_notes_alphabet_status,
+    retrieve_patients_last_three_notes,
+    update_note,
+)
+from app.database.crud.letter import (
+    delete_letter,
+    retrieve_all_users_letters,
+    retrieve_all_users_letters_filtered_by_char,
+    retrieve_letters_alphabet_status,
+    retrieve_patients_last_three_letters,
+    retrieve_user_letter,
+    update_letter,
+)
+from app.database.crud.patient import (
     delete_patient,
     retrieve_all_patients_by_practice,
     retrieve_all_practices_patients_filtered_by_char,
-    retrieve_all_users_letters,
-    retrieve_all_users_letters_filtered_by_char,
-    retrieve_all_users_notes,
-    retrieve_all_users_notes_filtered_by_char,
-    retrieve_letters_alphabet_status,
-    retrieve_note,
-    retrieve_notes_alphabet_status,
     retrieve_patient_by_email,
     retrieve_patient_by_id,
     retrieve_patients_alphabet_status,
-    retrieve_patients_last_three_letters,
-    retrieve_patients_last_three_notes,
-    retrieve_user_letter,
-    update_letter,
-    update_note,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.file import DeleteFile, FileType, SaveFile, SearchFiles, SelectChar

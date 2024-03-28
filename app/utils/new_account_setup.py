@@ -1,9 +1,7 @@
-from app.database.crud import (
-    create_new_letter,
-    create_triage_request,
-    retrieve_patient_by_email,
-    retrieve_user_by_email,
-)
+from app.database.crud.letter import create_new_letter
+from app.database.crud.patient import retrieve_patient_by_email
+from app.database.crud.triage import create_triage_request
+from app.database.crud.user import retrieve_user_by_email
 from app.utils.create_letter_utils import (
     format_address,
 )

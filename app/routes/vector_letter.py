@@ -2,7 +2,10 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.database.crud import create_new_vector_letter, retrieve_vector_letters
+from app.database.crud.vector_letters import (
+    create_new_vector_letter,
+    retrieve_vector_letters,
+)
 from app.middleware.jwt import JWTBearer
 from app.services.openAI import generate_embedding
 
