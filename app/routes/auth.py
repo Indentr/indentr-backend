@@ -4,15 +4,14 @@ from fastapi.exceptions import HTTPException
 from werkzeug.security import check_password_hash
 
 from app.constants import GRATIS_PASSWORD, STRIPE_SECRET_KEY
-from app.database.crud import (
-    create_letter_config,
+from app.database.crud.letter_config import create_letter_config
+from app.database.crud.practice import (
     create_new_practice,
-    create_new_user,
-    create_triage_settings,
     retrieve_practice_by_email,
     retrieve_practice_by_id,
-    retrieve_user_by_email,
 )
+from app.database.crud.triage_settings import create_triage_settings
+from app.database.crud.user import create_new_user, retrieve_user_by_email
 from app.middleware.jwt import JWTBearer, decodeJWT, signJWT
 from app.models.login import CheckEmail, UserLoginRequest, UserRegisterRequest
 from app.utils.new_account_setup import (

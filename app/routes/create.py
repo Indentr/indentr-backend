@@ -10,19 +10,20 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 
 from app.constants import DB_URI
 from app.database.atlas_search import atlas_search
-from app.database.crud import (
+from app.database.crud.audio_note import (
     create_audio_note,
-    create_new_letter,
-    create_new_patient,
     retrieve_audio_note_time_for_billing_cycle,
-    retrieve_letter_config,
-    retrieve_letter_count_for_billing_cycle,
-    retrieve_patient_by_email,
-    retrieve_practice_by_id,
-    retrieve_pricing,
-    retrieve_prompt_by_title,
-    retrieve_user_by_id,
 )
+from app.database.crud.config import retrieve_prompt_by_title
+from app.database.crud.letter import (
+    create_new_letter,
+    retrieve_letter_count_for_billing_cycle,
+)
+from app.database.crud.letter_config import retrieve_letter_config
+from app.database.crud.patient import create_new_patient, retrieve_patient_by_email
+from app.database.crud.practice import retrieve_practice_by_id
+from app.database.crud.pricing import retrieve_pricing
+from app.database.crud.user import retrieve_user_by_id
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
     PatientDetails,

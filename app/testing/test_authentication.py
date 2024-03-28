@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.constants import JWT_ALGORITHM, SECRET_KEY
-from app.database.crud import retrieve_user_by_email
+from app.database.crud.user import retrieve_user_by_email
 from app.main import app
 from app.middleware.jwt import decodeJWT
 
