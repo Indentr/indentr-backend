@@ -43,11 +43,6 @@ def create_new_patient(forename: str, surname: str, dob: str, gender: str, addre
     return patient_dict
 
 
-# except NotUniqueError:
-#     # Handle the case where a patient with the same email already exists
-#     raise HTTPException(status_code=400, detail="Patient with this email already exists within your practice") from None
-
-
 def delete_patient(practice_id: str, patient_id: str):
     patient_to_delete = Patient.objects(id=patient_id, practice_id=practice_id).first()
 

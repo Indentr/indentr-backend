@@ -117,9 +117,14 @@ def retrieve_patients_last_three_letters(patient_id: str):
     return letters_list
 
 
-def retrieve_all_users_letters(user_id: str):
+def retrieve_all_users_letters(user_id: str = None, practice_id: str = None):
     try:
-        letters = Letter.objects(user_id=user_id).only("consent_letter", "patient_id", "createdAt").order_by("-createdAt").select_related()
+        if not user_id:
+            letters = (
+                Letter.objects(practice_id=practice_id).only("consent_letter", "patient_id", "createdAt").order_by("-createdAt").select_related()
+            )
+        else:
+            letters = Letter.objects(user_id=user_id).only("consent_letter", "patient_id", "createdAt").order_by("-createdAt").select_related()
 
     except DoesNotExist as e:
         # Check if the exception is related to User or Letter
@@ -149,15 +154,24 @@ def retrieve_all_users_letters(user_id: str):
     return letters_list
 
 
-def retrieve_all_users_letters_filtered_by_char(user_id: str, starts_with: str):
+def retrieve_all_users_letters_filtered_by_char(starts_with: str, user_id: str = None, practice_id: str = None):
     try:
-        pipeline = [
-            {"$match": {"user_id": ObjectId(user_id)}},
-            {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
-            {"$unwind": "$patient"},
-            {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
-            {"$sort": {"createdAt": -1}},
-        ]
+        if not practice_id:
+            pipeline = [
+                {"$match": {"user_id": ObjectId(user_id)}},
+                {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
+                {"$unwind": "$patient"},
+                {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
+                {"$sort": {"createdAt": -1}},
+            ]
+        else:
+            pipeline = [
+                {"$match": {"practice_id": ObjectId(practice_id)}},
+                {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
+                {"$unwind": "$patient"},
+                {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
+                {"$sort": {"createdAt": -1}},
+            ]
 
         letters = Letter.objects.aggregate(*pipeline)
 

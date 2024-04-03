@@ -54,10 +54,16 @@ def delete_note(practice_id: str, file_id: str):
     note_to_delete.delete()
 
 
-def retrieve_all_users_notes(user_id: str):
+def retrieve_all_users_notes(user_id: str = None, practice_id: str = None):
     try:
-        # Query letters using MongoEngine
-        notes = AudioNote.objects(user_id=user_id).only("patient_id", "formatted_notes", "createdAt").order_by("-createdAt").select_related()
+        if not user_id:
+            # Gets all practices notes
+            notes = (
+                AudioNote.objects(practice_id=practice_id).only("patient_id", "formatted_notes", "createdAt").order_by("-createdAt").select_related()
+            )
+        else:
+            # Gets all users notes
+            notes = AudioNote.objects(user_id=user_id).only("patient_id", "formatted_notes", "createdAt").order_by("-createdAt").select_related()
 
     except DoesNotExist as e:
         # Check if the exception is related to User or Letter
@@ -170,16 +176,26 @@ def retrieve_notes_alphabet_status(user_id: str):
         raise HTTPException(status_code=404, detail="Error retrieving alphabet_status") from None
 
 
-def retrieve_all_users_notes_filtered_by_char(user_id: str, starts_with: str):
+def retrieve_all_users_notes_filtered_by_char(starts_with: str, user_id: str = None, practice_id: str = None):
     try:
-        pipeline = [
-            {"$match": {"user_id": ObjectId(user_id)}},
-            {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
-            {"$unwind": "$patient"},
-            {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
-            {"$sort": {"createdAt": -1}},
-            {"$project": {"audio": 0, "practice_id": 0, "user_id": 0, "transcript": 0}},
-        ]
+        if not practice_id:
+            pipeline = [
+                {"$match": {"user_id": ObjectId(user_id)}},
+                {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
+                {"$unwind": "$patient"},
+                {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
+                {"$sort": {"createdAt": -1}},
+                {"$project": {"audio": 0, "practice_id": 0, "user_id": 0, "transcript": 0}},
+            ]
+        else:
+            pipeline = [
+                {"$match": {"practice_id": ObjectId(practice_id)}},
+                {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
+                {"$unwind": "$patient"},
+                {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
+                {"$sort": {"createdAt": -1}},
+                {"$project": {"audio": 0, "practice_id": 0, "user_id": 0, "transcript": 0}},
+            ]
 
         notes = AudioNote.objects.aggregate(*pipeline)
 
