@@ -378,6 +378,7 @@ async def upload_transcript_generic(
     except HTTPException as e:
         raise e  # Reraise the HTTPException
 
+
 @router.post("/uploadTranscript")
 async def upload_transcript(
     transcript: str = Form(...),
@@ -413,6 +414,7 @@ async def upload_transcript(
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
+
 
 @router.post("/create-note")
 async def create_note(

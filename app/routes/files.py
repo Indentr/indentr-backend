@@ -5,6 +5,7 @@ import uuid
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
+
 from app.constants import DB_URI
 from app.database.atlas_search import atlas_search
 from app.database.crud.audio_note import (
