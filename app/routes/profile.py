@@ -7,27 +7,37 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
-from app.database.crud import (
+from app.database.crud.audio_note import (
+    retrieve_audio_note_time_for_billing_cycle,
+    retrieve_last_three_notes,
+)
+from app.database.crud.config import (
+    retrieve_prompt_by_title,
+)
+from app.database.crud.letter import (
+    retrieve_last_three_letters,
+    retrieve_letter_count_for_billing_cycle,
+)
+from app.database.crud.letter_config import (
+    retrieve_letter_config,
+    update_letter_config,
+    update_letter_image,
+)
+from app.database.crud.practice import retrieve_practice_by_id, update_practice_details
+from app.database.crud.pricing import retrieve_price_list, update_price_list
+from app.database.crud.triage import (
+    retrieve_last_three_triage_requests,
+)
+from app.database.crud.triage_settings import (
+    retrieve_triage_settings,
+    update_triage_settings,
+)
+from app.database.crud.user import (
     create_new_user,
     delete_member,
     retrieve_all_practice_users,
-    retrieve_audio_note_time_for_billing_cycle,
-    retrieve_last_three_letters,
-    retrieve_last_three_notes,
-    retrieve_last_three_triage_requests,
-    retrieve_letter_config,
-    retrieve_letter_count_for_billing_cycle,
-    retrieve_practice_by_id,
-    retrieve_price_list,
-    retrieve_prompt_by_title,
-    retrieve_triage_settings,
     retrieve_user_by_email,
     retrieve_user_by_id,
-    update_letter_config,
-    update_letter_image,
-    update_practice_details,
-    update_price_list,
-    update_triage_settings,
     update_user_details,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT

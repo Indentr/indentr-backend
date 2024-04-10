@@ -4,7 +4,8 @@ import pytest
 from bson import ObjectId
 from fastapi.testclient import TestClient
 
-from app.database.crud import create_new_letter, create_new_patient
+from app.database.crud.letter import create_new_letter
+from app.database.crud.patient import create_new_patient
 from app.main import app
 from app.middleware.jwt import decodeJWT
 
@@ -68,7 +69,7 @@ def test_get_all_user_letters(insert_consent_letter):
     token, letter_id, consent_letter, patient_details, user_id, practice_id = insert_consent_letter
     response = client.post(
         "/files/get-files/",
-        json={"file_type": "letter"},
+        json={"file_type": "letter", "created_by": "You"},
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",

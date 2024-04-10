@@ -8,30 +8,34 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.constants import DB_URI
 from app.database.atlas_search import atlas_search
-from app.database.crud import (
-    delete_letter,
+from app.database.crud.audio_note import (
     delete_note,
+    retrieve_all_users_notes,
+    retrieve_all_users_notes_filtered_by_char,
+    retrieve_note,
+    retrieve_notes_alphabet_status,
+    retrieve_patients_last_three_notes,
+    update_note,
+)
+from app.database.crud.letter import (
+    delete_letter,
+    retrieve_all_users_letters,
+    retrieve_all_users_letters_filtered_by_char,
+    retrieve_letters_alphabet_status,
+    retrieve_patients_last_three_letters,
+    retrieve_user_letter,
+    update_letter,
+)
+from app.database.crud.patient import (
     delete_patient,
     retrieve_all_patients_by_practice,
     retrieve_all_practices_patients_filtered_by_char,
-    retrieve_all_users_letters,
-    retrieve_all_users_letters_filtered_by_char,
-    retrieve_all_users_notes,
-    retrieve_all_users_notes_filtered_by_char,
-    retrieve_letters_alphabet_status,
-    retrieve_note,
-    retrieve_notes_alphabet_status,
     retrieve_patient_by_email,
     retrieve_patient_by_id,
     retrieve_patients_alphabet_status,
-    retrieve_patients_last_three_letters,
-    retrieve_patients_last_three_notes,
-    retrieve_user_letter,
-    update_letter,
-    update_note,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
-from app.models.file import DeleteFile, FileType, SaveFile, SearchFiles, SelectChar
+from app.models.file import DeleteFile, GetFile, SaveFile, SearchFiles, SelectChar
 from app.utils.utils import wrap_image_in_div
 
 router = APIRouter(prefix="/files", tags=["Files"])
@@ -40,7 +44,7 @@ log = logging.getLogger(__name__)
 
 
 @router.post("/get-files/")
-def get_files(body: FileType, access_token=Depends(JWTBearer())):
+def get_files(body: GetFile, access_token=Depends(JWTBearer())):
     """
     # Gets all files
     Gets all notes/consent letters based on the file_type that gets passed in.
@@ -58,10 +62,10 @@ def get_files(body: FileType, access_token=Depends(JWTBearer())):
     file_type = body.file_type
 
     if file_type == "letter":
-        files = retrieve_all_users_letters(user_id)
+        files = retrieve_all_users_letters(user_id=user_id) if body.created_by == "You" else retrieve_all_users_letters(practice_id=practice_id)
 
     elif file_type == "note":
-        files = retrieve_all_users_notes(user_id)
+        files = retrieve_all_users_notes(user_id=user_id) if body.created_by == "You" else retrieve_all_users_notes(practice_id=practice_id)
 
     elif file_type == "patient":
         files = retrieve_all_patients_by_practice(practice_id)
@@ -170,6 +174,13 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
 
         if body.file_type == "letter" or body.file_type == "note":
             search_param = body.search_param
+            filter_condition = None
+
+            if body.created_by == "You":
+                filter_condition = {"equals": {"value": ObjectId(user_id), "path": "user_id"}}
+            else:
+                filter_condition = {"equals": {"value": ObjectId(practice_id), "path": "practice_id"}}
+
             pipeline = [
                 {
                     "$search": {
@@ -180,9 +191,7 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
                                 {"autocomplete": {"query": search_param, "path": "patient_details.forename"}},
                                 {"autocomplete": {"query": search_param, "path": "patient_details.surname"}},
                             ],
-                            "filter": [
-                                {"equals": {"value": ObjectId(user_id), "path": "user_id"}},
-                            ],
+                            "filter": [filter_condition],
                             "minimumShouldMatch": 1,
                         },
                     }
@@ -226,14 +235,12 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
             ]
 
         result = atlas_search(DB_URI, table, pipeline)
+
         for i in result:
             i["_id"] = str(i["_id"])
             if "patient_id" in i:
                 patient_details = retrieve_patient_by_id(str(i["patient_id"]), practice_id)
                 del patient_details["dob"]
-                # del patient_details["gender"]
-                # del patient_details["address"]
-                # del patient_details["email"]
                 del i["patient_id"]
                 i["patient_details"] = patient_details
 
@@ -250,7 +257,7 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
 
 
 @router.post("/init-alphabetised/")
-def init_alphabetised(body: FileType, access_token=Depends(JWTBearer())):
+def init_alphabetised(body: GetFile, access_token=Depends(JWTBearer())):
     """
     # Initialises alphabtised when user clicks on alphabet sort button on front end
     returns a dictionary of number of files for each letter in the alphabet.
@@ -266,26 +273,21 @@ def init_alphabetised(body: FileType, access_token=Depends(JWTBearer())):
         user_id = token["user_id"]
         practice_id = token["practice_id"]
         starts_with_char = None
-        files = None
 
         if body.file_type == "letter":
             alphabet_status = retrieve_letters_alphabet_status(user_id)
             starts_with_char = next((char for char, count in alphabet_status.items() if count > 0), None)
-            if starts_with_char:
-                files = retrieve_all_users_letters_filtered_by_char(user_id, starts_with_char)
+
         elif body.file_type == "note":
             alphabet_status = retrieve_notes_alphabet_status(user_id)
             starts_with_char = next((char for char, count in alphabet_status.items() if count > 0), None)
-            if starts_with_char:
-                files = retrieve_all_users_notes_filtered_by_char(user_id, starts_with_char)
+
         elif body.file_type == "patient":
             alphabet_status = retrieve_patients_alphabet_status(practice_id)
             starts_with_char = next((char for char, count in alphabet_status.items() if count > 0), None)
-            if starts_with_char:
-                files = retrieve_all_practices_patients_filtered_by_char(practice_id, starts_with_char)
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
-        return {"files": files, "starts_with_char": starts_with_char, "alphabet_status": alphabet_status}
+        return {"starts_with_char": starts_with_char, "alphabet_status": alphabet_status}
 
     except HTTPException as e:
         log.debug(f"Request {request_id} failed and took {round((time.time() - start), 2)} seconds.")
@@ -310,9 +312,17 @@ def select_char(body: SelectChar, access_token=Depends(JWTBearer())):
         files = None
 
         if body.file_type == "letter":
-            files = retrieve_all_users_letters_filtered_by_char(user_id, body.char)
+            files = (
+                retrieve_all_users_letters_filtered_by_char(user_id=user_id, starts_with=body.char)
+                if body.created_by == "You"
+                else retrieve_all_users_letters_filtered_by_char(practice_id=practice_id, starts_with=body.char)
+            )
         elif body.file_type == "note":
-            files = retrieve_all_users_notes_filtered_by_char(user_id, body.char)
+            files = (
+                retrieve_all_users_notes_filtered_by_char(user_id=user_id, starts_with=body.char)
+                if body.created_by == "You"
+                else retrieve_all_users_notes_filtered_by_char(practice_id=practice_id, starts_with=body.char)
+            )
         elif body.file_type == "patient":
             files = retrieve_all_practices_patients_filtered_by_char(practice_id, body.char)
 
@@ -328,7 +338,7 @@ def select_char(body: SelectChar, access_token=Depends(JWTBearer())):
 @router.post("/delete-file/")
 def delete_file(body: DeleteFile, access_token=Depends(JWTBearer())):
     """
-    # Retrieves all files whose patients first name starts with 'char'
+    # Deletes a file based on file_type and the file_id
     """
 
     start = time.time()

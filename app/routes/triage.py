@@ -8,22 +8,26 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.constants import DB_URI, TRIAGE_MAIL, TRIAGE_MAIL_PASSWORD
 from app.database.atlas_search import atlas_search
-from app.database.crud import (
+from app.database.crud.config import retrieve_prompt_by_title
+from app.database.crud.patient import (
     create_new_patient,
+    retrieve_patient_by_email,
+    retrieve_patient_by_id,
+    update_patients_practice_id,
+)
+from app.database.crud.practice import (
+    retrieve_practice_by_id,
+)
+from app.database.crud.triage import (
     create_triage_request,
     delete_triage_requests,
     retrieve_all_triage_requests,
     retrieve_all_triage_requests_by_folder,
-    retrieve_patient_by_email,
-    retrieve_patient_by_id,
-    retrieve_practice_by_id,
-    retrieve_prompt_by_title,
     retrieve_triage_request,
-    retrieve_triage_settings,
-    update_patients_practice_id,
     update_triage_requests_folder,
     update_triage_requests_opened,
 )
+from app.database.crud.triage_settings import retrieve_triage_settings
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.triage import (
     AddPatientToPractice,
