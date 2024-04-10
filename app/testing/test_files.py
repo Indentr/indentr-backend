@@ -69,7 +69,7 @@ def test_get_all_user_letters(insert_consent_letter):
     token, letter_id, consent_letter, patient_details, user_id, practice_id = insert_consent_letter
     response = client.post(
         "/files/get-files/",
-        json={"file_type": "letter"},
+        json={"file_type": "letter", "created_by": "You"},
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
