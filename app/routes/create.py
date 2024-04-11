@@ -34,6 +34,7 @@ from app.models.create import (
     SymptomResponse,
     TreatmentPlanData,
     TreatmentPlanResponse,
+    UploadTranscript,
 )
 from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt
@@ -342,46 +343,9 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
         raise HTTPException(status_code=500, detail="Failed to save image") from e
 
 
-@router.post("/uploadTranscriptGeneric")
-async def upload_transcript_generic(
-    transcript: str = Form(...),
-    access_token=Depends(JWTBearer()),
-):
-    try:
-        start = time.time()
-        request_id = uuid.uuid4().hex
-
-        log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
-
-        upload_transcript_generic_prompt = retrieve_prompt_by_title("upload_transcript_generic")
-
-        # AI formatting of dental voice notes
-        prompt = f"""
-            START OF TRANSCRIPT
-
-            {transcript}
-
-            END OF TRANSCRIPT
-
-            {upload_transcript_generic_prompt}
-        """
-
-        formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes", "gpt-4-1106-preview")
-
-        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
-
-        # Convert ObjectId to string for JSON serialization
-        return {
-            "formatted_notes": formatted_notes,
-        }
-
-    except HTTPException as e:
-        raise e  # Reraise the HTTPException
-
-
 @router.post("/uploadTranscript")
 async def upload_transcript(
-    transcript: str = Form(...),
+    body: UploadTranscript,
     access_token=Depends(JWTBearer()),
 ):
     try:
@@ -390,20 +354,27 @@ async def upload_transcript(
 
         log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
 
-        upload_transcript_prompt = retrieve_prompt_by_title("upload_transcript")
+        upload_transcript_prompt = (
+            retrieve_prompt_by_title("upload_transcript")
+            if body.transcript_type == "dental_note"
+            else retrieve_prompt_by_title("upload_transcript_generic")
+        )
+        gpt_instruction = (
+            "You're an ai formatting dental voice notes" if body.transcript_type == "dental_note" else "You're an ai formatting voice notes"
+        )
 
         # AI formatting of dental voice notes
         prompt = f"""
             START OF TRANSCRIPT
 
-            {transcript}
+            {body.transcript}
 
             END OF TRANSCRIPT
 
             {upload_transcript_prompt}
         """
 
-        formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes", "gpt-4-1106-preview")
+        formatted_notes, tokens = await ask_gpt(prompt, gpt_instruction, "gpt-4-1106-preview")
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
