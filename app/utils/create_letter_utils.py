@@ -31,6 +31,35 @@ async def treatment_section(dentistNotes: str, gpt_model: str):
     return section, input_tokens, output_tokens, cost
 
 
+async def treatment_section_referral(dentistNotes: str, gpt_model: str):
+    prompt = f"""
+
+        START_OF_CONTENT_INSTRUCTIONS
+
+        I need you to write a referral letter/note for a patient from the perspective of the referring dentist.
+        The patient is a patient of the practice or your practice or may have just come to see you for an initial appontment, it does not matter, the dentist you are reffering to does not
+        need to know the nature of your relationship to the patient past the fact that they are currently your patient and you are referring them over to the dentist who is currently
+        not aware of the patient in question.
+        The referral letter should explain the symptoms/reason for referral.
+
+        END_OF_CONTENT_INSTRUCTIONS
+
+        Here are the dental notes that I need you to base your answer around:
+        START_OF_NOTES
+        {dentistNotes}
+        END_OF_NOTES
+
+        Make sure to use english spelling. Don't include any introductions or signoffs like 'Dear...' or 'From....'
+        Please format it as a html string where each paragraph is wrapped in <p></p> with an empty <p/> between each paragraph and dont wrap your response in ```html I want just a normal string response
+    """
+    input_tokens = count_input_tokens(prompt, gpt_model)
+    section, output_tokens = await ask_gpt(
+        prompt, "You're a UK based dentist writing a referral letter for your patient to go to another dentist", gpt_model
+    )
+    cost = calculate_openAI_gpt_cost(input_tokens, output_tokens, gpt_model)
+    return section, input_tokens, output_tokens, cost
+
+
 async def fees_section(
     dentistNotes: str, include_pricing: bool, pricing_list: str, patient_insurance_info: str, include_insurance_info: bool, gpt_model: str
 ):
