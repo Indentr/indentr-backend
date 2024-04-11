@@ -331,13 +331,11 @@ async def generate_referral_letter(body: TreatmentPlanData, access_token=Depends
         gpt_model = "gpt-4-turbo-preview"
 
         token = decodeJWT(access_token)
-        # user_id = token["user_id"]
         practice_id = token["practice_id"]
 
         letter_config = retrieve_letter_config(practice_id)
         pricing_list = retrieve_pricing(practice_id) if letter_config["pricing"] else ""
         practice = retrieve_practice_by_id(practice_id)
-        # user = retrieve_user_by_id(user_id)
 
         if "stripe_customer_id" in practice:
             stripe_customer_details = await retrieve_stripe_customer_details(practice["stripe_customer_id"])
@@ -359,23 +357,9 @@ async def generate_referral_letter(body: TreatmentPlanData, access_token=Depends
             log.debug(f"Error processing {request_id}: User not stripe or gratis customer")
             raise HTTPException(status_code=500, detail="User not stripe or gratis customer") from None
 
-        # patientDetails = json.loads(body.patientDetails)
         dentistNotes = json.loads(body.dentistNotes) if body.dentistNotes else None
 
-        results = await asyncio.gather(
-            treatment_section_referral(dentistNotes, gpt_model),
-            fees_section(
-                dentistNotes,
-                letter_config["pricing"],
-                pricing_list,
-                letter_config["patient_insurance_info"],
-                letter_config["include_insurance_info"],
-                gpt_model,
-            ),
-        )
-
-        # Access the results
-        referral_section_result, referral_section_input_tokens, referral_section_output_tokens, referral_section_cost = results[0]
+        referral_section_result, referral_section_input_tokens, referral_section_output_tokens, referral_section_cost  = await treatment_section_referral(dentistNotes, gpt_model)
         log.info(f"GPT treatment plan response: {referral_section_result}")
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
