@@ -333,8 +333,6 @@ async def generate_referral_letter(body: TreatmentPlanData, access_token=Depends
         token = decodeJWT(access_token)
         practice_id = token["practice_id"]
 
-        letter_config = retrieve_letter_config(practice_id)
-        pricing_list = retrieve_pricing(practice_id) if letter_config["pricing"] else ""
         practice = retrieve_practice_by_id(practice_id)
 
         if "stripe_customer_id" in practice:
@@ -359,7 +357,12 @@ async def generate_referral_letter(body: TreatmentPlanData, access_token=Depends
 
         dentistNotes = json.loads(body.dentistNotes) if body.dentistNotes else None
 
-        referral_section_result, referral_section_input_tokens, referral_section_output_tokens, referral_section_cost  = await treatment_section_referral(dentistNotes, gpt_model)
+        (
+            referral_section_result,
+            referral_section_input_tokens,
+            referral_section_output_tokens,
+            referral_section_cost,
+        ) = await treatment_section_referral(dentistNotes, gpt_model)
         log.info(f"GPT treatment plan response: {referral_section_result}")
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
