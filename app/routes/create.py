@@ -375,18 +375,16 @@ async def generate_referral_letter(body: TreatmentPlanData, access_token=Depends
         )
 
         # Access the results
-        treatment_section_result, treatment_section_input_tokens, treatment_section_output_tokens, treatment_section_cost = results[0]
-        log.info(f"GPT treatment plan response: {treatment_section_result}")
-
-        response_html = treatment_section_result
+        referral_section_result, referral_section_input_tokens, referral_section_output_tokens, referral_section_cost = results[0]
+        log.info(f"GPT treatment plan response: {referral_section_result}")
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
         return {
-            "html_content": response_html,
-            "input_tokens": treatment_section_input_tokens,
-            "output_tokens": treatment_section_output_tokens,
-            "cost": "",
+            "html_content": referral_section_result,
+            "input_tokens": referral_section_input_tokens,
+            "output_tokens": referral_section_output_tokens,
+            "cost": round((referral_section_cost), 2),
             "model": gpt_model,
         }
 
