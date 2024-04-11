@@ -50,7 +50,7 @@ async def treatment_section_referral(dentistNotes: str, gpt_model: str):
         END_OF_NOTES
 
         Make sure to use english spelling. Don't include any introductions or signoffs like 'Dear...' or 'From....'
-        Each new paragraph needs a: <p/> between the paragraphs as this represents a blank line and dont wrap your response in ```html I want just a normal string response
+        Please format it as a html string where each paragraph is wrapped in <p></p> with an empty <p/> between each paragraph and dont wrap your response in ```html I want just a normal string response
     """
     input_tokens = count_input_tokens(prompt, gpt_model)
     section, output_tokens = await ask_gpt(
