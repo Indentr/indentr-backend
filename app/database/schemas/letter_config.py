@@ -44,7 +44,7 @@ class LetterConfig(Document):
         practice_id = document.practice_id.id
         practice_details = Practice.objects.get(id=practice_id)
 
-        custom_paragraph = f"Should you have any questions or require further clarification on any aspect of the treatment, please do not hesitate to contact us{' on ' + practice_details.phone if practice_details.phone else ''}{' or email us at ' + practice_details.primary_email if practice_details.primary_email else ''}. We are here to support you every step of the way and ensure that you are comfortable and informed throughout the process."
+        custom_paragraph = f"Should you have any questions, or require further clarification on any aspect of the treatment, please do not hesitate to contact us{' on ' + practice_details.phone if practice_details.phone else ''}{' or email us at ' + practice_details.primary_email if practice_details.primary_email else ''}. We are here to support you every step of the way and ensure that you are comfortable and informed throughout the process."
 
         # Update the contact_details_text field
         document.contact_details_text = custom_paragraph
