@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import UploadFile
 from pydantic import BaseModel
@@ -55,7 +55,7 @@ class SymptomResponse(BaseModel):
 
 
 # Request model
-class TreatmentPlanData(BaseModel):
+class LetterData(BaseModel):
     patientDetails: str
     symptomDetails: Optional[str] = None
     dentistNotes: Optional[str] = None
@@ -95,7 +95,7 @@ class TreatmentPlanData(BaseModel):
 
 
 # Response model
-class TreatmentPlanResponse(BaseModel):
+class LetterResponse(BaseModel):
     html_content: str
     input_tokens: int
     output_tokens: int
@@ -154,3 +154,9 @@ class SaveFileResponse(BaseModel):
 class SaveAudioNotes(BaseModel):
     audioFile: UploadFile
     patientEmail: str
+
+
+# Request model
+class UploadTranscript(BaseModel):
+    transcript: str
+    transcript_type: Optional[Literal["dental_note", "generic"]] = "dental_note"

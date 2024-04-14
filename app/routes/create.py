@@ -19,21 +19,24 @@ from app.database.crud.letter import (
     create_new_letter,
     retrieve_letter_count_for_billing_cycle,
 )
-from app.database.crud.letter_config import retrieve_letter_config
+from app.database.crud.letter_config import (
+    retrieve_letter_config,
+)
 from app.database.crud.patient import create_new_patient, retrieve_patient_by_email
 from app.database.crud.practice import retrieve_practice_by_id
 from app.database.crud.pricing import retrieve_pricing
 from app.database.crud.user import retrieve_user_by_id
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
+    LetterData,
+    LetterResponse,
     PatientDetails,
     PatientSearch,
     SaveFile,
     SaveFileResponse,
     SymptomData,
     SymptomResponse,
-    TreatmentPlanData,
-    TreatmentPlanResponse,
+    UploadTranscript,
 )
 from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt
@@ -49,6 +52,7 @@ from app.utils.create_letter_utils import (
     generate_signoff,
     patient_signature,
     treatment_section,
+    treatment_section_referral,
 )
 from app.utils.utils import wrap_image_in_div
 
@@ -194,8 +198,8 @@ async def generate_questions(body: SymptomData, access_token=Depends(JWTBearer()
     return questions
 
 
-@router.post("/consent-letter", response_model=TreatmentPlanResponse)
-async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(JWTBearer())):
+@router.post("/consent-letter", response_model=LetterResponse)
+async def generate_consent_letter(body: LetterData, access_token=Depends(JWTBearer())):
     """
     # Generates a treatment plan based on Patient and Symptom Details
     This endpoint generates a treatment plan tailored to the patient's symptoms. The treatment plan is returned as an HTML-formatted string.
@@ -210,23 +214,6 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
         token = decodeJWT(access_token)
         user_id = token["user_id"]
         practice_id = token["practice_id"]
-
-        # embedding = await generate_embedding(body.dentistNotes if body.dentistNotes else body.symptomDetails)
-        # pipeline = [
-        #     {
-        #         "$vectorSearch": {
-        #             "index": "default",
-        #             "queryVector": embedding,
-        #             "path": "plot_embedding",
-        #             "numCandidates": 100,
-        #             "limit": 1,
-        #         }
-        #     },
-        #     {"$project": {"consent_letter": 1, "_id": 0}},
-        # ]
-
-        # example_consent_letter = retrieve_vector_letters(pipeline)
-        # generate_consent_letter_prompt = retrieve_prompt_by_title("generate_consent_letter")
 
         letter_config = retrieve_letter_config(practice_id)
         pricing_list = retrieve_pricing(practice_id) if letter_config["pricing"] else ""
@@ -257,9 +244,11 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
         dentistNotes = json.loads(body.dentistNotes) if body.dentistNotes else None
 
         results = await asyncio.gather(
-            treatment_section(dentistNotes, gpt_model),
+            treatment_section(dentistNotes, letter_config["formality_level"], letter_config["detail_level"], gpt_model),
             fees_section(
                 dentistNotes,
+                letter_config["formality_level"],
+                letter_config["detail_level"],
                 letter_config["pricing"],
                 pricing_list,
                 letter_config["patient_insurance_info"],
@@ -316,6 +305,72 @@ async def generate_treatment_plan(body: TreatmentPlanData, access_token=Depends(
         raise HTTPException(status_code=500, detail=e) from e
 
 
+@router.post("/referral-letter", response_model=LetterResponse)
+async def generate_referral_letter(body: LetterData, access_token=Depends(JWTBearer())):
+    """
+    # Generates a referral letter
+    This endpoint generates a referral letter based on patients details along with some information pertaining to the patients symptoms and reason for appointment
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received.")
+
+        gpt_model = "gpt-4-turbo-preview"
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        practice = retrieve_practice_by_id(practice_id)
+
+        if "stripe_customer_id" in practice:
+            stripe_customer_details = await retrieve_stripe_customer_details(practice["stripe_customer_id"])
+            start_date = stripe_customer_details["start_date"]
+            end_date = stripe_customer_details["end_date"]
+            allowed_consent_letters = stripe_customer_details["allowed_consent_letters"]
+            active_subscription = stripe_customer_details["active_subscription"]
+            letter_count = retrieve_letter_count_for_billing_cycle(practice_id, start_date, end_date)
+
+            if not active_subscription:
+                log.debug(f"Error processing {request_id}: no active plan")
+                raise HTTPException(status_code=500, detail="No plan is active") from None
+
+            if letter_count >= int(allowed_consent_letters):
+                log.debug(f"Error processing {request_id}: Reached consent letter quota")
+                raise HTTPException(status_code=500, detail="You have reached your monthly quota for creating consent letters.") from None
+
+        elif "gratis_password" not in practice:
+            log.debug(f"Error processing {request_id}: User not stripe or gratis customer")
+            raise HTTPException(status_code=500, detail="User not stripe or gratis customer") from None
+
+        dentistNotes = json.loads(body.dentistNotes) if body.dentistNotes else None
+
+        (
+            referral_section_result,
+            referral_section_input_tokens,
+            referral_section_output_tokens,
+            referral_section_cost,
+        ) = await treatment_section_referral(dentistNotes, gpt_model)
+        log.info(f"GPT treatment plan response: {referral_section_result}")
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {
+            "html_content": referral_section_result,
+            "input_tokens": referral_section_input_tokens,
+            "output_tokens": referral_section_output_tokens,
+            "cost": round((referral_section_cost), 2),
+            "model": gpt_model,
+        }
+
+    except HTTPException as e:
+        log.debug(f"Error processing {request_id}: {e}")
+        raise e  # Reraise the HTTPException
+    except Exception as e:
+        log.debug(f"Error processing {request_id}: {e}")
+        raise HTTPException(status_code=500, detail=e) from e
+
+
 @router.post("/analyse-image")
 async def save_img(request: Request, access_token=Depends(JWTBearer())):
     """
@@ -344,7 +399,7 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
 
 @router.post("/uploadTranscript")
 async def upload_transcript(
-    transcript: str = Form(...),
+    body: UploadTranscript,
     access_token=Depends(JWTBearer()),
 ):
     try:
@@ -353,20 +408,27 @@ async def upload_transcript(
 
         log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
 
-        upload_transcript_prompt = retrieve_prompt_by_title("upload_transcript")
+        upload_transcript_prompt = (
+            retrieve_prompt_by_title("upload_transcript")
+            if body.transcript_type == "dental_note"
+            else retrieve_prompt_by_title("upload_transcript_generic")
+        )
+        gpt_instruction = (
+            "You're an ai formatting dental voice notes" if body.transcript_type == "dental_note" else "You're an ai formatting voice notes"
+        )
 
         # AI formatting of dental voice notes
         prompt = f"""
             START OF TRANSCRIPT
 
-            {transcript}
+            {body.transcript}
 
             END OF TRANSCRIPT
 
             {upload_transcript_prompt}
         """
 
-        formatted_notes, tokens = await ask_gpt(prompt, "You're an ai formatting dental voice notes", "gpt-4-1106-preview")
+        formatted_notes, tokens = await ask_gpt(prompt, gpt_instruction, "gpt-4-1106-preview")
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 

@@ -15,7 +15,7 @@ client = TestClient(app)
 @pytest.fixture
 def register_test_user():
     response = client.post(
-        "/auth/register",
+        "/auth/register/",
         json={
             "name": "John Terry",
             "email": "johnterry@gmail.com",
@@ -34,7 +34,7 @@ def register_test_user():
 
 def test_register_existing_user(register_test_user):
     response = client.post(
-        "/auth/register",
+        "/auth/register/",
         json={
             "name": "John Terry",
             "email": "johnterry@gmail.com",
