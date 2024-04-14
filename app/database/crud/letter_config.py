@@ -8,6 +8,7 @@ from mongoengine import DoesNotExist
 
 from app.database.schemas.letter_config import LetterConfig
 
+
 def create_letter_config(practice_id: str):
     try:
         letter_config = LetterConfig(practice_id=practice_id)
