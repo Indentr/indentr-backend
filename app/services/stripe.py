@@ -12,18 +12,35 @@ async def retrieve_stripe_customer_details(stripe_customer_id: str):
 
     # get the active subscription and plan details
     subscriptions = customer.subscriptions.data
-    active_subscription = next((sub for sub in subscriptions if sub.status == "active"), None)
-    plan = active_subscription.plan if active_subscription else None
-    plan_name = plan.metadata.nickname
-    allowed_audio_note_hours = plan.metadata.allowed_audio_note_hours
-    allowed_consent_letters = plan.metadata.allowed_consent_letters
 
-    # retrieve the number of letters created in the current billing cycle
-    start_date = datetime.fromtimestamp(active_subscription.current_period_start) if active_subscription else None
-    end_date = datetime.fromtimestamp(active_subscription.current_period_end) if active_subscription else None
+    active_subscription = next((sub for sub in subscriptions if sub.status == "active"), None)
+    trial_subscription = next((sub for sub in subscriptions if sub.status == "trialing"), None)
+    plan = active_subscription.plan if active_subscription else (trial_subscription.plan if trial_subscription else None)
+
+    plan_name = "Unkown"
+    allowed_audio_note_hours = 0
+    allowed_consent_letters = 0
+
+    if plan is not None:
+        plan_name = plan.metadata.nickname
+        allowed_audio_note_hours = plan.metadata.allowed_audio_note_hours
+        allowed_consent_letters = plan.metadata.allowed_consent_letters
+
+    # Retrieve the number of letters created in the current billing cycle
+    start_date = (
+        datetime.fromtimestamp(active_subscription.current_period_start)
+        if active_subscription
+        else (datetime.fromtimestamp(trial_subscription.current_period_start) if trial_subscription else None)
+    )
+    end_date = (
+        datetime.fromtimestamp(active_subscription.current_period_end)
+        if active_subscription
+        else (datetime.fromtimestamp(trial_subscription.current_period_end) if trial_subscription else None)
+    )
 
     return {
         "active_subscription": active_subscription,
+        "trial_subscription": trial_subscription,
         "plan_name": plan_name,
         "allowed_audio_note_hours": allowed_audio_note_hours,
         "allowed_consent_letters": allowed_consent_letters,
