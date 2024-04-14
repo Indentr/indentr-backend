@@ -2,6 +2,7 @@ from mongoengine import (
     BinaryField,
     BooleanField,
     Document,
+    FloatField,
     ReferenceField,
     StringField,
     signals,
@@ -15,6 +16,9 @@ class LetterConfig(Document):
     DENTIST_NAMING = ("dentist_name", "dentist_practice_name", "practice_name")
 
     practice_id = ReferenceField(Practice, required=True)
+
+    formality_level = FloatField(default=0.65, required=True)  # 0 being very informal 1 being very formal
+    detail_level = FloatField(default=0.65, required=True)  # 0 being not very detailed 1 being incredibly detailed
 
     # Intro
     image = BinaryField()

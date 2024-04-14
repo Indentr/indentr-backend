@@ -8,6 +8,11 @@ class PriceListItem(BaseModel):
     price: str
 
 
+class UpdateLetterConfigAdjustment(BaseModel):
+    formality_level: float
+    detail_level: float
+
+
 class UpdateLetterConfig(BaseModel):
     include_image: bool
     patient_address: bool

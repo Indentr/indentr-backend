@@ -8,7 +8,6 @@ from mongoengine import DoesNotExist
 
 from app.database.schemas.letter_config import LetterConfig
 
-
 def create_letter_config(practice_id: str):
     try:
         letter_config = LetterConfig(practice_id=practice_id)
@@ -51,6 +50,17 @@ def update_letter_image(practice_id: str, image_data: bytes):
 
     letter_config.image = image_data
     letter_config.save()
+
+
+def update_letter_config_adjustments(practice_id: str, formality_level: float, detail_level: float):
+    try:
+        letter_config = LetterConfig.objects.get(practice_id=practice_id)
+        letter_config.formality_level = formality_level
+        letter_config.detail_level = detail_level
+        letter_config.save()
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="Letter config not found") from None
 
 
 def update_letter_config(

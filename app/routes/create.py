@@ -19,21 +19,23 @@ from app.database.crud.letter import (
     create_new_letter,
     retrieve_letter_count_for_billing_cycle,
 )
-from app.database.crud.letter_config import retrieve_letter_config
+from app.database.crud.letter_config import (
+    retrieve_letter_config,
+)
 from app.database.crud.patient import create_new_patient, retrieve_patient_by_email
 from app.database.crud.practice import retrieve_practice_by_id
 from app.database.crud.pricing import retrieve_pricing
 from app.database.crud.user import retrieve_user_by_id
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
+    LetterData,
+    LetterResponse,
     PatientDetails,
     PatientSearch,
     SaveFile,
     SaveFileResponse,
     SymptomData,
     SymptomResponse,
-    TreatmentPlanData,
-    TreatmentPlanResponse,
     UploadTranscript,
 )
 from app.services.deepgram import dpg_speech_to_text
@@ -196,8 +198,8 @@ async def generate_questions(body: SymptomData, access_token=Depends(JWTBearer()
     return questions
 
 
-@router.post("/consent-letter", response_model=TreatmentPlanResponse)
-async def generate_consent_letter(body: TreatmentPlanData, access_token=Depends(JWTBearer())):
+@router.post("/consent-letter", response_model=LetterResponse)
+async def generate_consent_letter(body: LetterData, access_token=Depends(JWTBearer())):
     """
     # Generates a treatment plan based on Patient and Symptom Details
     This endpoint generates a treatment plan tailored to the patient's symptoms. The treatment plan is returned as an HTML-formatted string.
@@ -212,23 +214,6 @@ async def generate_consent_letter(body: TreatmentPlanData, access_token=Depends(
         token = decodeJWT(access_token)
         user_id = token["user_id"]
         practice_id = token["practice_id"]
-
-        # embedding = await generate_embedding(body.dentistNotes if body.dentistNotes else body.symptomDetails)
-        # pipeline = [
-        #     {
-        #         "$vectorSearch": {
-        #             "index": "default",
-        #             "queryVector": embedding,
-        #             "path": "plot_embedding",
-        #             "numCandidates": 100,
-        #             "limit": 1,
-        #         }
-        #     },
-        #     {"$project": {"consent_letter": 1, "_id": 0}},
-        # ]
-
-        # example_consent_letter = retrieve_vector_letters(pipeline)
-        # generate_consent_letter_prompt = retrieve_prompt_by_title("generate_consent_letter")
 
         letter_config = retrieve_letter_config(practice_id)
         pricing_list = retrieve_pricing(practice_id) if letter_config["pricing"] else ""
@@ -259,9 +244,11 @@ async def generate_consent_letter(body: TreatmentPlanData, access_token=Depends(
         dentistNotes = json.loads(body.dentistNotes) if body.dentistNotes else None
 
         results = await asyncio.gather(
-            treatment_section(dentistNotes, gpt_model),
+            treatment_section(dentistNotes, letter_config["formality_level"], letter_config["detail_level"], gpt_model),
             fees_section(
                 dentistNotes,
+                letter_config["formality_level"],
+                letter_config["detail_level"],
                 letter_config["pricing"],
                 pricing_list,
                 letter_config["patient_insurance_info"],
@@ -318,11 +305,11 @@ async def generate_consent_letter(body: TreatmentPlanData, access_token=Depends(
         raise HTTPException(status_code=500, detail=e) from e
 
 
-@router.post("/referral-letter", response_model=TreatmentPlanResponse)
-async def generate_referral_letter(body: TreatmentPlanData, access_token=Depends(JWTBearer())):
+@router.post("/referral-letter", response_model=LetterResponse)
+async def generate_referral_letter(body: LetterData, access_token=Depends(JWTBearer())):
     """
-    # Generates a treatment plan based on Patient and Symptom Details
-    This endpoint generates a treatment plan tailored to the patient's symptoms. The treatment plan is returned as an HTML-formatted string.
+    # Generates a referral letter
+    This endpoint generates a referral letter based on patients details along with some information pertaining to the patients symptoms and reason for appointment
     """
     try:
         start = time.time()

@@ -21,6 +21,7 @@ from app.database.crud.letter import (
 from app.database.crud.letter_config import (
     retrieve_letter_config,
     update_letter_config,
+    update_letter_config_adjustments,
     update_letter_image,
 )
 from app.database.crud.practice import retrieve_practice_by_id, update_practice_details
@@ -41,7 +42,11 @@ from app.database.crud.user import (
     update_user_details,
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
-from app.models.profile import TriageSettings, UpdateLetterConfig
+from app.models.profile import (
+    TriageSettings,
+    UpdateLetterConfig,
+    UpdateLetterConfigAdjustment,
+)
 from app.models.user import (
     DeleteUser,
     EditPracticeField,
@@ -306,6 +311,29 @@ async def gets_letter_config(access_token=Depends(JWTBearer())):
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
         return {"letter_config": letter_config, "price_list": price_list}
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
+@router.post("/save-letter-config-adjustments/")
+async def updates_letter_config_adjustment_values(body: UpdateLetterConfigAdjustment, access_token=Depends(JWTBearer())):
+    """
+    This endpoint updates a practice's letter config adjustment values ie 'Formality' and 'Detail'.
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received for save-letter-config-adjustments endpoint.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        update_letter_config_adjustments(practice_id, formality_level=body.formality_level, detail_level=body.detail_level)
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {"message": "Saved"}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
