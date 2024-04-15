@@ -279,7 +279,7 @@ async def get_triage_request(triage_id: str, access_token=Depends(JWTBearer())):
 
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
-    return {"triage_request": triage_request}
+    return triage_request
 
 
 @router.post("/toggle-unread/")
