@@ -52,8 +52,9 @@ def post_user_login(body: UserLoginRequest):
         customer = stripe.Customer.retrieve(practice["stripe_customer_id"], expand=["subscriptions.data"])
         subscriptions = customer.subscriptions.data
         has_active_subscription = any(sub.status == "active" for sub in subscriptions)
+        has_active_trial_subscription = next((sub for sub in subscriptions if sub.status == "trialing"), None)
 
-        if has_active_subscription:
+        if has_active_subscription or has_active_trial_subscription:
             return signJWT(user_id, practice_id)
         else:
             raise HTTPException(status_code=403, detail="Your subscription is inactive. Please update your billing information.")
