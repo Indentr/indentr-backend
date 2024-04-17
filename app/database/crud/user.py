@@ -128,3 +128,13 @@ def update_user_details(user_id: str, name: str = None, email: str = None, passw
 
     except DoesNotExist:
         raise HTTPException(status_code=404, detail="User not found") from None
+
+
+def save_password_reset_token(user_id: str, reset_token: str):
+    try:
+        user = User.objects.get(id=user_id)
+        user.password_reset_token = reset_token
+        user.save()
+
+    except DoesNotExist:
+        raise HTTPException(status_code=404, detail="User not found") from None

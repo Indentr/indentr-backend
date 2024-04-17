@@ -11,5 +11,6 @@ class User(Document):
     password = StringField(required=True)
     practice_id = ReferenceField(Practice)
     role = StringField(choices=ROLES, required=True)
+    password_reset_token = StringField(default="")
 
     meta = {"collection": "users"}  # Specify the collection name
