@@ -23,6 +23,16 @@ def signJWT(user_id: str, practice_id: str) -> Dict[str, str]:
     return token_response(token)
 
 
+def sign_reset_password_token(user_id: str) -> Dict[str, str]:
+    payload = {
+        "user_id": user_id,
+        "action": "reset_password",
+        "expires": time.time() + (3600 * 1),  # Expiration time (1 hour)
+    }
+    token = jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGORITHM)
+    return token
+
+
 def decodeJWT(token: str) -> dict:
     try:
         decoded_token = jwt.decode(token, SECRET_KEY, algorithms=JWT_ALGORITHM)

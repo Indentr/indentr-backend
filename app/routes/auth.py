@@ -3,7 +3,12 @@ from fastapi import APIRouter, Depends
 from fastapi.exceptions import HTTPException
 from werkzeug.security import check_password_hash
 
-from app.constants import GRATIS_PASSWORD, STRIPE_SECRET_KEY
+from app.constants import (
+    GRATIS_PASSWORD,
+    STRIPE_SECRET_KEY,
+    TRIAGE_MAIL,
+    TRIAGE_MAIL_PASSWORD,
+)
 from app.database.crud.letter_config import create_letter_config
 from app.database.crud.practice import (
     create_new_practice,
@@ -11,9 +16,21 @@ from app.database.crud.practice import (
     retrieve_practice_by_id,
 )
 from app.database.crud.triage_settings import create_triage_settings
-from app.database.crud.user import create_new_user, retrieve_user_by_email
-from app.middleware.jwt import JWTBearer, decodeJWT, signJWT
-from app.models.login import CheckEmail, UserLoginRequest, UserRegisterRequest
+from app.database.crud.user import (
+    create_new_user,
+    retrieve_user_by_email,
+    save_password_reset_token,
+    update_user_details,
+)
+from app.middleware.jwt import JWTBearer, decodeJWT, sign_reset_password_token, signJWT
+from app.models.login import (
+    CheckEmail,
+    ResetPassword,
+    UserLoginRequest,
+    UserRegisterRequest,
+    UserResetPasswordRequest,
+)
+from app.services.email import generate_password_reset_email, send_email
 from app.utils.new_account_setup import (
     insert_instruction_triages,
     insert_welcome_consent_letter,
@@ -174,3 +191,51 @@ def authenticate_user(access_token=Depends(JWTBearer())):
     practice_id = token["user_id"]
 
     return signJWT(user_id, practice_id)
+
+
+@router.post("/send-reset-password-email/")
+def sent_reset_password_email(body: UserResetPasswordRequest):
+    """
+    This route handles when a user needs to reset their password.
+    It will create a jwt reset token.
+    This token will be saved to the user's document in mongo.
+    It will then send an email containing the link with the jwt reset token so it can then be validated with the one in the DB.
+    """
+    try:
+        user_document = retrieve_user_by_email(body.email.lower())
+
+        if not user_document:
+            raise HTTPException(status_code=403, detail="No account associated with that email")
+
+        user_id = str(user_document["_id"])
+        reset_token = sign_reset_password_token(user_id)
+        save_password_reset_token(user_id, str(reset_token))
+        email = generate_password_reset_email(user_document["email"], reset_token)
+        send_email(subject="Reset password", msg=email, sender=TRIAGE_MAIL, recipient=user_document["email"], password=TRIAGE_MAIL_PASSWORD)
+        return "Email sent successfully!"
+
+    except HTTPException as e:
+        raise e
+
+
+@router.post("/reset-password/")
+async def edit_user_field(body: ResetPassword):
+    """
+    Edits the users name or email or password depending on what gets sent in the body.
+    """
+
+    try:
+        payload = decodeJWT(body.reset_token)
+        if payload is None or payload.get("action") != "reset_password":
+            raise HTTPException(status_code=401, detail="Password reset token is invalid or expired")
+
+        user_id = payload["user_id"]
+        password = body.password
+
+        # Update the user's password in MongoDB
+        update_user_details(user_id=user_id, password=password)
+        save_password_reset_token(user_id, "")
+        return {"message": "Password updated successfully!"}
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
