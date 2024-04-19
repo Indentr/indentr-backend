@@ -23,3 +23,12 @@ class UserRegisterRequest(BaseModel):
 
 class CheckEmail(BaseModel):
     email: str
+
+
+class UserResetPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPassword(BaseModel):
+    password: str
+    reset_token: str
