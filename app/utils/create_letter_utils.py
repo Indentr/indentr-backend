@@ -51,9 +51,11 @@ async def treatment_section(dentistNotes: str, formality_level: bool, detail_lev
         {dentistNotes}
         END_OF_NOTES
 
+        *** IMPORTANT SECTION ABOUT THE TONE OF THE LETTER***
         The formality of the section should be: {formality_level * 100}% (0% being very informal, 100% being very formal)
         The level of detail and length of the section should be: {formality_level * 100}% (0% being not very detailed and short, 100% being incredibly detailed and very long)
-
+        Never use terminology like UL4, LL3 in the letter. use "upper left 3" instead for example.
+        *** END OF IMPORTANT SECTION ABOUT THE TONE OF THE LETTER***
 
         Make sure to use english spelling. Don't include any introductions or signoffs like 'Dear...' or 'From....'
         Each new paragraph needs a: <p/> between the paragraphs as this represents a blank line and dont wrap your response in ```html I want just a normal string response
