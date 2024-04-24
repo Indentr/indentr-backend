@@ -15,16 +15,11 @@ async def retrieve_stripe_customer_details(stripe_customer_id: str):
 
     active_subscription = next((sub for sub in subscriptions if sub.status == "active"), None)
     trial_subscription = next((sub for sub in subscriptions if sub.status == "trialing"), None)
+    plan = active_subscription.plan if active_subscription else (trial_subscription.plan if trial_subscription else None)
 
     plan_name = "Unkown"
-    plan = None
     allowed_audio_note_hours = 0
     allowed_consent_letters = 0
-
-    if active_subscription:
-        plan = active_subscription.plan
-    elif trial_subscription:
-        plan = trial_subscription.plan
 
     if plan is not None:
         plan_name = plan.metadata.nickname
