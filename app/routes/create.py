@@ -226,10 +226,9 @@ async def generate_consent_letter(body: LetterData, access_token=Depends(JWTBear
             end_date = stripe_customer_details["end_date"]
             allowed_consent_letters = stripe_customer_details["allowed_consent_letters"]
             active_subscription = stripe_customer_details["active_subscription"]
-            trial_subscription = stripe_customer_details["trial_subscription"]
             letter_count = retrieve_letter_count_for_billing_cycle(practice_id, start_date, end_date)
 
-            if not active_subscription and not trial_subscription:
+            if not active_subscription:
                 log.debug(f"Error processing {request_id}: no active plan")
                 raise HTTPException(status_code=500, detail="No plan is active") from None
 
@@ -330,10 +329,9 @@ async def generate_referral_letter(body: LetterData, access_token=Depends(JWTBea
             end_date = stripe_customer_details["end_date"]
             allowed_consent_letters = stripe_customer_details["allowed_consent_letters"]
             active_subscription = stripe_customer_details["active_subscription"]
-            trial_subscription = stripe_customer_details["trial_subscription"]
             letter_count = retrieve_letter_count_for_billing_cycle(practice_id, start_date, end_date)
 
-            if not active_subscription and not trial_subscription:
+            if not active_subscription:
                 log.debug(f"Error processing {request_id}: no active plan")
                 raise HTTPException(status_code=500, detail="No plan is active") from None
 
@@ -510,10 +508,9 @@ async def upload_audio(request: Request, access_token: str = Depends(JWTBearer()
             end_date = stripe_customer_details["end_date"]
             allowed_audio_note_hours = stripe_customer_details["allowed_audio_note_hours"]
             active_subscription = stripe_customer_details["active_subscription"]
-            trial_subscription = stripe_customer_details["trial_subscription"]
             audio_note_time = retrieve_audio_note_time_for_billing_cycle(practice_id, start_date, end_date)
 
-            if not active_subscription and not trial_subscription:
+            if not active_subscription:
                 log.debug(f"Error processing {request_id}: no active plan")
                 raise HTTPException(status_code=500, detail="No plan is active") from None
 
