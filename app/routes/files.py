@@ -1,3 +1,4 @@
+import io
 import json
 import logging
 import time
@@ -5,6 +6,7 @@ import uuid
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 
 from app.constants import DB_URI
 from app.database.atlas_search import atlas_search
@@ -13,6 +15,7 @@ from app.database.crud.audio_note import (
     retrieve_all_users_notes,
     retrieve_all_users_notes_filtered_by_char,
     retrieve_note,
+    retrieve_note_audio,
     retrieve_notes_alphabet_status,
     retrieve_patients_last_three_notes,
     update_note,
@@ -80,13 +83,13 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
     """
     Retrieves a file based on the provided file ID.
     """
-
     try:
         token = decodeJWT(access_token)
         user_id = token["user_id"]
         practice_id = token["practice_id"]
         letters = []
         notes = []
+        file = ""
         patient_details = []
 
         if file_type == "letter":
@@ -101,6 +104,27 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
             notes = retrieve_patients_last_three_notes(file_id)
 
         return {"file": file, "letters": letters, "notes": notes, "patient_details": patient_details}
+
+    except HTTPException as e:
+        raise e
+
+
+@router.get("/get-audio-data/{note_id}")
+def get_audio_data(note_id: str, access_token=Depends(JWTBearer())):
+    """
+    Retrieves a note's audio based on the provided file ID.
+    """
+    try:
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+        audio_data = retrieve_note_audio(note_id, user_id)
+
+        stream = io.BytesIO(audio_data)
+        headers = {
+            "Content-Disposition": 'attachment; filename="audio.mp3',
+            "Content-Type": "audio/mpeg",
+        }
+        return StreamingResponse(stream, headers=headers)
 
     except HTTPException as e:
         raise e

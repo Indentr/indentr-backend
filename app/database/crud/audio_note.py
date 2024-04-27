@@ -97,14 +97,14 @@ def retrieve_all_users_notes(user_id: str = None, practice_id: str = None):
     return notes_list
 
 
-# Function to get a specific letter
+# Function to get a specific note
 def retrieve_note(note_id: str, user_id: str):
-    # Query the letter using MongoEngine
+    # Query the note using MongoEngine
     note = AudioNote.objects(id=note_id, user_id=user_id).only("patient_id", "formatted_notes", "createdAt").first()
 
     if not note:
-        # Handle case where the letter doesn't exist or doesn't belong to the user
-        raise HTTPException(status_code=400, detail="No letter found")
+        # Handle case where the note doesn't exist or doesn't belong to the user
+        raise HTTPException(status_code=400, detail="No note found")
 
     created_at = note.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
     note_dict = note.to_mongo().to_dict()
@@ -121,6 +121,21 @@ def retrieve_note(note_id: str, user_id: str):
     del note_dict["patient_id"]
 
     return note_dict
+
+
+# Function to get a specific note's audio
+def retrieve_note_audio(note_id: str, user_id: str):
+    # Query the note using MongoEngine
+    note = AudioNote.objects(id=note_id, user_id=user_id).only("audio").first()
+
+    if not note:
+        # Handle case where the note doesn't exist or doesn't belong to the user
+        raise HTTPException(status_code=400, detail="No note found")
+
+    # Creates a streaming response with the audio data
+    audio_data = note.audio.read()
+
+    return audio_data
 
 
 def retrieve_last_three_notes(user_id: str):
