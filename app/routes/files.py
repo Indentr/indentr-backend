@@ -1,4 +1,3 @@
-import io
 import json
 import logging
 import time
@@ -109,7 +108,7 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
         raise e
 
 
-@router.get("/get-audio-data/{note_id}")
+@router.get("/get-audio-data/{note_id}/")
 def get_audio_data(note_id: str, access_token=Depends(JWTBearer())):
     """
     Retrieves a note's audio based on the provided file ID.
@@ -118,13 +117,11 @@ def get_audio_data(note_id: str, access_token=Depends(JWTBearer())):
         token = decodeJWT(access_token)
         user_id = token["user_id"]
         audio_data = retrieve_note_audio(note_id, user_id)
-
-        stream = io.BytesIO(audio_data)
         headers = {
-            "Content-Disposition": 'attachment; filename="audio.mp3',
-            "Content-Type": "audio/mpeg",
+            "Content-Disposition": 'attachment; filename="audio.webm',
+            "Content-Type": "audio/webm",
         }
-        return StreamingResponse(stream, headers=headers)
+        return StreamingResponse(iter([audio_data]), headers=headers)
 
     except HTTPException as e:
         raise e

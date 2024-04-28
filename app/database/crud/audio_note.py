@@ -132,10 +132,7 @@ def retrieve_note_audio(note_id: str, user_id: str):
         # Handle case where the note doesn't exist or doesn't belong to the user
         raise HTTPException(status_code=400, detail="No note found")
 
-    # Creates a streaming response with the audio data
-    audio_data = note.audio.read()
-
-    return audio_data
+    return note.audio
 
 
 def retrieve_last_three_notes(user_id: str):
