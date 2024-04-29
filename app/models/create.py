@@ -53,6 +53,11 @@ class SymptomResponse(BaseModel):
     q2: str
     q3: str
 
+# Response model
+class TextToAnalyse(BaseModel):
+    TextToAnalyse: str
+
+
 
 # Request model
 class LetterData(BaseModel):
