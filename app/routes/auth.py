@@ -117,6 +117,18 @@ def post_user_registration(body: UserRegisterRequest):
         new_user = create_new_user(body.name, body.email.lower(), body.password, practice_id, "Owner")
         create_letter_config(practice_id)
         create_triage_settings(practice_id)
+        create_custom_prompt(
+            new_user["_id"], 
+            new_user["practice_id"], 
+            "Dental note", 
+            "Convert the above dental transcript into professional, concise but comprehensive dental notes for patient record inclusion."
+        )
+        create_custom_prompt(
+            new_user["_id"], 
+            new_user["practice_id"], 
+            "General note", 
+            "Convert the transcript into professional, concise but comprehensive notes for later reference."
+        )
         insert_welcome_consent_letter(body.name, body.email.lower(), body.address)
         insert_instruction_triages(practice_id)
 

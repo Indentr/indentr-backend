@@ -36,7 +36,7 @@ from app.models.create import (
     SaveFileResponse,
     SymptomData,
     SymptomResponse,
-    UploadTranscript,
+    FormatTranscript,
 )
 from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt
@@ -53,6 +53,9 @@ from app.utils.create_letter_utils import (
     patient_signature,
     treatment_section,
     treatment_section_referral,
+)
+from app.database.crud.custom_prompt import (
+    retrieve_prompt_with_prompt_id,
 )
 from app.utils.utils import wrap_image_in_div
 
@@ -399,45 +402,135 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
         raise HTTPException(status_code=500, detail="Failed to save image") from e
 
 
-@router.post("/uploadTranscript")
+
+
+@router.post("/voice-to-text")
+async def upload_audio(request: Request, access_token: str = Depends(JWTBearer())):
+    try:
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received for voice-to-text endpoint.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+        practice = retrieve_practice_by_id(practice_id)
+
+        if "stripe_customer_id" in practice:
+            stripe_customer_details = await retrieve_stripe_customer_details(practice["stripe_customer_id"])
+            start_date = stripe_customer_details["start_date"]
+            end_date = stripe_customer_details["end_date"]
+            allowed_audio_note_hours = stripe_customer_details["allowed_audio_note_hours"]
+            active_subscription = stripe_customer_details["active_subscription"]
+            trial_subscription = stripe_customer_details["trial_subscription"]
+            audio_note_time = retrieve_audio_note_time_for_billing_cycle(practice_id, start_date, end_date)
+
+            if not active_subscription and not trial_subscription:
+                log.debug(f"Error processing {request_id}: no active plan")
+                raise HTTPException(status_code=500, detail="No plan is active") from None
+
+            if audio_note_time >= int(allowed_audio_note_hours):
+                log.debug(f"Error processing {request_id}: Reached audio note montly quota")
+                raise HTTPException(status_code=500, detail="Reached audio note montly quota") from None
+
+        elif "gratis_password" not in practice:
+            log.debug(f"Error processing {request_id}: User not stripe or gratis customer")
+            raise HTTPException(status_code=500, detail="User not stripe or gratis customer") from None
+
+        # Read the audio data from the request stream
+        audio_data = b""
+        async for chunk in request.stream():
+            audio_data += chunk
+
+        if not audio_data:
+            raise HTTPException(status_code=400, detail="No audio data provided")
+
+        # Convert audio_data to BytesIO if needed
+        audio_buffer = BytesIO(audio_data)
+
+        # Speech to text conversion
+        response = await dpg_speech_to_text(audio_buffer)
+        transcript = response.results.channels[0].alternatives[0].transcript
+
+        print("transcript: ", transcript)
+
+        instruction_prompt = """
+            Please format the transcript which is wrapped in '' (if there's any obvious spelling errors or grammatical errors then make the correction)
+            I need you to format it as an HTML string where each line is wrapped in <p> tag and for each new line it needs to be seperated with an empty <p /> like so. Please add a new line whenever there is a full stop. ie <p>Sentence.</p><p/><p>sentence.</p>
+            make sure also to NOT send the html wrapped with ```html <html content> ``` just send it back as normal string
+        """
+
+        # AI formatting of dental voice notes
+        prompt = f"""
+
+            Transcript:'{transcript}'
+
+
+            {instruction_prompt}
+        """
+
+        formatted_notes, tokens = await ask_gpt(prompt, "You're an AI that formats transcripts into HTML string", "gpt-3.5-turbo")
+
+        return {"transcript": formatted_notes}
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
+
+
+@router.post("/format-transcript")
 async def upload_transcript(
-    body: UploadTranscript,
+    body: FormatTranscript,
     access_token=Depends(JWTBearer()),
 ):
     try:
         start = time.time()
         request_id = uuid.uuid4().hex
 
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+        prompt = retrieve_prompt_with_prompt_id(practice_id, body.prompt_id)
+
         log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
 
-        upload_transcript_prompt = (
-            retrieve_prompt_by_title("upload_transcript")
-            if body.transcript_type == "dental_note"
-            else retrieve_prompt_by_title("upload_transcript_generic")
-        )
-        gpt_instruction = (
-            "You're an ai formatting dental voice notes" if body.transcript_type == "dental_note" else "You're an ai formatting voice notes"
-        )
+        note_prompt = f"""
 
-        # AI formatting of dental voice notes
-        prompt = f"""
-            START OF TRANSCRIPT
+        Transcript: {body.transcript}
 
-            {body.transcript}
+        Task: {prompt["text"]}
 
-            END OF TRANSCRIPT
+        Important points: If there are errors do your best to guess what the correct sentence would have been.
+        eg if its a dental note: upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
+        in words that do not appear to fit the context will mean Upper left 3
 
-            {upload_transcript_prompt}
+        Response: MUST be written as an HTML string in the format provided below (DO NOT WRAP YOUR RESPONSE IN: ```html <html content> ``` just give it as a normal string ''),
+        where each paragraph is wrapped in a <p> tag:
+
+        <p class="p1-title">[insert paragraph text, do not include dear ....]</p>
+        <p></p> // IMPORTANT: for each new paragraph or section insert an empty p tag like this one (not after a colon though since thats not a new paragraph)
+        <p class="etc">[etc.]</p>
+
+        If the task asks for the use of undordered list or bullet list for certain sections then here is an example of the format
+        <p class="insert-pX-title]">
+            <ul>
+                <li>[insert list item]</li>
+                <li>[etc.]</li>
+            </ul>
+        </p>
+        <p></p>
+        <p class="insert-pX-title]">
+            <ol>
+                <li>[insert list item]</li>
+                <li>[etc.]</li>
+            </ol>
+        </p>
+
         """
 
-        formatted_notes, tokens = await ask_gpt(prompt, gpt_instruction, "gpt-4-1106-preview")
+        formatted_notes, tokens = await ask_gpt(note_prompt, "You're an ai that formats transcripts into nice well structured notes", "gpt-4-1106-preview")
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
-        # Convert ObjectId to string for JSON serialization
-        return {
-            "formatted_notes": formatted_notes,
-        }
+        return formatted_notes
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
@@ -493,74 +586,6 @@ async def create_note(
         log.error(f"Unhandled error during request {request_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from None
 
-
-@router.post("/voice-to-text")
-async def upload_audio(request: Request, access_token: str = Depends(JWTBearer())):
-    try:
-        request_id = uuid.uuid4().hex
-        log.info(f"Request {request_id} received for voice-to-text endpoint.")
-
-        token = decodeJWT(access_token)
-        practice_id = token["practice_id"]
-        practice = retrieve_practice_by_id(practice_id)
-
-        if "stripe_customer_id" in practice:
-            stripe_customer_details = await retrieve_stripe_customer_details(practice["stripe_customer_id"])
-            start_date = stripe_customer_details["start_date"]
-            end_date = stripe_customer_details["end_date"]
-            allowed_audio_note_hours = stripe_customer_details["allowed_audio_note_hours"]
-            active_subscription = stripe_customer_details["active_subscription"]
-            trial_subscription = stripe_customer_details["trial_subscription"]
-            audio_note_time = retrieve_audio_note_time_for_billing_cycle(practice_id, start_date, end_date)
-
-            if not active_subscription and not trial_subscription:
-                log.debug(f"Error processing {request_id}: no active plan")
-                raise HTTPException(status_code=500, detail="No plan is active") from None
-
-            if audio_note_time >= int(allowed_audio_note_hours):
-                log.debug(f"Error processing {request_id}: Reached audio note montly quota")
-                raise HTTPException(status_code=500, detail="Reached audio note montly quota") from None
-
-        elif "gratis_password" not in practice:
-            log.debug(f"Error processing {request_id}: User not stripe or gratis customer")
-            raise HTTPException(status_code=500, detail="User not stripe or gratis customer") from None
-
-        # Read the audio data from the request stream
-        audio_data = b""
-        async for chunk in request.stream():
-            audio_data += chunk
-
-        if not audio_data:
-            raise HTTPException(status_code=400, detail="No audio data provided")
-
-        # Convert audio_data to BytesIO if needed
-        audio_buffer = BytesIO(audio_data)
-
-        # Speech to text conversion
-        response = await dpg_speech_to_text(audio_buffer)
-        transcript = response.results.channels[0].alternatives[0].transcript
-
-        instruction_prompt = """
-            Please format the transcript which is wrapped in '' (if there's any obvious spelling errors or grammatical errors then make the correction)
-            I need you to format it as an HTML string where each line is wrapped in <p> tag and for each new line it needs to be seperated with an empty <p /> like so. Please add a new line whenever there is a full stop. ie <p>Sentence.</p><p/><p>sentence.</p>
-            make sure also to NOT send the html wrapped with ```html <html content> ``` just send it back as normal string
-        """
-
-        # AI formatting of dental voice notes
-        prompt = f"""
-
-            Transcript:'{transcript}'
-
-
-            {instruction_prompt}
-        """
-
-        formatted_notes, tokens = await ask_gpt(prompt, "You're an AI that formats transcripts into HTML string", "gpt-3.5-turbo")
-
-        return {"transcript": formatted_notes}
-
-    except HTTPException as e:
-        raise e  # Reraise the HTTPException
 
 
 @router.post("/save-file", response_model=SaveFileResponse)

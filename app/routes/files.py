@@ -36,6 +36,9 @@ from app.database.crud.patient import (
     retrieve_patient_by_id,
     retrieve_patients_alphabet_status,
 )
+from app.database.crud.custom_prompt import (
+    retrieve_all_users_prompts
+)
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.file import DeleteFile, GetFile, SaveFile, SearchFiles, SelectChar
 from app.utils.utils import wrap_image_in_div
@@ -90,6 +93,9 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
         notes = []
         file = ""
         patient_details = []
+        custom_prompts = []
+
+        print(user_id)
 
         if file_type == "letter":
             file = retrieve_user_letter(file_id, user_id)
@@ -97,12 +103,13 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
             file = retrieve_note(file_id, user_id)
             patient_details = retrieve_patient_by_email(file["patient_details"]["email"], practice_id)
             del patient_details["_id"]
+            custom_prompts = retrieve_all_users_prompts(user_id)
         elif file_type == "patient":
             file = retrieve_patient_by_id(file_id, practice_id)
             letters = retrieve_patients_last_three_letters(file_id)
             notes = retrieve_patients_last_three_notes(file_id)
 
-        return {"file": file, "letters": letters, "notes": notes, "patient_details": patient_details}
+        return {"file": file, "letters": letters, "notes": notes, "patient_details": patient_details, "custom_prompts": custom_prompts}
 
     except HTTPException as e:
         raise e
