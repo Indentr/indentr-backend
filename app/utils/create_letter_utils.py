@@ -144,7 +144,7 @@ def format_image_header(image: str, header: str):
         <table>
             <tbody>
                 <tr>
-                    <td>
+                    <td colspan="1" rowspan="1">
                         <p>
                             <img style="max-width: 100%; height: auto;" src="data:image/png;base64,{image}" />
                         </p>
