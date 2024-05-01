@@ -56,9 +56,8 @@ class SymptomResponse(BaseModel):
 
 # Request model
 class LetterData(BaseModel):
-    patientDetails: str
-    symptomDetails: Optional[str] = None
-    dentistNotes: Optional[str] = None
+    patientDetails: Optional[str] = None
+    dentistNotes: str
 
     model_config = {
         "json_schema_extra": {
@@ -71,22 +70,6 @@ class LetterData(BaseModel):
                         "address": "1 Hollywood, Los Angeles, United States",
                         "email": "ryanreynolds1@gmail.com",
                     },
-                    "symptomDetails": [
-                        {
-                            "q1": {
-                                "chatGPTQuestion": "Has the patient experienced any sensitivity to hot or cold foods or beverages?",
-                                "dentistResponse": "No",
-                            },
-                            "q2": {
-                                "chatGPTQuestion": "Is the toothache constant or does it come and go?",
-                                "dentistResponse": "constant",
-                            },
-                            "q3": {
-                                "chatGPTQuestion": "Has the patient noticed any swelling or redness around the affected tooth?",
-                                "dentistResponse": "yes there is swelling",
-                            },
-                        }
-                    ],
                     "dentistNotes": "Example dentist notes",
                 }
             ]
@@ -119,23 +102,25 @@ class LetterResponse(BaseModel):
 
 # Request model
 class SaveFile(BaseModel):
-    treatment_plan: str
+    letter: str
     patient_details: str
     input_tokens: int
     output_tokens: int
     cost: float
     model: str
+    add_header: bool
 
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
-                    "treatmentPlan": "<p>123 Main St,</p><p>City,</p><p>Country,</p><p></p><p>Dear John Doe,</p><p></p><p>[HTML-formatted treatment plan]</p>",
+                    "letter": "<p>123 Main St,</p><p>City,</p><p>Country,</p><p></p><p>Dear John Doe,</p><p></p><p>[HTML-formatted treatment plan]</p>",
                     "patientDetails": {"email": "ryanreynolds1@gmail.com"},
                     "input_tokens": 3201,
                     "output_tokens": 3002,
                     "cost": 0.015,
                     "model": "gpt-4-turbo-preview",
+                    "add_header": "false",
                 }
             ]
         }
