@@ -36,6 +36,7 @@ from app.models.create import (
     SaveFileResponse,
     SymptomData,
     SymptomResponse,
+    TextToAnalyse,
     UploadTranscript,
 )
 from app.services.deepgram import dpg_speech_to_text
@@ -61,6 +62,44 @@ router = APIRouter(prefix="/create", tags=["Create"])
 
 # initiates logger
 log = logging.getLogger(__name__)
+
+
+@router.post("/analyseNote")
+async def analyse_note(
+    body: TextToAnalyse,
+    access_token=Depends(JWTBearer()),
+):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
+
+        analyse_note_prompt = retrieve_prompt_by_title("analyse_note")
+        gpt_instruction = "You're an ai reviewing dental notes"
+
+        # AI formatting of dental voice notes
+        prompt = f"""
+            START OF NOTE
+
+            {body.TextToAnalyse}
+
+            END OF NOTE
+
+            {analyse_note_prompt}
+        """
+
+        analysis, tokens = await ask_gpt(prompt, gpt_instruction, "gpt-4-1106-preview")
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        # Convert ObjectId to string for JSON serialization
+        return {
+            "analysis": analysis,
+        }
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
 
 
 @router.post("/search-patients")
