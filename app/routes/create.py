@@ -36,8 +36,8 @@ from app.models.create import (
     SaveFileResponse,
     SymptomData,
     SymptomResponse,
-    UploadTranscript,
     TextToAnalyse,
+    UploadTranscript,
 )
 from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt
@@ -75,12 +75,8 @@ async def analyse_note(
 
         log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
 
-        analyse_note_prompt = (
-            retrieve_prompt_by_title("analyse_note")
-        )
-        gpt_instruction = (
-            "You're an ai reviewing dental notes"
-        )
+        analyse_note_prompt = retrieve_prompt_by_title("analyse_note")
+        gpt_instruction = "You're an ai reviewing dental notes"
 
         # AI formatting of dental voice notes
         prompt = f"""
