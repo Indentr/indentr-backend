@@ -95,8 +95,6 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
         patient_details = []
         custom_prompts = []
 
-        print(user_id)
-
         if file_type == "letter":
             file = retrieve_user_letter(file_id, user_id)
         elif file_type == "note":
@@ -109,7 +107,7 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
             letters = retrieve_patients_last_three_letters(file_id)
             notes = retrieve_patients_last_three_notes(file_id)
 
-        return {"file": file, "letters": letters, "notes": notes, "patient_details": patient_details, "custom_prompts": custom_prompts}
+        return {"file": file, "patient_details": patient_details, "custom_prompts": custom_prompts}
 
     except HTTPException as e:
         raise e

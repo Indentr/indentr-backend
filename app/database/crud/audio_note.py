@@ -100,7 +100,7 @@ def retrieve_all_users_notes(user_id: str = None, practice_id: str = None):
 # Function to get a specific note
 def retrieve_note(note_id: str, user_id: str):
     # Query the note using MongoEngine
-    note = AudioNote.objects(id=note_id, user_id=user_id).only("patient_id", "formatted_notes", "createdAt").first()
+    note = AudioNote.objects(id=note_id, user_id=user_id).only("patient_id", "formatted_notes", "transcript", "createdAt").first()
 
     if not note:
         # Handle case where the note doesn't exist or doesn't belong to the user
@@ -119,6 +119,8 @@ def retrieve_note(note_id: str, user_id: str):
     del patient_details["address"]
     note_dict["patient_details"] = patient_details
     del note_dict["patient_id"]
+    for i, formatted_note in enumerate(note.formatted_notes):
+        note_dict["formatted_notes"][i]["note_prompt_id"] = str(note_dict["formatted_notes"][i]["note_prompt_id"]) 
 
     return note_dict
 
@@ -156,6 +158,9 @@ def retrieve_last_three_notes(user_id: str):
             del patient_details["practice_id"]
         note_dict["patient_details"] = patient_details
         del note_dict["patient_id"]
+        if not isinstance(note.formatted_notes, str):
+            for i, formatted_note in enumerate(note.formatted_notes):
+                note_dict["formatted_notes"][i]["note_prompt_id"] = str(note_dict["formatted_notes"][i]["note_prompt_id"]) 
 
         notes_list.append(note_dict)
 

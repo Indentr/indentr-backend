@@ -55,6 +55,9 @@ from app.utils.create_letter_utils import (
     treatment_section_referral,
 )
 from app.database.crud.custom_prompt import (
+    retrieve_all_users_prompts
+)
+from app.database.crud.custom_prompt import (
     retrieve_prompt_with_prompt_id,
 )
 from app.utils.utils import wrap_image_in_div
@@ -411,6 +414,7 @@ async def upload_audio(request: Request, access_token: str = Depends(JWTBearer()
         log.info(f"Request {request_id} received for voice-to-text endpoint.")
 
         token = decodeJWT(access_token)
+        user_id = token["user_id"]
         practice_id = token["practice_id"]
         practice = retrieve_practice_by_id(practice_id)
 
@@ -468,8 +472,9 @@ async def upload_audio(request: Request, access_token: str = Depends(JWTBearer()
         """
 
         formatted_notes, tokens = await ask_gpt(prompt, "You're an AI that formats transcripts into HTML string", "gpt-3.5-turbo")
+        custom_prompts = retrieve_all_users_prompts(user_id)
 
-        return {"transcript": formatted_notes}
+        return {"transcript": formatted_notes, "custom_prompts": custom_prompts}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
@@ -526,7 +531,7 @@ async def upload_transcript(
 
         """
 
-        formatted_notes, tokens = await ask_gpt(note_prompt, "You're an ai that formats transcripts into nice well structured notes", "gpt-4-1106-preview")
+        formatted_notes, tokens = await ask_gpt(note_prompt, "You format transcripts, doing exactly what the task asks, following the desired response format", "gpt-4-1106-preview")
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
