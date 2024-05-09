@@ -41,6 +41,8 @@ from app.models.create import (
     SaveFileResponse,
     SymptomData,
     SymptomResponse,
+    TextToAnalyse,
+    UploadTranscript,
 )
 from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt
@@ -65,6 +67,44 @@ router = APIRouter(prefix="/create", tags=["Create"])
 
 # initiates logger
 log = logging.getLogger(__name__)
+
+
+@router.post("/analyseNote")
+async def analyse_note(
+    body: TextToAnalyse,
+    access_token=Depends(JWTBearer()),
+):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
+
+        analyse_note_prompt = retrieve_prompt_by_title("analyse_note")
+        gpt_instruction = "You're an ai reviewing dental notes"
+
+        # AI formatting of dental voice notes
+        prompt = f"""
+            START OF NOTE
+
+            {body.TextToAnalyse}
+
+            END OF NOTE
+
+            {analyse_note_prompt}
+        """
+
+        analysis, tokens = await ask_gpt(prompt, gpt_instruction, "gpt-4-1106-preview")
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        # Convert ObjectId to string for JSON serialization
+        return {
+            "analysis": analysis,
+        }
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
 
 
 @router.post("/search-patients")
@@ -205,8 +245,8 @@ async def generate_questions(body: SymptomData, access_token=Depends(JWTBearer()
 @router.post("/consent-letter", response_model=LetterResponse)
 async def generate_consent_letter(body: LetterData, access_token=Depends(JWTBearer())):
     """
-    # Generates a treatment plan based on Patient and Symptom Details
-    This endpoint generates a treatment plan tailored to the patient's symptoms. The treatment plan is returned as an HTML-formatted string.
+    # Generates a consent letter based on Patient and Symptom Details
+    This endpoint generates a consent letter tailored to the patient's symptoms. The consent letter is returned as an HTML-formatted string.
     """
     try:
         start = time.time()
@@ -245,7 +285,7 @@ async def generate_consent_letter(body: LetterData, access_token=Depends(JWTBear
             log.debug(f"Error processing {request_id}: User not stripe or gratis customer")
             raise HTTPException(status_code=500, detail="User not stripe or gratis customer") from None
 
-        patientDetails = json.loads(body.patientDetails)
+        patientDetails = json.loads(body.patientDetails) if body.patientDetails else None
         dentistNotes = json.loads(body.dentistNotes) if body.dentistNotes else None
 
         results = await asyncio.gather(
@@ -267,17 +307,21 @@ async def generate_consent_letter(body: LetterData, access_token=Depends(JWTBear
         fees_section_result, fees_section_input_tokens, fees_section_output_tokens, fees_section_cost = results[1]
         log.info(f"GPT treatment plan response: {treatment_section_result + fees_section_result}")
 
-        header = format_address(patientDetails["address"]) if letter_config["patient_address"] else ""
-        header = format_image_header(letter_config["image"], header) if letter_config["include_image"] else header
-        date = generate_formatted_date() if letter_config["date"] else ""
-        dear = generate_formatted_dear(
-            patientDetails["gender"],
-            letter_config["salutation"],
-            patientDetails["forename"],
-            letter_config["recipient_naming"],
-            patientDetails["surname"],
-        )
-        header = header + date + dear
+        header = ""
+        print(patientDetails)
+        if patientDetails:
+            header = format_address(patientDetails["address"]) if letter_config["patient_address"] else ""
+            header = format_image_header(letter_config["image"], header) if letter_config["include_image"] else header
+
+            date = generate_formatted_date() if letter_config["date"] else ""
+            dear = generate_formatted_dear(
+                patientDetails["gender"] if patientDetails else None,
+                letter_config["salutation"],
+                patientDetails["forename"] if patientDetails else None,
+                letter_config["recipient_naming"],
+                patientDetails["surname"] if patientDetails else None,
+            )
+            header = header + date + dear
 
         contact_details_text = format_contact_details_text(letter_config["contact_details_text"]) if letter_config["practice_contact_details"] else ""
 
@@ -601,15 +645,32 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
         practice_id = token["practice_id"]
 
         patient_details = json.loads(body.patient_details)
-        treatment_plan = json.loads(body.treatment_plan)
+        letter = json.loads(body.letter)
         input_tokens = body.input_tokens
         output_tokens = body.output_tokens
         cost = body.cost
         model = json.loads(body.model)
 
         patient = retrieve_patient_by_email(patient_details["email"], practice_id)
-        html_string = wrap_image_in_div(treatment_plan)
+        letter_config = retrieve_letter_config(practice_id)
 
+        header = ""
+        if body.add_header:
+            header = format_address(patient["address"]) if letter_config["patient_address"] else ""
+            header = format_image_header(letter_config["image"], header) if letter_config["include_image"] else header
+
+            date = generate_formatted_date() if letter_config["date"] else ""
+            dear = generate_formatted_dear(
+                patient["gender"],
+                letter_config["salutation"],
+                patient["forename"],
+                letter_config["recipient_naming"],
+                patient["surname"],
+            )
+            header = header + date + dear
+            letter = header + letter
+
+        html_string = wrap_image_in_div(letter)
         letter_id = create_new_letter(user_id, html_string, patient["_id"], practice_id, input_tokens, output_tokens, cost, model)
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
 
