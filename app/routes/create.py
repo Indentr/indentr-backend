@@ -13,6 +13,8 @@ from app.constants import DB_URI
 from app.database.atlas_search import atlas_search
 from app.database.crud.audio_note import (
     create_audio_note,
+    migrate_audio_notes,
+    remove_duplicate_notes,
     retrieve_audio_note_time_for_billing_cycle,
 )
 from app.database.crud.config import retrieve_prompt_by_title
@@ -43,7 +45,6 @@ from app.models.create import (
     SymptomData,
     SymptomResponse,
     TextToAnalyse,
-    UploadTranscript,
 )
 from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt
@@ -70,42 +71,16 @@ router = APIRouter(prefix="/create", tags=["Create"])
 log = logging.getLogger(__name__)
 
 
-@router.post("/analyseNote")
-async def analyse_note(
-    body: TextToAnalyse,
-    access_token=Depends(JWTBearer()),
-):
-    try:
-        start = time.time()
-        request_id = uuid.uuid4().hex
+@router.get("/remove-dupes")
+async def remove_duplicate_notes_that_GPT_fucked_up():
+    remove_duplicate_notes()
+    return "success"
 
-        log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
 
-        analyse_note_prompt = retrieve_prompt_by_title("analyse_note")
-        gpt_instruction = "You're an ai reviewing dental notes"
-
-        # AI formatting of dental voice notes
-        prompt = f"""
-            START OF NOTE
-
-            {body.TextToAnalyse}
-
-            END OF NOTE
-
-            {analyse_note_prompt}
-        """
-
-        analysis, tokens = await ask_gpt(prompt, gpt_instruction, "gpt-4-1106-preview")
-
-        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
-
-        # Convert ObjectId to string for JSON serialization
-        return {
-            "analysis": analysis,
-        }
-
-    except HTTPException as e:
-        raise e  # Reraise the HTTPException
+@router.get("/migrate")
+async def migrate_audio_notes_to_new_format():
+    migrate_audio_notes()
+    return "success"
 
 
 @router.post("/search-patients")
@@ -669,3 +644,41 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
     except HTTPException as e:
         log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
         raise e
+
+
+@router.post("/analyseNote")
+async def analyse_note(
+    body: TextToAnalyse,
+    access_token=Depends(JWTBearer()),
+):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
+
+        analyse_note_prompt = retrieve_prompt_by_title("analyse_note")
+        gpt_instruction = "You're an ai reviewing dental notes"
+
+        # AI formatting of dental voice notes
+        prompt = f"""
+            START OF NOTE
+
+            {body.TextToAnalyse}
+
+            END OF NOTE
+
+            {analyse_note_prompt}
+        """
+
+        analysis, tokens = await ask_gpt(prompt, gpt_instruction, "gpt-4-1106-preview")
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        # Convert ObjectId to string for JSON serialization
+        return {
+            "analysis": analysis,
+        }
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException

@@ -14,6 +14,48 @@ from app.database.schemas.audio_note import AudioNote, NotePromptOutputs
 from app.database.schemas.patient import Patient, PatientName
 
 
+def remove_duplicate_notes():
+    # Group documents by patient details, transcript, and formatted notes
+    pipeline = [
+        {
+            "$group": {
+                "_id": {"patient_id": "$patient_id", "transcript": "$transcript", "formatted_notes": "$formatted_notes"},
+                "ids": {"$push": "$_id"},
+                "count": {"$sum": 1},
+            }
+        },
+        {"$match": {"count": {"$gt": 1}}},
+    ]
+    duplicate_groups = list(AudioNote.objects.aggregate(pipeline))
+
+    # Delete duplicate notes, keeping only one for each group
+    for group in duplicate_groups:
+        ids_to_delete = group["ids"][1:]
+        result = AudioNote.objects(id__in=ids_to_delete).delete()
+        print(f"Deleted {result} duplicate notes.")
+
+
+def migrate_audio_notes():
+    # Iterate over all documents in the audio_note collection
+    for index, old_note in enumerate(AudioNote.objects):
+        print(f"Processing document {index + 1}...")
+        try:
+            # Convert the formatted_notes field to the new format
+            updated_formatted_notes = []
+            if isinstance(old_note.formatted_notes, str):
+                updated_formatted_notes.append(
+                    NotePromptOutputs(
+                        note_prompt_id="66311b0cc4e6057d15525222", note_text=old_note.formatted_notes  # Assuming a fixed note_prompt_id
+                    )
+                )
+
+            old_note.formatted_notes = updated_formatted_notes
+            old_note.save()
+            print(f"Document {index + 1} migrated successfully.")
+        except Exception as e:
+            print(f"Error migrating document {index + 1}: {e}")
+
+
 def create_audio_note(
     patient_id: str, user_id: str, practice_id: str, audio_bytesio: BytesIO, note_dict: Dict[str, Any], length_of_recording: int
 ) -> str:
