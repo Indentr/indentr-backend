@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Optional
 
 from fastapi import UploadFile
 from pydantic import BaseModel
@@ -147,6 +147,6 @@ class SaveAudioNotes(BaseModel):
 
 
 # Request model
-class UploadTranscript(BaseModel):
+class FormatTranscript(BaseModel):
     transcript: str
-    transcript_type: Optional[Literal["dental_note", "generic"]] = "dental_note"
+    prompt_id: str

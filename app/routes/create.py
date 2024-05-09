@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 import time
 import uuid
 from io import BytesIO
@@ -12,9 +13,15 @@ from app.constants import DB_URI
 from app.database.atlas_search import atlas_search
 from app.database.crud.audio_note import (
     create_audio_note,
+    migrate_audio_notes,
+    remove_duplicate_notes,
     retrieve_audio_note_time_for_billing_cycle,
 )
 from app.database.crud.config import retrieve_prompt_by_title
+from app.database.crud.custom_prompt import (
+    retrieve_all_users_prompts,
+    retrieve_prompt_with_prompt_id,
+)
 from app.database.crud.letter import (
     create_new_letter,
     retrieve_letter_count_for_billing_cycle,
@@ -28,6 +35,7 @@ from app.database.crud.pricing import retrieve_pricing
 from app.database.crud.user import retrieve_user_by_id
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
+    FormatTranscript,
     LetterData,
     LetterResponse,
     PatientDetails,
@@ -37,7 +45,6 @@ from app.models.create import (
     SymptomData,
     SymptomResponse,
     TextToAnalyse,
-    UploadTranscript,
 )
 from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt
@@ -64,42 +71,16 @@ router = APIRouter(prefix="/create", tags=["Create"])
 log = logging.getLogger(__name__)
 
 
-@router.post("/analyseNote")
-async def analyse_note(
-    body: TextToAnalyse,
-    access_token=Depends(JWTBearer()),
-):
-    try:
-        start = time.time()
-        request_id = uuid.uuid4().hex
+@router.get("/remove-dupes")
+async def remove_duplicate_notes_that_GPT_fucked_up():
+    remove_duplicate_notes()
+    return "success"
 
-        log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
 
-        analyse_note_prompt = retrieve_prompt_by_title("analyse_note")
-        gpt_instruction = "You're an ai reviewing dental notes"
-
-        # AI formatting of dental voice notes
-        prompt = f"""
-            START OF NOTE
-
-            {body.TextToAnalyse}
-
-            END OF NOTE
-
-            {analyse_note_prompt}
-        """
-
-        analysis, tokens = await ask_gpt(prompt, gpt_instruction, "gpt-4-1106-preview")
-
-        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
-
-        # Convert ObjectId to string for JSON serialization
-        return {
-            "analysis": analysis,
-        }
-
-    except HTTPException as e:
-        raise e  # Reraise the HTTPException
+@router.get("/migrate")
+async def migrate_audio_notes_to_new_format():
+    migrate_audio_notes()
+    return "success"
 
 
 @router.post("/search-patients")
@@ -442,101 +423,6 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
         raise HTTPException(status_code=500, detail="Failed to save image") from e
 
 
-@router.post("/uploadTranscript")
-async def upload_transcript(
-    body: UploadTranscript,
-    access_token=Depends(JWTBearer()),
-):
-    try:
-        start = time.time()
-        request_id = uuid.uuid4().hex
-
-        log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
-
-        upload_transcript_prompt = (
-            retrieve_prompt_by_title("upload_transcript")
-            if body.transcript_type == "dental_note"
-            else retrieve_prompt_by_title("upload_transcript_generic")
-        )
-        gpt_instruction = (
-            "You're an ai formatting dental voice notes" if body.transcript_type == "dental_note" else "You're an ai formatting voice notes"
-        )
-
-        # AI formatting of dental voice notes
-        prompt = f"""
-            START OF TRANSCRIPT
-
-            {body.transcript}
-
-            END OF TRANSCRIPT
-
-            {upload_transcript_prompt}
-        """
-
-        formatted_notes, tokens = await ask_gpt(prompt, gpt_instruction, "gpt-4-1106-preview")
-
-        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
-
-        # Convert ObjectId to string for JSON serialization
-        return {
-            "formatted_notes": formatted_notes,
-        }
-
-    except HTTPException as e:
-        raise e  # Reraise the HTTPException
-
-
-@router.post("/create-note")
-async def create_note(
-    audioFile: UploadFile = File(...),
-    transcript: str = Form(...),
-    patientEmail: str = Form(...),
-    formatted_notes: str = Form(...),
-    length_of_recording: int = Form(...),
-    access_token: str = Depends(JWTBearer()),
-):
-    start = time.time()
-    request_id = uuid.uuid4().hex
-    log.info(f"Request {request_id} received for saving a note.")
-
-    try:
-        # Attempting to parse transcript to ensure it's valid JSON
-        try:
-            parsed_transcript = json.loads(transcript)
-        except json.JSONDecodeError as e:
-            log.error(f"Failed to parse transcript for request {request_id}: {e}")
-            parsed_transcript = transcript  # Assuming plain text if not JSON
-
-        token = decodeJWT(access_token)
-        user_id = token.get("user_id")
-        practice_id = token.get("practice_id")
-
-        patient = retrieve_patient_by_email(patientEmail, practice_id)
-
-        if patient:
-            log.info(f"Patient retrieved successfully for email {patientEmail}")
-        else:
-            log.error(f"No patient found for email {patientEmail}")
-            raise HTTPException(status_code=404, detail="Patient not found")
-
-        audio_content = await audioFile.read()
-        note_id = create_audio_note(
-            patient["_id"], user_id, practice_id, BytesIO(audio_content), parsed_transcript, formatted_notes, length_of_recording
-        )
-
-        log.info(f"Request {request_id} completed in {round(time.time() - start, 2)} seconds. Note {note_id} saved successfully.")
-
-        return {"message": "Note saved successfully", "note_id": note_id}
-
-    except HTTPException as e:
-        log.error(f"HTTPException during request {request_id}: {e.detail}")
-        raise e
-
-    except Exception as e:
-        log.error(f"Unhandled error during request {request_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error") from None
-
-
 @router.post("/voice-to-text")
 async def upload_audio(request: Request, access_token: str = Depends(JWTBearer())):
     try:
@@ -544,6 +430,7 @@ async def upload_audio(request: Request, access_token: str = Depends(JWTBearer()
         log.info(f"Request {request_id} received for voice-to-text endpoint.")
 
         token = decodeJWT(access_token)
+        user_id = token["user_id"]
         practice_id = token["practice_id"]
         practice = retrieve_practice_by_id(practice_id)
 
@@ -583,10 +470,127 @@ async def upload_audio(request: Request, access_token: str = Depends(JWTBearer()
         response = await dpg_speech_to_text(audio_buffer)
         transcript = response.results.channels[0].alternatives[0].transcript
 
-        return {"transcript": transcript}
+        # Split text into sentences using regular expression
+        sentences = re.split(r"(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s", transcript)
+
+        # Join sentences with paragraph tags and empty paragraph tags for new lines
+        html_sring = "".join(f"<p>{sentence}</p><p/>" for sentence in sentences)
+
+        # formatted_notes, tokens = await ask_gpt(prompt, "You're an AI that formats transcripts into HTML string", "gpt-3.5-turbo")
+        custom_prompts = retrieve_all_users_prompts(user_id)
+
+        return {"transcript": html_sring, "custom_prompts": custom_prompts}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
+
+
+@router.post("/format-transcript")
+async def upload_transcript(
+    body: FormatTranscript,
+    access_token=Depends(JWTBearer()),
+):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+        prompt = retrieve_prompt_with_prompt_id(practice_id, body.prompt_id)
+
+        log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
+
+        note_prompt = f"""
+
+        Transcript: {body.transcript}
+
+        Task: {prompt["text"]}
+
+        Important points: If there are errors do your best to guess what the correct sentence would have been.
+        eg if its a dental note: upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
+        in words that do not appear to fit the context will mean Upper left 3
+
+        Response: MUST be written as an HTML string in the format provided below (DO NOT WRAP YOUR RESPONSE IN: ```html <html content> ``` just give it as a normal string ''),
+        where each paragraph is wrapped in a <p> tag:
+
+        <p class="p1-title">[insert paragraph text, do not include dear ....]</p>
+        <p></p> // IMPORTANT: for each new paragraph or section insert an empty p tag like this one (not after a colon though since thats not a new paragraph)
+        <p class="etc">[etc.]</p>
+
+        If the task asks for the use of undordered list or bullet list for certain sections then here is an example of the format
+        <p class="insert-pX-title]">
+            <ul>
+                <li>[insert list item]</li>
+                <li>[etc.]</li>
+            </ul>
+        </p>
+        <p></p>
+        <p class="insert-pX-title]">
+            <ol>
+                <li>[insert list item]</li>
+                <li>[etc.]</li>
+            </ol>
+        </p>
+
+        """
+
+        formatted_notes, tokens = await ask_gpt(
+            note_prompt, "You format transcripts, doing exactly what the task asks, following the desired response format", "gpt-4-1106-preview"
+        )
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return formatted_notes
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
+@router.post("/create-note")
+async def create_note(
+    audioFile: UploadFile = File(...),
+    note_object: str = Form(...),
+    patientEmail: str = Form(...),
+    length_of_recording: int = Form(...),
+    access_token: str = Depends(JWTBearer()),
+):
+    start = time.time()
+    request_id = uuid.uuid4().hex
+    log.info(f"Request {request_id} received for saving a note.")
+
+    try:
+        # Attempting to parse transcript to ensure it's valid JSON
+        try:
+            note_dict = json.loads(note_object)
+        except json.JSONDecodeError as e:
+            log.error(f"Failed to parse transcript for request {request_id}: {e}")
+
+        token = decodeJWT(access_token)
+        user_id = token.get("user_id")
+        practice_id = token.get("practice_id")
+
+        patient = retrieve_patient_by_email(patientEmail, practice_id)
+
+        if patient:
+            log.info(f"Patient retrieved successfully for email {patientEmail}")
+        else:
+            log.error(f"No patient found for email {patientEmail}")
+            raise HTTPException(status_code=404, detail="Patient not found")
+
+        audio_content = await audioFile.read()
+        note_id = create_audio_note(patient["_id"], user_id, practice_id, BytesIO(audio_content), note_dict, length_of_recording)
+
+        log.info(f"Request {request_id} completed in {round(time.time() - start, 2)} seconds. Note {note_id} saved successfully.")
+
+        return {"message": "Note saved successfully", "note_id": note_id}
+
+    except HTTPException as e:
+        log.error(f"HTTPException during request {request_id}: {e.detail}")
+        raise e
+
+    except Exception as e:
+        log.error(f"Unhandled error during request {request_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
 @router.post("/save-file", response_model=SaveFileResponse)
@@ -640,3 +644,41 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
     except HTTPException as e:
         log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
         raise e
+
+
+@router.post("/analyseNote")
+async def analyse_note(
+    body: TextToAnalyse,
+    access_token=Depends(JWTBearer()),
+):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
+
+        analyse_note_prompt = retrieve_prompt_by_title("analyse_note")
+        gpt_instruction = "You're an ai reviewing dental notes"
+
+        # AI formatting of dental voice notes
+        prompt = f"""
+            START OF NOTE
+
+            {body.TextToAnalyse}
+
+            END OF NOTE
+
+            {analyse_note_prompt}
+        """
+
+        analysis, tokens = await ask_gpt(prompt, gpt_instruction, "gpt-4-1106-preview")
+
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        # Convert ObjectId to string for JSON serialization
+        return {
+            "analysis": analysis,
+        }
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException

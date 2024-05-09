@@ -5,6 +5,7 @@ import uuid
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 
 from app.constants import DB_URI
 from app.database.atlas_search import atlas_search
@@ -13,10 +14,12 @@ from app.database.crud.audio_note import (
     retrieve_all_users_notes,
     retrieve_all_users_notes_filtered_by_char,
     retrieve_note,
+    retrieve_note_audio,
     retrieve_notes_alphabet_status,
     retrieve_patients_last_three_notes,
     update_note,
 )
+from app.database.crud.custom_prompt import retrieve_all_users_prompts
 from app.database.crud.letter import (
     delete_letter,
     retrieve_all_users_letters,
@@ -80,14 +83,15 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
     """
     Retrieves a file based on the provided file ID.
     """
-
     try:
         token = decodeJWT(access_token)
         user_id = token["user_id"]
         practice_id = token["practice_id"]
         letters = []
         notes = []
+        file = ""
         patient_details = []
+        custom_prompts = []
 
         if file_type == "letter":
             file = retrieve_user_letter(file_id, user_id)
@@ -95,12 +99,40 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
             file = retrieve_note(file_id, user_id)
             patient_details = retrieve_patient_by_email(file["patient_details"]["email"], practice_id)
             del patient_details["_id"]
+            custom_prompts = retrieve_all_users_prompts(user_id)
+
+            # Creates a dictionary to map custom_prompt IDs to titles
+            custom_prompt_map = {prompt["_id"]: prompt["title"] for prompt in custom_prompts}
+
+            for formatted_note in file["formatted_notes"]:
+                note_prompt_id = formatted_note["note_prompt_id"]
+                formatted_note["title"] = custom_prompt_map.get(note_prompt_id, "Unknown")
+
         elif file_type == "patient":
             file = retrieve_patient_by_id(file_id, practice_id)
             letters = retrieve_patients_last_three_letters(file_id)
             notes = retrieve_patients_last_three_notes(file_id)
 
-        return {"file": file, "letters": letters, "notes": notes, "patient_details": patient_details}
+        return {"file": file, "patient_details": patient_details, "custom_prompts": custom_prompts, "letters": letters, "notes": notes}
+
+    except HTTPException as e:
+        raise e
+
+
+@router.get("/get-audio-data/{note_id}/")
+def get_audio_data(note_id: str, access_token=Depends(JWTBearer())):
+    """
+    Retrieves a note's audio based on the provided file ID.
+    """
+    try:
+        token = decodeJWT(access_token)
+        user_id = token["user_id"]
+        audio_data = retrieve_note_audio(note_id, user_id)
+        headers = {
+            "Content-Disposition": 'attachment; filename="audio.webm',
+            "Content-Type": "audio/webm",
+        }
+        return StreamingResponse(iter([audio_data]), headers=headers)
 
     except HTTPException as e:
         raise e
@@ -238,6 +270,18 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
 
         for i in result:
             i["_id"] = str(i["_id"])
+            if body.file_type == "note":
+                formatted_notes = []
+                for formatted_note in i["formatted_notes"]:
+                    if isinstance(formatted_note, dict):
+                        formatted_notes.append(
+                            {
+                                "note_prompt_id": str(formatted_note["note_prompt_id"]),  # Convert ObjectId to string
+                                "note_text": formatted_note["note_text"],
+                            }
+                        )
+                i["formatted_notes"] = formatted_notes
+
             if "patient_id" in i:
                 patient_details = retrieve_patient_by_id(str(i["patient_id"]), practice_id)
                 del patient_details["dob"]
