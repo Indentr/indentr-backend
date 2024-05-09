@@ -18,7 +18,10 @@ async def dpg_speech_to_text(audio_buffer):
 
         options = PrerecordedOptions(
             model="nova-2",
-            smart_format=False,
+            language="en",
+            smart_format=True, 
+            punctuate=True, 
+            paragraphs=True, 
         )
 
         response = deepgram.listen.prerecorded.v("1").transcribe_file(source, options)
