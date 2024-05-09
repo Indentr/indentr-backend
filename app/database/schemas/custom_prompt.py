@@ -1,12 +1,5 @@
-from datetime import datetime
-
 from mongoengine import (
-    BinaryField,
-    DateTimeField,
     Document,
-    EmbeddedDocumentField,
-    EmbeddedDocumentListField,
-    IntField,
     ReferenceField,
     StringField,
 )
@@ -22,5 +15,3 @@ class CustomPrompt(Document):
     text = StringField(required=True)
 
     meta = {"collection": "custom_prompts"}  # Specifies the collection name
-
-

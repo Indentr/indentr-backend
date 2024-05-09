@@ -15,6 +15,10 @@ from app.database.crud.audio_note import (
     retrieve_audio_note_time_for_billing_cycle,
 )
 from app.database.crud.config import retrieve_prompt_by_title
+from app.database.crud.custom_prompt import (
+    retrieve_all_users_prompts,
+    retrieve_prompt_with_prompt_id,
+)
 from app.database.crud.letter import (
     create_new_letter,
     retrieve_letter_count_for_billing_cycle,
@@ -28,6 +32,7 @@ from app.database.crud.pricing import retrieve_pricing
 from app.database.crud.user import retrieve_user_by_id
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
+    FormatTranscript,
     LetterData,
     LetterResponse,
     PatientDetails,
@@ -36,7 +41,6 @@ from app.models.create import (
     SaveFileResponse,
     SymptomData,
     SymptomResponse,
-    FormatTranscript,
 )
 from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt
@@ -53,12 +57,6 @@ from app.utils.create_letter_utils import (
     patient_signature,
     treatment_section,
     treatment_section_referral,
-)
-from app.database.crud.custom_prompt import (
-    retrieve_all_users_prompts
-)
-from app.database.crud.custom_prompt import (
-    retrieve_prompt_with_prompt_id,
 )
 from app.utils.utils import wrap_image_in_div
 
@@ -405,8 +403,6 @@ async def save_img(request: Request, access_token=Depends(JWTBearer())):
         raise HTTPException(status_code=500, detail="Failed to save image") from e
 
 
-
-
 @router.post("/voice-to-text")
 async def upload_audio(request: Request, access_token: str = Depends(JWTBearer())):
     try:
@@ -480,8 +476,6 @@ async def upload_audio(request: Request, access_token: str = Depends(JWTBearer()
         raise e  # Reraise the HTTPException
 
 
-
-
 @router.post("/format-transcript")
 async def upload_transcript(
     body: FormatTranscript,
@@ -531,7 +525,9 @@ async def upload_transcript(
 
         """
 
-        formatted_notes, tokens = await ask_gpt(note_prompt, "You format transcripts, doing exactly what the task asks, following the desired response format", "gpt-4-1106-preview")
+        formatted_notes, tokens = await ask_gpt(
+            note_prompt, "You format transcripts, doing exactly what the task asks, following the desired response format", "gpt-4-1106-preview"
+        )
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
@@ -544,9 +540,8 @@ async def upload_transcript(
 @router.post("/create-note")
 async def create_note(
     audioFile: UploadFile = File(...),
-    transcript: str = Form(...),
+    note_object: str = Form(...),
     patientEmail: str = Form(...),
-    formatted_notes: str = Form(...),
     length_of_recording: int = Form(...),
     access_token: str = Depends(JWTBearer()),
 ):
@@ -557,10 +552,9 @@ async def create_note(
     try:
         # Attempting to parse transcript to ensure it's valid JSON
         try:
-            parsed_transcript = json.loads(transcript)
+            note_dict = json.loads(note_object)
         except json.JSONDecodeError as e:
             log.error(f"Failed to parse transcript for request {request_id}: {e}")
-            parsed_transcript = transcript  # Assuming plain text if not JSON
 
         token = decodeJWT(access_token)
         user_id = token.get("user_id")
@@ -575,9 +569,7 @@ async def create_note(
             raise HTTPException(status_code=404, detail="Patient not found")
 
         audio_content = await audioFile.read()
-        note_id = create_audio_note(
-            patient["_id"], user_id, practice_id, BytesIO(audio_content), parsed_transcript, formatted_notes, length_of_recording
-        )
+        note_id = create_audio_note(patient["_id"], user_id, practice_id, BytesIO(audio_content), note_dict, length_of_recording)
 
         log.info(f"Request {request_id} completed in {round(time.time() - start, 2)} seconds. Note {note_id} saved successfully.")
 
@@ -590,7 +582,6 @@ async def create_note(
     except Exception as e:
         log.error(f"Unhandled error during request {request_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from None
-
 
 
 @router.post("/save-file", response_model=SaveFileResponse)

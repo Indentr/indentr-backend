@@ -3,6 +3,7 @@ from mongoengine import DoesNotExist
 
 from app.database.schemas.custom_prompt import CustomPrompt
 
+
 def create_custom_prompt(user_id: str, practice_id: str, prompt_title: str, prompt_text: str):
     try:
         custom_prompt = CustomPrompt(
@@ -11,11 +12,10 @@ def create_custom_prompt(user_id: str, practice_id: str, prompt_title: str, prom
             title=prompt_title,
             text=prompt_text,
         )
-        custom_prompt.save() 
+        custom_prompt.save()
 
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e)) from None
-
 
 
 def retrieve_all_users_prompts(user_id: str):
@@ -23,7 +23,7 @@ def retrieve_all_users_prompts(user_id: str):
         prompts = CustomPrompt.objects(user_id=user_id).only("title", "text").select_related()
 
     except DoesNotExist as e:
-            raise e
+        raise e
 
     # Transform the MongoEngine documents to a list of dictionaries
     prompts_list = []

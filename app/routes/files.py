@@ -19,6 +19,7 @@ from app.database.crud.audio_note import (
     retrieve_patients_last_three_notes,
     update_note,
 )
+from app.database.crud.custom_prompt import retrieve_all_users_prompts
 from app.database.crud.letter import (
     delete_letter,
     retrieve_all_users_letters,
@@ -35,9 +36,6 @@ from app.database.crud.patient import (
     retrieve_patient_by_email,
     retrieve_patient_by_id,
     retrieve_patients_alphabet_status,
-)
-from app.database.crud.custom_prompt import (
-    retrieve_all_users_prompts
 )
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.file import DeleteFile, GetFile, SaveFile, SearchFiles, SelectChar
@@ -102,12 +100,20 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
             patient_details = retrieve_patient_by_email(file["patient_details"]["email"], practice_id)
             del patient_details["_id"]
             custom_prompts = retrieve_all_users_prompts(user_id)
+
+            # Creates a dictionary to map custom_prompt IDs to titles
+            custom_prompt_map = {prompt["_id"]: prompt["title"] for prompt in custom_prompts}
+
+            for formatted_note in file["formatted_notes"]:
+                note_prompt_id = formatted_note["note_prompt_id"]
+                formatted_note["title"] = custom_prompt_map.get(note_prompt_id, "Unknown")
+
         elif file_type == "patient":
             file = retrieve_patient_by_id(file_id, practice_id)
             letters = retrieve_patients_last_three_letters(file_id)
             notes = retrieve_patients_last_three_notes(file_id)
 
-        return {"file": file, "patient_details": patient_details, "custom_prompts": custom_prompts}
+        return {"file": file, "patient_details": patient_details, "custom_prompts": custom_prompts, "letters": letters, "notes": notes}
 
     except HTTPException as e:
         raise e
@@ -264,6 +270,18 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
 
         for i in result:
             i["_id"] = str(i["_id"])
+            if body.file_type == "note":
+                formatted_notes = []
+                for formatted_note in i["formatted_notes"]:
+                    if isinstance(formatted_note, dict):
+                        formatted_notes.append(
+                            {
+                                "note_prompt_id": str(formatted_note["note_prompt_id"]),  # Convert ObjectId to string
+                                "note_text": formatted_note["note_text"],
+                            }
+                        )
+                i["formatted_notes"] = formatted_notes
+
             if "patient_id" in i:
                 patient_details = retrieve_patient_by_id(str(i["patient_id"]), practice_id)
                 del patient_details["dob"]
