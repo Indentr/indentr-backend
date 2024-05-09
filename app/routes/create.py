@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 import time
 import uuid
 from io import BytesIO
@@ -494,27 +495,16 @@ async def upload_audio(request: Request, access_token: str = Depends(JWTBearer()
         response = await dpg_speech_to_text(audio_buffer)
         transcript = response.results.channels[0].alternatives[0].transcript
 
-        print("transcript: ", transcript)
+        # Split text into sentences using regular expression
+        sentences = re.split(r"(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s", transcript)
 
-        instruction_prompt = """
-            Please format the transcript which is wrapped in '' (if there's any obvious spelling errors or grammatical errors then make the correction)
-            I need you to format it as an HTML string where each line is wrapped in <p> tag and for each new line it needs to be seperated with an empty <p /> like so. Please add a new line whenever there is a full stop. ie <p>Sentence.</p><p/><p>sentence.</p>
-            make sure also to NOT send the html wrapped with ```html <html content> ``` just send it back as normal string
-        """
+        # Join sentences with paragraph tags and empty paragraph tags for new lines
+        html_sring = "".join(f"<p>{sentence}</p><p/>" for sentence in sentences)
 
-        # AI formatting of dental voice notes
-        prompt = f"""
-
-            Transcript:'{transcript}'
-
-
-            {instruction_prompt}
-        """
-
-        formatted_notes, tokens = await ask_gpt(prompt, "You're an AI that formats transcripts into HTML string", "gpt-3.5-turbo")
+        # formatted_notes, tokens = await ask_gpt(prompt, "You're an AI that formats transcripts into HTML string", "gpt-3.5-turbo")
         custom_prompts = retrieve_all_users_prompts(user_id)
 
-        return {"transcript": formatted_notes, "custom_prompts": custom_prompts}
+        return {"transcript": html_sring, "custom_prompts": custom_prompts}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException

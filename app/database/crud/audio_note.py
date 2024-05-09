@@ -64,12 +64,10 @@ def retrieve_all_users_notes(user_id: str = None, practice_id: str = None):
     try:
         if not user_id:
             # Gets all practices notes
-            notes = (
-                AudioNote.objects(practice_id=practice_id).only("patient_id", "formatted_notes", "createdAt").order_by("-createdAt").select_related()
-            )
+            notes = AudioNote.objects(practice_id=practice_id).only("patient_id", "transcript", "createdAt").order_by("-createdAt").select_related()
         else:
             # Gets all users notes
-            notes = AudioNote.objects(user_id=user_id).only("patient_id", "formatted_notes", "createdAt").order_by("-createdAt").select_related()
+            notes = AudioNote.objects(user_id=user_id).only("patient_id", "transcript", "createdAt").order_by("-createdAt").select_related()
 
     except DoesNotExist as e:
         # Check if the exception is related to User or Letter
