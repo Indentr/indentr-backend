@@ -532,6 +532,14 @@ async def upload_transcript(
             </ol>
         </p>
 
+        If the task specifies that it is a consultation or meeting then the expected formatt should look like this:
+
+        <p class="<person 1>">person 1: Hello, Mr. Smith. How can I help you today?</p>
+        <p class="<person 2>">person 2: Hi, Doctor. I've been feeling pain in my lower left molar.</p>
+        <p></p>
+        <p class="<person 1>">person 1: It looks like you have a cavity in your lower left 6. I recommend a filling.</p>
+        <p></p>
+
         """
 
         formatted_notes, tokens = await ask_gpt(

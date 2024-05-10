@@ -130,6 +130,12 @@ def post_user_registration(body: UserRegisterRequest):
             "General note",
             "Convert the transcript into professional, concise but comprehensive notes for later reference.",
         )
+        create_custom_prompt(
+            new_user["_id"],
+            new_user["practice_id"],
+            "Record consultation",
+            "Convert the following dental consultation transcript into a concise conversation transcript between the dentist and patient. Format each line clearly as 'Dentist' or 'Patient' ",
+        )
         insert_welcome_consent_letter(body.name, body.email.lower(), body.address)
         insert_instruction_triages(practice_id)
 
