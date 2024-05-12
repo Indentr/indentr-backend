@@ -189,7 +189,13 @@ def retrieve_note_audio(note_id: str, user_id: str):
 
 def retrieve_last_three_notes(user_id: str):
     try:
-        notes = AudioNote.objects(user_id=user_id).only("patient_id", "formatted_notes", "createdAt").order_by("-_id").limit(3).select_related()
+        notes = (
+            AudioNote.objects(user_id=user_id)
+            .only("patient_id", "formatted_notes", "transcript", "createdAt")
+            .order_by("-_id")
+            .limit(3)
+            .select_related()
+        )
 
         notes_list = []
 
@@ -301,7 +307,13 @@ def retrieve_all_users_notes_filtered_by_char(starts_with: str, user_id: str = N
 
 def retrieve_patients_last_three_notes(patient_id: str):
     try:
-        notes = AudioNote.objects(patient_id=patient_id).only("patient_id", "formatted_notes", "createdAt").order_by("-_id").limit(3).select_related()
+        notes = (
+            AudioNote.objects(patient_id=patient_id)
+            .only("patient_id", "formatted_notes", "transcript", "createdAt")
+            .order_by("-_id")
+            .limit(3)
+            .select_related()
+        )
 
     except DoesNotExist:
         # Handle the case where no letters are found
