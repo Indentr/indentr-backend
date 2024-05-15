@@ -101,13 +101,6 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
             del patient_details["_id"]
             custom_prompts = retrieve_all_users_prompts(user_id)
 
-            # Creates a dictionary to map custom_prompt IDs to titles
-            custom_prompt_map = {prompt["_id"]: prompt["title"] for prompt in custom_prompts}
-
-            for formatted_note in file["formatted_notes"]:
-                note_prompt_id = formatted_note["note_prompt_id"]
-                formatted_note["title"] = custom_prompt_map.get(note_prompt_id, "Unknown")
-
         elif file_type == "patient":
             file = retrieve_patient_by_id(file_id, practice_id)
             letters = retrieve_patients_last_three_letters(file_id)
@@ -201,6 +194,7 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
                 "_id": 1,
                 "patient_id": 1,
                 "createdAt": 1,
+                "transcript": 1,
                 "formatted_notes": 1,
             }
 
@@ -228,10 +222,70 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
                         },
                     }
                 },
+                {"$unwind": "$formatted_notes"},  # Unwind to work with each element individually
+                {
+                    "$lookup": {
+                        "from": "custom_prompts",
+                        "localField": "formatted_notes.note_prompt_id",
+                        "foreignField": "_id",
+                        "as": "custom_prompts",
+                    }
+                },
+                {
+                    "$addFields": {
+                        "formatted_notes.title": {
+                            "$arrayElemAt": [
+                                {
+                                    "$map": {
+                                        "input": "$custom_prompts",
+                                        "as": "cp",
+                                        "in": {"$cond": [{"$eq": ["$$cp._id", "$formatted_notes.note_prompt_id"]}, "$$cp.title", None]},
+                                    }
+                                },
+                                0,
+                            ]
+                        }
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": "$_id",
+                        "patient_id": {"$first": "$patient_id"},
+                        "user_id": {"$first": "$user_id"},
+                        "practice_id": {"$first": "$practice_id"},
+                        "audio": {"$first": "$audio"},
+                        "transcript": {"$first": "$transcript"},
+                        "createdAt": {"$first": "$createdAt"},
+                        "patient_details": {"$first": "$patient_details"},
+                        "length_of_recording": {"$first": "$length_of_recording"},
+                        "formatted_notes": {"$push": "$formatted_notes"},  # Group back the formatted_notes
+                    }
+                },
                 {"$sort": {"_id": -1}},
                 {"$limit": 15},
                 {"$project": returned_fields},
             ]
+
+            if body.file_type == "letter":
+                pipeline = [
+                    {
+                        "$search": {
+                            "index": "default",
+                            "compound": {
+                                "should": [
+                                    {"autocomplete": {"query": search_param, "path": path}},
+                                    {"autocomplete": {"query": search_param, "path": "patient_details.forename"}},
+                                    {"autocomplete": {"query": search_param, "path": "patient_details.surname"}},
+                                ],
+                                "filter": [filter_condition],
+                                "minimumShouldMatch": 1,
+                            },
+                        }
+                    },
+                    {"$sort": {"_id": -1}},
+                    {"$limit": 15},
+                    {"$project": returned_fields},
+                ]
 
         if body.file_type == "patient":
             search_param = body.search_param
@@ -272,15 +326,17 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
             i["_id"] = str(i["_id"])
             if body.file_type == "note":
                 formatted_notes = []
-                for formatted_note in i["formatted_notes"]:
-                    if isinstance(formatted_note, dict):
-                        formatted_notes.append(
-                            {
-                                "note_prompt_id": str(formatted_note["note_prompt_id"]),  # Convert ObjectId to string
-                                "note_text": formatted_note["note_text"],
-                            }
-                        )
-                i["formatted_notes"] = formatted_notes
+                if "formatted_notes" in i and i["formatted_notes"]:
+                    for formatted_note in i.get("formatted_notes", []):
+                        if isinstance(formatted_note, dict):
+                            formatted_notes.append(
+                                {
+                                    "note_prompt_id": str(formatted_note["note_prompt_id"]),  # Convert ObjectId to string
+                                    "note_text": formatted_note["note_text"],
+                                    "title": formatted_note["title"],
+                                }
+                            )
+                    i["formatted_notes"] = formatted_notes
 
             if "patient_id" in i:
                 patient_details = retrieve_patient_by_id(str(i["patient_id"]), practice_id)
