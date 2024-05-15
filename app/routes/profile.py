@@ -8,6 +8,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.database.crud.audio_note import (
+    delete_documents_with_empty_transcript_or_missing_formatted_notes,
     retrieve_audio_note_time_for_billing_cycle,
     retrieve_last_three_notes,
 )
@@ -60,6 +61,20 @@ router = APIRouter(prefix="/profile", tags=["Profile"])
 
 # initiates logger
 log = logging.getLogger(__name__)
+
+
+@router.get("/delete_documents")
+def delete_documents():
+    """
+    Retrieves the user's profile information along with their latest letters.
+    """
+    try:
+        delete_documents_with_empty_transcript_or_missing_formatted_notes()
+
+        return "success"
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
 
 
 @router.get("/")

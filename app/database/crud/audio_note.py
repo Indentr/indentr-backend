@@ -14,6 +14,22 @@ from app.database.schemas.audio_note import AudioNote, NotePromptOutputs
 from app.database.schemas.patient import Patient, PatientName
 
 
+def delete_documents_with_empty_transcript_or_missing_formatted_notes():
+    try:
+        # Query for documents meeting the conditions
+        query = {"$or": [{"transcript": ""}, {"formatted_notes": {"$exists": False}}]}
+
+        # Count documents matching the query
+        deleted_count = AudioNote.objects(__raw__=query).count()
+
+        # Delete documents matching the query
+        AudioNote.objects(__raw__=query).delete()
+
+        print(f"{deleted_count} documents deleted successfully.")
+    except DoesNotExist:
+        print("No matching documents found.")
+
+
 def remove_duplicate_notes():
     # Group documents by patient details, transcript, and formatted notes
     pipeline = [
@@ -149,7 +165,7 @@ def retrieve_all_users_notes(user_id: str = None, practice_id: str = None):
 # Function to get a specific note
 def retrieve_note(note_id: str, user_id: str):
     # Query the note using MongoEngine
-    note = AudioNote.objects(id=note_id, user_id=user_id).only("patient_id", "formatted_notes", "transcript", "createdAt").first()
+    note = AudioNote.objects(id=note_id, user_id=user_id).only("patient_id", "formatted_notes", "transcript", "createdAt").first().select_related(2)
 
     if not note:
         # Handle case where the note doesn't exist or doesn't belong to the user
@@ -171,6 +187,7 @@ def retrieve_note(note_id: str, user_id: str):
     if not isinstance(note.formatted_notes, str):
         for i in range(len(note.formatted_notes)):
             note_dict["formatted_notes"][i]["note_prompt_id"] = str(note_dict["formatted_notes"][i]["note_prompt_id"])
+            note_dict["formatted_notes"][i]["title"] = note.formatted_notes[i].note_prompt_id.title
 
     return note_dict
 
@@ -194,7 +211,7 @@ def retrieve_last_three_notes(user_id: str):
             .only("patient_id", "formatted_notes", "transcript", "createdAt")
             .order_by("-_id")
             .limit(3)
-            .select_related()
+            .select_related(2)
         )
 
         notes_list = []
@@ -203,7 +220,7 @@ def retrieve_last_three_notes(user_id: str):
         # Handle the case where no notes are found
         return []
 
-    for note in notes:
+    for index, note in enumerate(notes):
         created_at = note.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
         note_dict = note.to_mongo().to_dict()
         note_dict["createdAt"] = created_at
@@ -217,6 +234,7 @@ def retrieve_last_three_notes(user_id: str):
         if not isinstance(note.formatted_notes, str):
             for i in range(len(note.formatted_notes)):
                 note_dict["formatted_notes"][i]["note_prompt_id"] = str(note_dict["formatted_notes"][i]["note_prompt_id"])
+                note_dict["formatted_notes"][i]["title"] = notes[index].formatted_notes[i].note_prompt_id.title
 
         notes_list.append(note_dict)
 
@@ -258,7 +276,7 @@ def retrieve_all_users_notes_filtered_by_char(starts_with: str, user_id: str = N
                 {"$unwind": "$patient"},
                 {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
                 {"$sort": {"createdAt": -1}},
-                {"$project": {"audio": 0, "practice_id": 0, "user_id": 0, "transcript": 0}},
+                {"$project": {"audio": 0, "practice_id": 0, "user_id": 0, "formatted_notes": 0}},
             ]
         else:
             pipeline = [
@@ -267,27 +285,17 @@ def retrieve_all_users_notes_filtered_by_char(starts_with: str, user_id: str = N
                 {"$unwind": "$patient"},
                 {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
                 {"$sort": {"createdAt": -1}},
-                {"$project": {"audio": 0, "practice_id": 0, "user_id": 0, "transcript": 1}},
+                {"$project": {"audio": 0, "practice_id": 0, "user_id": 0, "formatted_notes": 0}},
             ]
 
         notes = AudioNote.objects.aggregate(*pipeline)
 
         result = []
         for note in notes:
-            formatted_notes = []
-            for formatted_note in note["formatted_notes"]:
-                if isinstance(formatted_note, dict):
-                    formatted_notes.append(
-                        {
-                            "note_prompt_id": str(formatted_note["note_prompt_id"]),  # Convert ObjectId to string
-                            "note_text": formatted_note["note_text"],
-                        }
-                    )
-
             result.append(
                 {
                     "_id": str(note["_id"]),
-                    "formatted_notes": formatted_notes,
+                    "transcript": note["transcript"],
                     "patient_details": {
                         "forename": note["patient"]["forename"],
                         "surname": note["patient"]["surname"],
