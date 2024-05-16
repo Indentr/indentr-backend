@@ -14,64 +14,6 @@ from app.database.schemas.audio_note import AudioNote, NotePromptOutputs
 from app.database.schemas.patient import Patient, PatientName
 
 
-def delete_documents_with_empty_transcript_or_missing_formatted_notes():
-    try:
-        # Query for documents meeting the conditions
-        query = {"$or": [{"transcript": ""}, {"formatted_notes": {"$exists": False}}]}
-
-        # Count documents matching the query
-        deleted_count = AudioNote.objects(__raw__=query).count()
-
-        # Delete documents matching the query
-        AudioNote.objects(__raw__=query).delete()
-
-        print(f"{deleted_count} documents deleted successfully.")
-    except DoesNotExist:
-        print("No matching documents found.")
-
-
-def remove_duplicate_notes():
-    # Group documents by patient details, transcript, and formatted notes
-    pipeline = [
-        {
-            "$group": {
-                "_id": {"patient_id": "$patient_id", "transcript": "$transcript", "formatted_notes": "$formatted_notes"},
-                "ids": {"$push": "$_id"},
-                "count": {"$sum": 1},
-            }
-        },
-        {"$match": {"count": {"$gt": 1}}},
-    ]
-    duplicate_groups = list(AudioNote.objects.aggregate(pipeline))
-
-    # Delete duplicate notes, keeping only one for each group
-    for group in duplicate_groups:
-        ids_to_delete = group["ids"][1:]
-        result = AudioNote.objects(id__in=ids_to_delete).delete()
-        print(f"Deleted {result} duplicate notes.")
-
-
-def migrate_audio_notes():
-    # Iterate over all documents in the audio_note collection
-    for index, old_note in enumerate(AudioNote.objects):
-        print(f"Processing document {index + 1}...")
-        try:
-            # Convert the formatted_notes field to the new format
-            updated_formatted_notes = []
-            if isinstance(old_note.formatted_notes, str):
-                updated_formatted_notes.append(
-                    NotePromptOutputs(
-                        note_prompt_id="66311b0cc4e6057d15525222", note_text=old_note.formatted_notes  # Assuming a fixed note_prompt_id
-                    )
-                )
-
-            old_note.formatted_notes = updated_formatted_notes
-            old_note.save()
-            print(f"Document {index + 1} migrated successfully.")
-        except Exception as e:
-            print(f"Error migrating document {index + 1}: {e}")
-
-
 def create_audio_note(
     patient_id: str, user_id: str, practice_id: str, audio_bytesio: BytesIO, note_dict: Dict[str, Any], length_of_recording: int
 ) -> str:
@@ -165,7 +107,12 @@ def retrieve_all_users_notes(user_id: str = None, practice_id: str = None):
 # Function to get a specific note
 def retrieve_note(note_id: str, practice_id: str):
     # Query the note using MongoEngine
-    note = AudioNote.objects(id=note_id, practice_id=practice_id).only("patient_id", "formatted_notes", "transcript", "createdAt").first().select_related(2)
+    note = (
+        AudioNote.objects(id=note_id, practice_id=practice_id)
+        .only("patient_id", "formatted_notes", "transcript", "createdAt")
+        .first()
+        .select_related(2)
+    )
 
     if not note:
         # Handle case where the note doesn't exist or doesn't belong to the user
@@ -256,7 +203,7 @@ def retrieve_notes_alphabet_status(user_id: str = None, practice_id: str = None)
                 {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
                 {"$unwind": "$patient"},
                 {"$group": {"_id": {"$substr": ["$patient.forename", 0, 1]}, "count": {"$sum": 1}}},
-            ]   
+            ]
 
         result = AudioNote.objects.aggregate(*pipeline)
 

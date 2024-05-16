@@ -13,8 +13,6 @@ from app.constants import DB_URI
 from app.database.atlas_search import atlas_search
 from app.database.crud.audio_note import (
     create_audio_note,
-    migrate_audio_notes,
-    remove_duplicate_notes,
     retrieve_audio_note_time_for_billing_cycle,
 )
 from app.database.crud.config import retrieve_prompt_by_title
@@ -69,18 +67,6 @@ router = APIRouter(prefix="/create", tags=["Create"])
 
 # initiates logger
 log = logging.getLogger(__name__)
-
-
-@router.get("/remove-dupes")
-async def remove_duplicate_notes_that_GPT_fucked_up():
-    remove_duplicate_notes()
-    return "success"
-
-
-@router.get("/migrate")
-async def migrate_audio_notes_to_new_format():
-    migrate_audio_notes()
-    return "success"
 
 
 @router.post("/search-patients")
@@ -429,7 +415,6 @@ async def upload_audio(request: Request, access_token: str = Depends(JWTBearer()
         log.info(f"Request {request_id} received for voice-to-text endpoint.")
 
         token = decodeJWT(access_token)
-        user_id = token["user_id"]
         practice_id = token["practice_id"]
         practice = retrieve_practice_by_id(practice_id)
 

@@ -85,7 +85,6 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
     """
     try:
         token = decodeJWT(access_token)
-        user_id = token["user_id"]
         practice_id = token["practice_id"]
         letters = []
         notes = []
@@ -145,7 +144,6 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
     try:
         token = decodeJWT(access_token)
         practice_id = token["practice_id"]
-
 
         if body.file_type == "letter":
             html_string = wrap_image_in_div(json.loads(body.file_text))
@@ -456,7 +454,6 @@ def delete_file(body: DeleteFile, access_token=Depends(JWTBearer())):
 
     try:
         token = decodeJWT(access_token)
-        user_id = token["user_id"]
         practice_id = token["practice_id"]
 
         if body.file_type == "letter":
