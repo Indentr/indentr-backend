@@ -159,7 +159,6 @@ def retrieve_patient_by_id(patient_id: str, practice_id):
         return patient_dict
 
     except DoesNotExist:
-        print(f"Patient with ID '{patient_id}' not found")
         raise HTTPException(status_code=404, detail="Patient not found") from None
 
 

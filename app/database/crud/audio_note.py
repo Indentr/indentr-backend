@@ -163,9 +163,9 @@ def retrieve_all_users_notes(user_id: str = None, practice_id: str = None):
 
 
 # Function to get a specific note
-def retrieve_note(note_id: str, user_id: str):
+def retrieve_note(note_id: str, practice_id: str):
     # Query the note using MongoEngine
-    note = AudioNote.objects(id=note_id, user_id=user_id).only("patient_id", "formatted_notes", "transcript", "createdAt").first().select_related(2)
+    note = AudioNote.objects(id=note_id, practice_id=practice_id).only("patient_id", "formatted_notes", "transcript", "createdAt").first().select_related(2)
 
     if not note:
         # Handle case where the note doesn't exist or doesn't belong to the user
@@ -193,9 +193,9 @@ def retrieve_note(note_id: str, user_id: str):
 
 
 # Function to get a specific note's audio
-def retrieve_note_audio(note_id: str, user_id: str):
+def retrieve_note_audio(note_id: str, practice_id: str):
     # Query the note using MongoEngine
-    note = AudioNote.objects(id=note_id, user_id=user_id).only("audio").first()
+    note = AudioNote.objects(id=note_id, practice_id=practice_id).only("audio").first()
 
     if not note:
         # Handle case where the note doesn't exist or doesn't belong to the user
@@ -241,7 +241,7 @@ def retrieve_last_three_notes(user_id: str):
     return notes_list
 
 
-def retrieve_notes_alphabet_status(user_id: str):
+def retrieve_notes_alphabet_status(user_id: str = None, practice_id: str = None):
     try:
         pipeline = [
             {"$match": {"user_id": ObjectId(user_id)}},
@@ -249,6 +249,14 @@ def retrieve_notes_alphabet_status(user_id: str):
             {"$unwind": "$patient"},
             {"$group": {"_id": {"$substr": ["$patient.forename", 0, 1]}, "count": {"$sum": 1}}},
         ]
+
+        if practice_id:
+            pipeline = [
+                {"$match": {"practice_id": ObjectId(practice_id)}},
+                {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
+                {"$unwind": "$patient"},
+                {"$group": {"_id": {"$substr": ["$patient.forename", 0, 1]}, "count": {"$sum": 1}}},
+            ]   
 
         result = AudioNote.objects.aggregate(*pipeline)
 
@@ -269,16 +277,15 @@ def retrieve_notes_alphabet_status(user_id: str):
 
 def retrieve_all_users_notes_filtered_by_char(starts_with: str, user_id: str = None, practice_id: str = None):
     try:
-        if not practice_id:
-            pipeline = [
-                {"$match": {"user_id": ObjectId(user_id)}},
-                {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
-                {"$unwind": "$patient"},
-                {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
-                {"$sort": {"createdAt": -1}},
-                {"$project": {"audio": 0, "practice_id": 0, "user_id": 0, "formatted_notes": 0}},
-            ]
-        else:
+        pipeline = [
+            {"$match": {"user_id": ObjectId(user_id)}},
+            {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
+            {"$unwind": "$patient"},
+            {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
+            {"$sort": {"createdAt": -1}},
+            {"$project": {"audio": 0, "practice_id": 0, "user_id": 0, "formatted_notes": 0}},
+        ]
+        if practice_id:
             pipeline = [
                 {"$match": {"practice_id": ObjectId(practice_id)}},
                 {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
@@ -361,9 +368,9 @@ def retrieve_audio_note_time_for_billing_cycle(practice_id: str, start_date: dat
 
 
 # Function to update the consent letter
-def update_note(note_id: str, noteObj: Dict[str, Any], user_id: str):
+def update_note(note_id: str, noteObj: Dict[str, Any], practice_id: str):
     # Use MongoEngine to find and update the document
-    note = AudioNote.objects(id=note_id, user_id=user_id).first()
+    note = AudioNote.objects(id=note_id, practice_id=practice_id).first()
 
     if not note:
         raise HTTPException(status_code=404, detail="No note found")

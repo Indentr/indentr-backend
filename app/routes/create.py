@@ -284,7 +284,6 @@ async def generate_consent_letter(body: LetterData, access_token=Depends(JWTBear
         log.info(f"GPT treatment plan response: {treatment_section_result + fees_section_result}")
 
         header = ""
-        print(patientDetails)
         if patientDetails:
             header = format_address(patientDetails["address"]) if letter_config["patient_address"] else ""
             header = format_image_header(letter_config["image"], header) if letter_config["include_image"] else header
@@ -477,7 +476,7 @@ async def upload_audio(request: Request, access_token: str = Depends(JWTBearer()
         html_sring = "".join(f"<p>{sentence}</p><p/>" for sentence in sentences)
 
         # formatted_notes, tokens = await ask_gpt(prompt, "You're an AI that formats transcripts into HTML string", "gpt-3.5-turbo")
-        custom_prompts = retrieve_all_users_prompts(user_id)
+        custom_prompts = retrieve_all_users_prompts(practice_id)
 
         return {"transcript": html_sring, "custom_prompts": custom_prompts}
 

@@ -18,9 +18,9 @@ def create_custom_prompt(user_id: str, practice_id: str, prompt_title: str, prom
         raise HTTPException(status_code=404, detail=str(e)) from None
 
 
-def retrieve_all_users_prompts(user_id: str):
+def retrieve_all_users_prompts(practice_id: str):
     try:
-        prompts = CustomPrompt.objects(user_id=user_id).only("title", "text").select_related()
+        prompts = CustomPrompt.objects(practice_id=practice_id).only("title", "text").select_related()
 
     except DoesNotExist as e:
         raise e

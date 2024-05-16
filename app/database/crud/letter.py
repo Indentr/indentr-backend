@@ -50,8 +50,8 @@ def create_new_letter(
         raise HTTPException(status_code=404, detail="User not found") from None
 
 
-def delete_letter(user_id: str, file_id: str):
-    letter_to_delete = Letter.objects(id=file_id, user_id=user_id).first()
+def delete_letter(practice_id: str, file_id: str):
+    letter_to_delete = Letter.objects(id=file_id, practice_id=practice_id).first()
 
     if not letter_to_delete:
         raise HTTPException(status_code=404, detail="No member with that id found in practice")
@@ -156,15 +156,15 @@ def retrieve_all_users_letters(user_id: str = None, practice_id: str = None):
 
 def retrieve_all_users_letters_filtered_by_char(starts_with: str, user_id: str = None, practice_id: str = None):
     try:
-        if not practice_id:
-            pipeline = [
-                {"$match": {"user_id": ObjectId(user_id)}},
-                {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
-                {"$unwind": "$patient"},
-                {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
-                {"$sort": {"createdAt": -1}},
-            ]
-        else:
+        pipeline = [
+            {"$match": {"user_id": ObjectId(user_id)}},
+            {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
+            {"$unwind": "$patient"},
+            {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
+            {"$sort": {"createdAt": -1}},
+        ]
+
+        if practice_id:
             pipeline = [
                 {"$match": {"practice_id": ObjectId(practice_id)}},
                 {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
@@ -197,7 +197,7 @@ def retrieve_all_users_letters_filtered_by_char(starts_with: str, user_id: str =
             raise e
 
 
-def retrieve_letters_alphabet_status(user_id: str):
+def retrieve_letters_alphabet_status(user_id: str = None, practice_id: str = None):
     try:
         # Use the aggregation framework to calculate alphabet status
         pipeline = [
@@ -206,6 +206,14 @@ def retrieve_letters_alphabet_status(user_id: str):
             {"$unwind": "$patient"},
             {"$group": {"_id": {"$substr": ["$patient.forename", 0, 1]}, "count": {"$sum": 1}}},
         ]
+
+        if practice_id:
+            pipeline = [
+                {"$match": {"practice_id": ObjectId(practice_id)}},
+                {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
+                {"$unwind": "$patient"},
+                {"$group": {"_id": {"$substr": ["$patient.forename", 0, 1]}, "count": {"$sum": 1}}},
+            ]
 
         result = Letter.objects.aggregate(*pipeline)
 
@@ -225,9 +233,9 @@ def retrieve_letters_alphabet_status(user_id: str):
 
 
 # Function to get a specific letter
-def retrieve_user_letter(letter_id, user_id):
+def retrieve_user_letter(letter_id: str, practice_id: str):
     # Query the letter using MongoEngine
-    letter = Letter.objects(id=letter_id, user_id=user_id).first()
+    letter = Letter.objects(id=letter_id, practice_id=practice_id).first()
 
     if not letter:
         # Handle case where the letter doesn't exist or doesn't belong to the user
@@ -253,9 +261,9 @@ def retrieve_letter_count_for_billing_cycle(practice_id: str, start_date: dateti
 
 
 # Function to update the consent letter
-def update_letter(letter_id, text, user_id: str):
+def update_letter(letter_id, text, practice_id: str):
     # Use MongoEngine to find and update the document
-    letter = Letter.objects(id=letter_id, user_id=user_id).first()
+    letter = Letter.objects(id=letter_id, practice_id=practice_id).first()
 
     if not letter:
         raise HTTPException(status_code=404, detail="No letter found")

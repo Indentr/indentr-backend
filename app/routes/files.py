@@ -94,12 +94,12 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
         custom_prompts = []
 
         if file_type == "letter":
-            file = retrieve_user_letter(file_id, user_id)
+            file = retrieve_user_letter(file_id, practice_id)
         elif file_type == "note":
-            file = retrieve_note(file_id, user_id)
+            file = retrieve_note(file_id, practice_id)
             patient_details = retrieve_patient_by_email(file["patient_details"]["email"], practice_id)
             del patient_details["_id"]
-            custom_prompts = retrieve_all_users_prompts(user_id)
+            custom_prompts = retrieve_all_users_prompts(practice_id)
 
         elif file_type == "patient":
             file = retrieve_patient_by_id(file_id, practice_id)
@@ -119,8 +119,8 @@ def get_audio_data(note_id: str, access_token=Depends(JWTBearer())):
     """
     try:
         token = decodeJWT(access_token)
-        user_id = token["user_id"]
-        audio_data = retrieve_note_audio(note_id, user_id)
+        practice_id = token["practice_id"]
+        audio_data = retrieve_note_audio(note_id, practice_id)
         headers = {
             "Content-Disposition": 'attachment; filename="audio.webm',
             "Content-Type": "audio/webm",
@@ -144,13 +144,14 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
 
     try:
         token = decodeJWT(access_token)
-        user_id = token["user_id"]
+        practice_id = token["practice_id"]
+
 
         if body.file_type == "letter":
             html_string = wrap_image_in_div(json.loads(body.file_text))
-            update_letter(body.file_id, html_string, user_id)
+            update_letter(body.file_id, html_string, practice_id)
         else:
-            update_note(body.file_id, json.loads(body.file_text), user_id)
+            update_note(body.file_id, json.loads(body.file_text), practice_id)
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
         return {"message": "File updated successfully"}
@@ -375,11 +376,19 @@ def init_alphabetised(body: GetFile, access_token=Depends(JWTBearer())):
         starts_with_char = None
 
         if body.file_type == "letter":
-            alphabet_status = retrieve_letters_alphabet_status(user_id)
+            alphabet_status = (
+                retrieve_letters_alphabet_status(user_id=user_id)
+                if body.created_by == "You"
+                else retrieve_letters_alphabet_status(practice_id=practice_id)
+            )
             starts_with_char = next((char for char, count in alphabet_status.items() if count > 0), None)
 
         elif body.file_type == "note":
-            alphabet_status = retrieve_notes_alphabet_status(user_id)
+            alphabet_status = (
+                retrieve_notes_alphabet_status(user_id=user_id)
+                if body.created_by == "You"
+                else retrieve_notes_alphabet_status(practice_id=practice_id)
+            )
             starts_with_char = next((char for char, count in alphabet_status.items() if count > 0), None)
 
         elif body.file_type == "patient":
@@ -451,7 +460,7 @@ def delete_file(body: DeleteFile, access_token=Depends(JWTBearer())):
         practice_id = token["practice_id"]
 
         if body.file_type == "letter":
-            delete_letter(user_id, body.file_id)
+            delete_letter(practice_id, body.file_id)
         if body.file_type == "note":
             delete_note(practice_id, body.file_id)
         if body.file_type == "patient":
