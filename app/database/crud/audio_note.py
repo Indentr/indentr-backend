@@ -4,17 +4,18 @@
 from datetime import datetime
 from io import BytesIO
 from string import ascii_lowercase
+from typing import Any, Dict
 
 from bson import ObjectId
 from fastapi import HTTPException
 from mongoengine import DoesNotExist
 
-from app.database.schemas.audio_note import AudioNote
+from app.database.schemas.audio_note import AudioNote, NotePromptOutputs
 from app.database.schemas.patient import Patient, PatientName
 
 
 def create_audio_note(
-    patient_id: str, user_id: str, practice_id: str, audio_bytesio: BytesIO, transcript: str, formatted_notes: str, length_of_recording: int
+    patient_id: str, user_id: str, practice_id: str, audio_bytesio: BytesIO, note_dict: Dict[str, Any], length_of_recording: int
 ) -> str:
     try:
         # Convert BytesIO to bytes
@@ -25,12 +26,17 @@ def create_audio_note(
 
         patient_details = PatientName(forename=patient.forename, surname=patient.surname)
 
+        formatted_notes = []
+        for formatted_note in note_dict["formatted_notes"]:
+            notePromptOutput = NotePromptOutputs(note_prompt_id=formatted_note["note_prompt_id"], note_text=formatted_note["note_text"])
+            formatted_notes.append(notePromptOutput)
+
         audio_note = AudioNote(
             patient_id=patient_id,
             user_id=user_id,
             practice_id=practice_id,
             audio=audio_bytes,
-            transcript=transcript,
+            transcript=note_dict["transcript"],
             formatted_notes=formatted_notes,
             patient_details=patient_details,
             length_of_recording=length_of_recording,
@@ -58,12 +64,10 @@ def retrieve_all_users_notes(user_id: str = None, practice_id: str = None):
     try:
         if not user_id:
             # Gets all practices notes
-            notes = (
-                AudioNote.objects(practice_id=practice_id).only("patient_id", "formatted_notes", "createdAt").order_by("-createdAt").select_related()
-            )
+            notes = AudioNote.objects(practice_id=practice_id).only("patient_id", "transcript", "createdAt").order_by("-createdAt").select_related()
         else:
             # Gets all users notes
-            notes = AudioNote.objects(user_id=user_id).only("patient_id", "formatted_notes", "createdAt").order_by("-createdAt").select_related()
+            notes = AudioNote.objects(user_id=user_id).only("patient_id", "transcript", "createdAt").order_by("-createdAt").select_related()
 
     except DoesNotExist as e:
         # Check if the exception is related to User or Letter
@@ -91,20 +95,28 @@ def retrieve_all_users_notes(user_id: str = None, practice_id: str = None):
         del patient_details["email"]
         note_dict["patient_details"] = patient_details
         del note_dict["patient_id"]
+        if not isinstance(note.formatted_notes, str):
+            for i in range(len(note.formatted_notes)):
+                note_dict["formatted_notes"][i]["note_prompt_id"] = str(note_dict["formatted_notes"][i]["note_prompt_id"])
 
         notes_list.append(note_dict)
 
     return notes_list
 
 
-# Function to get a specific letter
-def retrieve_note(note_id: str, user_id: str):
-    # Query the letter using MongoEngine
-    note = AudioNote.objects(id=note_id, user_id=user_id).only("patient_id", "formatted_notes", "createdAt").first()
+# Function to get a specific note
+def retrieve_note(note_id: str, practice_id: str):
+    # Query the note using MongoEngine
+    note = (
+        AudioNote.objects(id=note_id, practice_id=practice_id)
+        .only("patient_id", "formatted_notes", "transcript", "createdAt")
+        .first()
+        .select_related(2)
+    )
 
     if not note:
-        # Handle case where the letter doesn't exist or doesn't belong to the user
-        raise HTTPException(status_code=400, detail="No letter found")
+        # Handle case where the note doesn't exist or doesn't belong to the user
+        raise HTTPException(status_code=400, detail="No note found")
 
     created_at = note.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
     note_dict = note.to_mongo().to_dict()
@@ -119,13 +131,35 @@ def retrieve_note(note_id: str, user_id: str):
     del patient_details["address"]
     note_dict["patient_details"] = patient_details
     del note_dict["patient_id"]
+    if not isinstance(note.formatted_notes, str):
+        for i in range(len(note.formatted_notes)):
+            note_dict["formatted_notes"][i]["note_prompt_id"] = str(note_dict["formatted_notes"][i]["note_prompt_id"])
+            note_dict["formatted_notes"][i]["title"] = note.formatted_notes[i].note_prompt_id.title
 
     return note_dict
 
 
+# Function to get a specific note's audio
+def retrieve_note_audio(note_id: str, practice_id: str):
+    # Query the note using MongoEngine
+    note = AudioNote.objects(id=note_id, practice_id=practice_id).only("audio").first()
+
+    if not note:
+        # Handle case where the note doesn't exist or doesn't belong to the user
+        raise HTTPException(status_code=400, detail="No note found")
+
+    return note.audio
+
+
 def retrieve_last_three_notes(user_id: str):
     try:
-        notes = AudioNote.objects(user_id=user_id).only("patient_id", "formatted_notes", "createdAt").order_by("-_id").limit(3).select_related()
+        notes = (
+            AudioNote.objects(user_id=user_id)
+            .only("patient_id", "formatted_notes", "transcript", "createdAt")
+            .order_by("-_id")
+            .limit(3)
+            .select_related(2)
+        )
 
         notes_list = []
 
@@ -133,7 +167,7 @@ def retrieve_last_three_notes(user_id: str):
         # Handle the case where no notes are found
         return []
 
-    for note in notes:
+    for index, note in enumerate(notes):
         created_at = note.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
         note_dict = note.to_mongo().to_dict()
         note_dict["createdAt"] = created_at
@@ -144,13 +178,17 @@ def retrieve_last_three_notes(user_id: str):
             del patient_details["practice_id"]
         note_dict["patient_details"] = patient_details
         del note_dict["patient_id"]
+        if not isinstance(note.formatted_notes, str):
+            for i in range(len(note.formatted_notes)):
+                note_dict["formatted_notes"][i]["note_prompt_id"] = str(note_dict["formatted_notes"][i]["note_prompt_id"])
+                note_dict["formatted_notes"][i]["title"] = notes[index].formatted_notes[i].note_prompt_id.title
 
         notes_list.append(note_dict)
 
     return notes_list
 
 
-def retrieve_notes_alphabet_status(user_id: str):
+def retrieve_notes_alphabet_status(user_id: str = None, practice_id: str = None):
     try:
         pipeline = [
             {"$match": {"user_id": ObjectId(user_id)}},
@@ -158,6 +196,14 @@ def retrieve_notes_alphabet_status(user_id: str):
             {"$unwind": "$patient"},
             {"$group": {"_id": {"$substr": ["$patient.forename", 0, 1]}, "count": {"$sum": 1}}},
         ]
+
+        if practice_id:
+            pipeline = [
+                {"$match": {"practice_id": ObjectId(practice_id)}},
+                {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
+                {"$unwind": "$patient"},
+                {"$group": {"_id": {"$substr": ["$patient.forename", 0, 1]}, "count": {"$sum": 1}}},
+            ]
 
         result = AudioNote.objects.aggregate(*pipeline)
 
@@ -178,39 +224,39 @@ def retrieve_notes_alphabet_status(user_id: str):
 
 def retrieve_all_users_notes_filtered_by_char(starts_with: str, user_id: str = None, practice_id: str = None):
     try:
-        if not practice_id:
-            pipeline = [
-                {"$match": {"user_id": ObjectId(user_id)}},
-                {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
-                {"$unwind": "$patient"},
-                {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
-                {"$sort": {"createdAt": -1}},
-                {"$project": {"audio": 0, "practice_id": 0, "user_id": 0, "transcript": 0}},
-            ]
-        else:
+        pipeline = [
+            {"$match": {"user_id": ObjectId(user_id)}},
+            {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
+            {"$unwind": "$patient"},
+            {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
+            {"$sort": {"createdAt": -1}},
+            {"$project": {"audio": 0, "practice_id": 0, "user_id": 0, "formatted_notes": 0}},
+        ]
+        if practice_id:
             pipeline = [
                 {"$match": {"practice_id": ObjectId(practice_id)}},
                 {"$lookup": {"from": "patients", "localField": "patient_id", "foreignField": "_id", "as": "patient"}},
                 {"$unwind": "$patient"},
                 {"$match": {"patient.forename": {"$regex": f"^{starts_with}", "$options": "i"}}},
                 {"$sort": {"createdAt": -1}},
-                {"$project": {"audio": 0, "practice_id": 0, "user_id": 0, "transcript": 0}},
+                {"$project": {"audio": 0, "practice_id": 0, "user_id": 0, "formatted_notes": 0}},
             ]
 
         notes = AudioNote.objects.aggregate(*pipeline)
 
-        result = [
-            {
-                "_id": str(doc["_id"]),
-                "formatted_notes": doc["formatted_notes"],
-                "patient_details": {
-                    "forename": doc["patient"]["forename"],
-                    "surname": doc["patient"]["surname"],
-                },
-                "createdAt": doc["createdAt"],
-            }
-            for doc in notes
-        ]
+        result = []
+        for note in notes:
+            result.append(
+                {
+                    "_id": str(note["_id"]),
+                    "transcript": note["transcript"],
+                    "patient_details": {
+                        "forename": note["patient"]["forename"],
+                        "surname": note["patient"]["surname"],
+                    },
+                    "createdAt": note["createdAt"],
+                }
+            )
 
         return result
 
@@ -223,7 +269,13 @@ def retrieve_all_users_notes_filtered_by_char(starts_with: str, user_id: str = N
 
 def retrieve_patients_last_three_notes(patient_id: str):
     try:
-        notes = AudioNote.objects(patient_id=patient_id).only("patient_id", "formatted_notes", "createdAt").order_by("-_id").limit(3).select_related()
+        notes = (
+            AudioNote.objects(patient_id=patient_id)
+            .only("patient_id", "formatted_notes", "transcript", "createdAt")
+            .order_by("-_id")
+            .limit(3)
+            .select_related()
+        )
 
     except DoesNotExist:
         # Handle the case where no letters are found
@@ -245,6 +297,9 @@ def retrieve_patients_last_three_notes(patient_id: str):
         del patient_details["email"]
         note_dict["patient_details"] = patient_details
         del note_dict["patient_id"]
+        if not isinstance(note.formatted_notes, str):
+            for i in range(len(note.formatted_notes)):
+                note_dict["formatted_notes"][i]["note_prompt_id"] = str(note_dict["formatted_notes"][i]["note_prompt_id"])
 
         notes_list.append(note_dict)
 
@@ -260,15 +315,21 @@ def retrieve_audio_note_time_for_billing_cycle(practice_id: str, start_date: dat
 
 
 # Function to update the consent letter
-def update_note(note_id, text, user_id: str):
+def update_note(note_id: str, noteObj: Dict[str, Any], practice_id: str):
     # Use MongoEngine to find and update the document
-    note = AudioNote.objects(id=note_id, user_id=user_id).first()
+    note = AudioNote.objects(id=note_id, practice_id=practice_id).first()
 
     if not note:
         raise HTTPException(status_code=404, detail="No note found")
 
+    formatted_notes = []
+    for formatted_note in noteObj["formatted_notes"]:
+        notePromptOutput = NotePromptOutputs(note_prompt_id=formatted_note["note_prompt_id"], note_text=formatted_note["note_text"])
+        formatted_notes.append(notePromptOutput)
+
     # Update the consent_letter field
-    note.formatted_notes = text
+    note.transcript = noteObj["transcript"]
+    note.formatted_notes = formatted_notes
     note.save()
 
 

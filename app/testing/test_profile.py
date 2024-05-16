@@ -127,7 +127,6 @@ def test_get_overview(insert_treatment_plan):
 
     assert response.status_code == 200, response.text
     data = response.json()
-    print("data: ", data)
     assert len(data["letters"]) == 3
     assert len(data["triage_requests"]) == 0
 

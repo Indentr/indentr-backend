@@ -5,6 +5,7 @@ import uuid
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 
 from app.constants import DB_URI
 from app.database.atlas_search import atlas_search
@@ -13,10 +14,12 @@ from app.database.crud.audio_note import (
     retrieve_all_users_notes,
     retrieve_all_users_notes_filtered_by_char,
     retrieve_note,
+    retrieve_note_audio,
     retrieve_notes_alphabet_status,
     retrieve_patients_last_three_notes,
     update_note,
 )
+from app.database.crud.custom_prompt import retrieve_all_users_prompts
 from app.database.crud.letter import (
     delete_letter,
     retrieve_all_users_letters,
@@ -80,27 +83,48 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
     """
     Retrieves a file based on the provided file ID.
     """
-
     try:
         token = decodeJWT(access_token)
-        user_id = token["user_id"]
         practice_id = token["practice_id"]
         letters = []
         notes = []
+        file = ""
         patient_details = []
+        custom_prompts = []
 
         if file_type == "letter":
-            file = retrieve_user_letter(file_id, user_id)
+            file = retrieve_user_letter(file_id, practice_id)
         elif file_type == "note":
-            file = retrieve_note(file_id, user_id)
+            file = retrieve_note(file_id, practice_id)
             patient_details = retrieve_patient_by_email(file["patient_details"]["email"], practice_id)
             del patient_details["_id"]
+            custom_prompts = retrieve_all_users_prompts(practice_id)
+
         elif file_type == "patient":
             file = retrieve_patient_by_id(file_id, practice_id)
             letters = retrieve_patients_last_three_letters(file_id)
             notes = retrieve_patients_last_three_notes(file_id)
 
-        return {"file": file, "letters": letters, "notes": notes, "patient_details": patient_details}
+        return {"file": file, "patient_details": patient_details, "custom_prompts": custom_prompts, "letters": letters, "notes": notes}
+
+    except HTTPException as e:
+        raise e
+
+
+@router.get("/get-audio-data/{note_id}/")
+def get_audio_data(note_id: str, access_token=Depends(JWTBearer())):
+    """
+    Retrieves a note's audio based on the provided file ID.
+    """
+    try:
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+        audio_data = retrieve_note_audio(note_id, practice_id)
+        headers = {
+            "Content-Disposition": 'attachment; filename="audio.webm',
+            "Content-Type": "audio/webm",
+        }
+        return StreamingResponse(iter([audio_data]), headers=headers)
 
     except HTTPException as e:
         raise e
@@ -119,13 +143,13 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
 
     try:
         token = decodeJWT(access_token)
-        user_id = token["user_id"]
+        practice_id = token["practice_id"]
 
         if body.file_type == "letter":
             html_string = wrap_image_in_div(json.loads(body.file_text))
-            update_letter(body.file_id, html_string, user_id)
+            update_letter(body.file_id, html_string, practice_id)
         else:
-            update_note(body.file_id, json.loads(body.file_text), user_id)
+            update_note(body.file_id, json.loads(body.file_text), practice_id)
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
         return {"message": "File updated successfully"}
@@ -169,6 +193,7 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
                 "_id": 1,
                 "patient_id": 1,
                 "createdAt": 1,
+                "transcript": 1,
                 "formatted_notes": 1,
             }
 
@@ -196,10 +221,70 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
                         },
                     }
                 },
+                {"$unwind": "$formatted_notes"},  # Unwind to work with each element individually
+                {
+                    "$lookup": {
+                        "from": "custom_prompts",
+                        "localField": "formatted_notes.note_prompt_id",
+                        "foreignField": "_id",
+                        "as": "custom_prompts",
+                    }
+                },
+                {
+                    "$addFields": {
+                        "formatted_notes.title": {
+                            "$arrayElemAt": [
+                                {
+                                    "$map": {
+                                        "input": "$custom_prompts",
+                                        "as": "cp",
+                                        "in": {"$cond": [{"$eq": ["$$cp._id", "$formatted_notes.note_prompt_id"]}, "$$cp.title", None]},
+                                    }
+                                },
+                                0,
+                            ]
+                        }
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": "$_id",
+                        "patient_id": {"$first": "$patient_id"},
+                        "user_id": {"$first": "$user_id"},
+                        "practice_id": {"$first": "$practice_id"},
+                        "audio": {"$first": "$audio"},
+                        "transcript": {"$first": "$transcript"},
+                        "createdAt": {"$first": "$createdAt"},
+                        "patient_details": {"$first": "$patient_details"},
+                        "length_of_recording": {"$first": "$length_of_recording"},
+                        "formatted_notes": {"$push": "$formatted_notes"},  # Group back the formatted_notes
+                    }
+                },
                 {"$sort": {"_id": -1}},
                 {"$limit": 15},
                 {"$project": returned_fields},
             ]
+
+            if body.file_type == "letter":
+                pipeline = [
+                    {
+                        "$search": {
+                            "index": "default",
+                            "compound": {
+                                "should": [
+                                    {"autocomplete": {"query": search_param, "path": path}},
+                                    {"autocomplete": {"query": search_param, "path": "patient_details.forename"}},
+                                    {"autocomplete": {"query": search_param, "path": "patient_details.surname"}},
+                                ],
+                                "filter": [filter_condition],
+                                "minimumShouldMatch": 1,
+                            },
+                        }
+                    },
+                    {"$sort": {"_id": -1}},
+                    {"$limit": 15},
+                    {"$project": returned_fields},
+                ]
 
         if body.file_type == "patient":
             search_param = body.search_param
@@ -238,6 +323,20 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
 
         for i in result:
             i["_id"] = str(i["_id"])
+            if body.file_type == "note":
+                formatted_notes = []
+                if "formatted_notes" in i and i["formatted_notes"]:
+                    for formatted_note in i.get("formatted_notes", []):
+                        if isinstance(formatted_note, dict):
+                            formatted_notes.append(
+                                {
+                                    "note_prompt_id": str(formatted_note["note_prompt_id"]),  # Convert ObjectId to string
+                                    "note_text": formatted_note["note_text"],
+                                    "title": formatted_note["title"],
+                                }
+                            )
+                    i["formatted_notes"] = formatted_notes
+
             if "patient_id" in i:
                 patient_details = retrieve_patient_by_id(str(i["patient_id"]), practice_id)
                 del patient_details["dob"]
@@ -275,11 +374,19 @@ def init_alphabetised(body: GetFile, access_token=Depends(JWTBearer())):
         starts_with_char = None
 
         if body.file_type == "letter":
-            alphabet_status = retrieve_letters_alphabet_status(user_id)
+            alphabet_status = (
+                retrieve_letters_alphabet_status(user_id=user_id)
+                if body.created_by == "You"
+                else retrieve_letters_alphabet_status(practice_id=practice_id)
+            )
             starts_with_char = next((char for char, count in alphabet_status.items() if count > 0), None)
 
         elif body.file_type == "note":
-            alphabet_status = retrieve_notes_alphabet_status(user_id)
+            alphabet_status = (
+                retrieve_notes_alphabet_status(user_id=user_id)
+                if body.created_by == "You"
+                else retrieve_notes_alphabet_status(practice_id=practice_id)
+            )
             starts_with_char = next((char for char, count in alphabet_status.items() if count > 0), None)
 
         elif body.file_type == "patient":
@@ -347,11 +454,10 @@ def delete_file(body: DeleteFile, access_token=Depends(JWTBearer())):
 
     try:
         token = decodeJWT(access_token)
-        user_id = token["user_id"]
         practice_id = token["practice_id"]
 
         if body.file_type == "letter":
-            delete_letter(user_id, body.file_id)
+            delete_letter(practice_id, body.file_id)
         if body.file_type == "note":
             delete_note(practice_id, body.file_id)
         if body.file_type == "patient":

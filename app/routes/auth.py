@@ -9,6 +9,7 @@ from app.constants import (
     TRIAGE_MAIL,
     TRIAGE_MAIL_PASSWORD,
 )
+from app.database.crud.custom_prompt import create_custom_prompt
 from app.database.crud.letter_config import create_letter_config
 from app.database.crud.practice import (
     create_new_practice,
@@ -117,6 +118,24 @@ def post_user_registration(body: UserRegisterRequest):
         new_user = create_new_user(body.name, body.email.lower(), body.password, practice_id, "Owner")
         create_letter_config(practice_id)
         create_triage_settings(practice_id)
+        create_custom_prompt(
+            new_user["_id"],
+            new_user["practice_id"],
+            "Dental note",
+            "Convert the above dental transcript into professional, concise but comprehensive dental notes for patient record inclusion.",
+        )
+        create_custom_prompt(
+            new_user["_id"],
+            new_user["practice_id"],
+            "General note",
+            "Convert the transcript into professional, concise but comprehensive notes for later reference.",
+        )
+        create_custom_prompt(
+            new_user["_id"],
+            new_user["practice_id"],
+            "Record consultation",
+            "Convert the following dental consultation transcript into a concise conversation transcript between the dentist and patient. Format each line clearly as 'Dentist' or 'Patient' ",
+        )
         insert_welcome_consent_letter(body.name, body.email.lower(), body.address)
         insert_instruction_triages(practice_id)
 

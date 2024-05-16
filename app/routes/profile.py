@@ -85,7 +85,6 @@ def get_last_three_notes(access_token=Depends(JWTBearer())):
     """
     Gets the users last three notes
     """
-
     try:
         start = time.time()
         request_id = uuid.uuid4().hex
