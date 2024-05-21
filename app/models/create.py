@@ -150,3 +150,9 @@ class SaveAudioNotes(BaseModel):
 class FormatTranscript(BaseModel):
     transcript: str
     prompt_id: str
+
+
+class UpdatePrompt(BaseModel):
+    prompt_id: str
+    title: str
+    text: str
