@@ -17,8 +17,11 @@ from app.database.crud.audio_note import (
 )
 from app.database.crud.config import retrieve_prompt_by_title
 from app.database.crud.custom_prompt import (
+    create_custom_prompt,
+    delete_custom_prompt,
     retrieve_all_users_prompts,
     retrieve_prompt_with_prompt_id,
+    update_custom_prompt,
 )
 from app.database.crud.letter import (
     create_new_letter,
@@ -674,3 +677,76 @@ async def analyse_note(
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
+
+
+@router.post("/update-prompt")
+async def update_prompt(prompt_id: str = Form(...), title: str = Form(...), text: str = Form(...), access_token=Depends(JWTBearer())):
+    """
+    # Updates the custom prompts title and texts
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received for updating custom note prompts.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        update_custom_prompt(practice_id=practice_id, prompt_id=prompt_id, title=title, text=text)
+
+        log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
+
+        return {"prompt_id": prompt_id, "title": title, "text": text}
+
+    except HTTPException as e:
+        log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
+        raise e
+
+
+@router.post("/create-prompt")
+async def create_prompt(title: str = Form(...), text: str = Form(...), access_token=Depends(JWTBearer())):
+    """
+    # Creates a new custom prompt with title and text
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received for creating custom note prompts.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+        user_id = token["user_id"]
+
+        prompt = create_custom_prompt(user_id=user_id, practice_id=practice_id, prompt_title=title, prompt_text=text)
+
+        log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
+
+        return {"_id": str(prompt.id), "title": prompt.title, "text": prompt.text, "example": prompt.example}
+
+    except HTTPException as e:
+        log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
+        raise e
+
+
+@router.post("/delete-prompt")
+async def delete_prompt(prompt_id: str = Form(...), access_token=Depends(JWTBearer())):
+    """
+    # Deletes prompt based on prompt_id
+    """
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+        log.info(f"Request {request_id} received for deleting a custom note prompt.")
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        delete_custom_prompt(practice_id=practice_id, prompt_id=prompt_id)
+
+        log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
+
+        return "success"
+
+    except HTTPException as e:
+        log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
+        raise e

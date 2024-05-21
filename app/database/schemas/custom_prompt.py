@@ -13,5 +13,6 @@ class CustomPrompt(Document):
     practice_id = ReferenceField(Practice, required=True)
     title = StringField(required=True)
     text = StringField(required=True)
+    example = StringField(required=False, default="")
 
     meta = {"collection": "custom_prompts"}  # Specifies the collection name
