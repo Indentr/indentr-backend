@@ -493,6 +493,8 @@ async def upload_transcript(
 
         Task: {prompt["text"]}
 
+        {"Example: " + prompt["example"] if prompt["example"] != "" else ""}
+
         Important points: If there are errors do your best to guess what the correct sentence would have been.
         eg if its a dental note: upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
         in words that do not appear to fit the context will mean Upper left 3
@@ -532,7 +534,9 @@ async def upload_transcript(
         """
 
         formatted_notes, tokens = await ask_gpt(
-            note_prompt, "You format transcripts, doing exactly what the task asks, following the desired response format", "gpt-4-1106-preview"
+            note_prompt,
+            "You format transcripts, doing exactly what the task asks, following the example and desired response format",
+            "gpt-4-1106-preview",
         )
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
@@ -682,7 +686,9 @@ async def analyse_note(
 
 
 @router.post("/update-prompt")
-async def update_prompt(prompt_id: str = Form(...), title: str = Form(...), text: str = Form(...), access_token=Depends(JWTBearer())):
+async def update_prompt(
+    prompt_id: str = Form(...), title: str = Form(...), text: str = Form(...), example: str = Form(...), access_token=Depends(JWTBearer())
+):
     """
     # Updates the custom prompts title and texts
     """
@@ -694,11 +700,11 @@ async def update_prompt(prompt_id: str = Form(...), title: str = Form(...), text
         token = decodeJWT(access_token)
         practice_id = token["practice_id"]
 
-        update_custom_prompt(practice_id=practice_id, prompt_id=prompt_id, title=title, text=text)
+        update_custom_prompt(practice_id=practice_id, prompt_id=prompt_id, title=title, text=text, example=example)
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
 
-        return {"prompt_id": prompt_id, "title": title, "text": text}
+        return {"prompt_id": prompt_id, "title": title, "text": text, "example": example}
 
     except HTTPException as e:
         log.debug(f"Request {request_id} failed and took in {round((time.time() - start), 2)} seconds.")
@@ -706,7 +712,7 @@ async def update_prompt(prompt_id: str = Form(...), title: str = Form(...), text
 
 
 @router.post("/create-prompt")
-async def create_prompt(title: str = Form(...), text: str = Form(...), access_token=Depends(JWTBearer())):
+async def create_prompt(title: str = Form(...), text: str = Form(...), example: str = Form(...), access_token=Depends(JWTBearer())):
     """
     # Creates a new custom prompt with title and text
     """
@@ -719,7 +725,7 @@ async def create_prompt(title: str = Form(...), text: str = Form(...), access_to
         practice_id = token["practice_id"]
         user_id = token["user_id"]
 
-        prompt = create_custom_prompt(user_id=user_id, practice_id=practice_id, prompt_title=title, prompt_text=text)
+        prompt = create_custom_prompt(user_id=user_id, practice_id=practice_id, prompt_title=title, prompt_text=text, example=example)
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
 
