@@ -497,6 +497,8 @@ async def upload_transcript(
         eg if its a dental note: upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
         in words that do not appear to fit the context will mean Upper left 3
 
+        Always use English spelling not US.
+
         Response: MUST be written as an HTML string in the format provided below (DO NOT WRAP YOUR RESPONSE IN: ```html <html content> ``` just give it as a normal string ''),
         where each paragraph is wrapped in a <p> tag:
 
