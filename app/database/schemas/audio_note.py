@@ -10,6 +10,7 @@ from mongoengine import (
     IntField,
     ReferenceField,
     StringField,
+    signals,
 )
 
 from app.database.schemas.custom_prompt import CustomPrompt
@@ -24,6 +25,8 @@ class NotePromptOutputs(EmbeddedDocument):
 
 
 class AudioNote(Document):
+    meta = {"collection": "audio_note"}  # Specify the collection name
+
     patient_id = ReferenceField(Patient, required=True)
     user_id = ReferenceField(User, required=True)
     practice_id = ReferenceField(Practice, required=True)
@@ -34,4 +37,26 @@ class AudioNote(Document):
     patient_details = EmbeddedDocumentField(PatientName)
     length_of_recording = IntField()
 
-    meta = {"collection": "audio_note"}  # Specify the collection name
+    @classmethod
+    def remove_references_from_audio_notes(cls, sender, document, **kwargs):
+        try:
+            custom_prompt_id = document.id
+            audio_notes = AudioNote.objects(formatted_notes__note_prompt_id=custom_prompt_id)
+
+            for audio_note in audio_notes:
+                updated_notes = []
+
+                # Iterate through formatted_notes and only keep the ones that do not match the custom_prompt_id
+                for note in audio_note.formatted_notes:
+                    if str(note.note_prompt_id.id) != str(custom_prompt_id):
+                        updated_notes.append(note)
+
+                audio_note.formatted_notes = updated_notes
+                audio_note.save()
+
+        except Exception as e:
+            print(e)
+
+
+# Connect the signal handler to the pre_delete signal for the CustomPrompt model
+signals.pre_delete.connect(AudioNote.remove_references_from_audio_notes, sender=CustomPrompt)
