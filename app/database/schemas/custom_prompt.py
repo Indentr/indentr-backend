@@ -12,7 +12,7 @@ class CustomPrompt(Document):
     meta = {"collection": "custom_prompts"}  # Specifies the collection name
 
     user_id = ReferenceField(User, required=True)
-    practice_id = ReferenceField(Practice, required=True)
+    practice_id = ReferenceField(Practice, required=False)
     title = StringField(required=True)
     text = StringField(required=True)
     example = StringField(required=False, default="")

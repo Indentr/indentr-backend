@@ -73,7 +73,11 @@ def delete_custom_prompt(practice_id: str, prompt_id: str):
         if prompt is None:
             raise HTTPException(status_code=404, detail="Prompt not found") from None
 
-        prompt.delete()
+        # Perform soft delete
+        prompt.practice_id = None
+        prompt.text = ""
+        prompt.example = ""
+        prompt.save()
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from None
