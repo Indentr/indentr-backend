@@ -15,7 +15,12 @@ from app.database.schemas.patient import Patient, PatientName
 
 
 def create_audio_note(
-    patient_id: str, user_id: str, practice_id: str, audio_bytesio: BytesIO, note_dict: Dict[str, Any], length_of_recording: int
+    patient_id: str,
+    user_id: str,
+    practice_id: str,
+    audio_bytesio: BytesIO,
+    note_dict: Dict[str, Any],
+    length_of_recording: int,
 ) -> str:
     try:
         # Convert BytesIO to bytes
@@ -40,6 +45,10 @@ def create_audio_note(
             formatted_notes=formatted_notes,
             patient_details=patient_details,
             length_of_recording=length_of_recording,
+            input_tokens=note_dict["input_tokens"],
+            output_tokens=note_dict["output_tokens"],
+            cost=note_dict["cost"],
+            model=note_dict["model"],
         )
         audio_note.save()
 
@@ -109,7 +118,7 @@ def retrieve_note(note_id: str, practice_id: str):
     # Query the note using MongoEngine
     note = (
         AudioNote.objects(id=note_id, practice_id=practice_id)
-        .only("patient_id", "formatted_notes", "transcript", "createdAt")
+        .only("patient_id", "formatted_notes", "transcript", "createdAt", "input_tokens", "output_tokens", "cost", "model")
         .first()
         .select_related(2)
     )
@@ -330,6 +339,10 @@ def update_note(note_id: str, noteObj: Dict[str, Any], practice_id: str):
     # Update the consent_letter field
     note.transcript = noteObj["transcript"]
     note.formatted_notes = formatted_notes
+    note.input_tokens = noteObj["input_tokens"]
+    note.output_tokens = noteObj["output_tokens"]
+    note.cost = noteObj["cost"]
+    note.model = noteObj["model"]
     note.save()
 
 

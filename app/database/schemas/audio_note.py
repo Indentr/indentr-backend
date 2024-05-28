@@ -7,6 +7,7 @@ from mongoengine import (
     EmbeddedDocument,
     EmbeddedDocumentField,
     EmbeddedDocumentListField,
+    FloatField,
     IntField,
     ReferenceField,
     StringField,
@@ -24,6 +25,8 @@ class NotePromptOutputs(EmbeddedDocument):
 
 
 class AudioNote(Document):
+    meta = {"collection": "audio_note"}  # Specify the collection name
+
     patient_id = ReferenceField(Patient, required=True)
     user_id = ReferenceField(User, required=True)
     practice_id = ReferenceField(Practice, required=True)
@@ -33,5 +36,7 @@ class AudioNote(Document):
     createdAt = DateTimeField(default=datetime.utcnow)
     patient_details = EmbeddedDocumentField(PatientName)
     length_of_recording = IntField()
-
-    meta = {"collection": "audio_note"}  # Specify the collection name
+    input_tokens = IntField(default=0)
+    output_tokens = IntField(default=0)
+    cost = FloatField(default=0)
+    model = StringField()
