@@ -493,7 +493,7 @@ async def upload_transcript(
 
         Task: {prompt["text"]}
 
-        {"Example: " + prompt["example"] if prompt["example"] != "" else ""}
+        {"Example: " + prompt["example"] if prompt["example"] and prompt["example"] != "<p></p>" != "" else ""}
 
         Important points: If there are errors do your best to guess what the correct sentence would have been.
         eg if its a dental note: upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
