@@ -176,7 +176,7 @@ def retrieve_last_three_notes(user_id: str):
         # Handle the case where no notes are found
         return []
 
-    for index, note in enumerate(notes):
+    for note in notes:
         created_at = note.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
         note_dict = note.to_mongo().to_dict()
         note_dict["createdAt"] = created_at
@@ -190,7 +190,6 @@ def retrieve_last_three_notes(user_id: str):
         if not isinstance(note.formatted_notes, str):
             for i in range(len(note.formatted_notes)):
                 note_dict["formatted_notes"][i]["note_prompt_id"] = str(note_dict["formatted_notes"][i]["note_prompt_id"])
-                note_dict["formatted_notes"][i]["title"] = notes[index].formatted_notes[i].note_prompt_id.title
 
         notes_list.append(note_dict)
 
