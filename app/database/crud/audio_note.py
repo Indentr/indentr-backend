@@ -164,7 +164,7 @@ def retrieve_last_three_notes(user_id: str):
     try:
         notes = (
             AudioNote.objects(user_id=user_id)
-            .only("patient_id", "formatted_notes", "transcript", "createdAt")
+            .only("patient_id", "formatted_notes", "transcript", "createdAt", "input_tokens", "output_tokens", "cost", "model")
             .order_by("-_id")
             .limit(3)
             .select_related(2)
