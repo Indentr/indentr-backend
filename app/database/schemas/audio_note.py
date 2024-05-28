@@ -7,6 +7,7 @@ from mongoengine import (
     EmbeddedDocument,
     EmbeddedDocumentField,
     EmbeddedDocumentListField,
+    FloatField,
     IntField,
     ReferenceField,
     StringField,
@@ -35,3 +36,7 @@ class AudioNote(Document):
     createdAt = DateTimeField(default=datetime.utcnow)
     patient_details = EmbeddedDocumentField(PatientName)
     length_of_recording = IntField()
+    input_tokens = IntField(default=0)
+    output_tokens = IntField(default=0)
+    cost = FloatField(default=0)
+    model = StringField()

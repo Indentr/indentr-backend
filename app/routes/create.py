@@ -48,7 +48,7 @@ from app.models.create import (
     TextToAnalyse,
 )
 from app.services.deepgram import dpg_speech_to_text
-from app.services.openAI import ask_gpt
+from app.services.openAI import ask_gpt, calculate_openAI_gpt_cost, count_input_tokens
 from app.services.stripe import retrieve_stripe_customer_details
 from app.utils.create_letter_utils import (
     dentist_signature,
@@ -533,15 +533,20 @@ async def upload_transcript(
 
         """
 
-        formatted_notes, tokens = await ask_gpt(
+        gpt_model = "gpt-3.5-turbo"
+        input_tokens = count_input_tokens(note_prompt, gpt_model)
+
+        formatted_note, output_tokens = await ask_gpt(
             note_prompt,
             "You format transcripts, doing exactly what the task asks, following the example and desired response format",
-            "gpt-4-1106-preview",
+            gpt_model,
         )
+
+        cost = calculate_openAI_gpt_cost(input_tokens, output_tokens, gpt_model)
 
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
-        return formatted_notes
+        return {"formatted_note": formatted_note, "input_tokens": input_tokens, "output_tokens": output_tokens, "cost": cost, "model": gpt_model}
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
@@ -579,7 +584,14 @@ async def create_note(
             raise HTTPException(status_code=404, detail="Patient not found")
 
         audio_content = await audioFile.read()
-        note_id = create_audio_note(patient["_id"], user_id, practice_id, BytesIO(audio_content), note_dict, length_of_recording)
+        note_id = create_audio_note(
+            patient_id=patient["_id"],
+            user_id=user_id,
+            practice_id=practice_id,
+            audio_bytesio=BytesIO(audio_content),
+            note_dict=note_dict,
+            length_of_recording=length_of_recording,
+        )
 
         log.info(f"Request {request_id} completed in {round(time.time() - start, 2)} seconds. Note {note_id} saved successfully.")
 
