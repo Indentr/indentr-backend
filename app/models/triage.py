@@ -21,6 +21,7 @@ class GenerateQuestions(BaseModel):
                         "address": "1 Hollywood, Los Angeles, United States",
                         "email": "ryanreynolds1@gmail.com",
                         "symptom": "Tooth ache",
+                        "phone": "+447757925319",
                     },
                     "practice_id": "6567b615374d9d2666baa475",
                     "existing_patient": True,
@@ -34,6 +35,7 @@ class CreatePatientRequest(BaseModel):
     patient_details: str
     practice_id: str
     symptom_details: str
+    appointment_reason: str
 
 
 class ToggleTriageOpenedRequest(BaseModel):
