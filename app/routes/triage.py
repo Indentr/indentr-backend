@@ -223,7 +223,7 @@ async def create_patient_request(body: CreatePatientRequest):
             "diagnosis": "[Your diagnosis title],
             "overview": "[A general overview of the problem]",
             "severity": "[An integer value between 0/10]",
-            "instructions": "[Instructions on what they can do while they wait for their appointment]":
+            "instructions": "[Instructions on what the patient can do while they wait for their appointment to be scheduled (don't tell them to schedule an appointment since that's what they've just done)]":
         }}
 
         Do not wrap the response in  ```json <response> ```
@@ -264,10 +264,12 @@ async def create_patient_request(body: CreatePatientRequest):
     if "triage_email" not in practice:
         practice["triage_email"] = practice["primary_email"]
 
-    practice_mail_text = generate_practice_mail(patient_details, response["diagnosis"], response["overview"])
+    triage_settings = retrieve_triage_settings(practice["_id"])
+
+    practice_mail_text = generate_practice_mail(patient_details, response["diagnosis"], appointment_reason, triage_settings["primary_color"])
     send_email("New triage request", practice_mail_text, TRIAGE_MAIL, practice["triage_email"], TRIAGE_MAIL_PASSWORD)
 
-    patient_mail_text = generate_patient_mail(practice, patient_details, response["instructions"])
+    patient_mail_text = generate_patient_mail(practice, patient_details, response["instructions"], triage_settings["primary_color"])
 
     send_email("Appointment request sent", patient_mail_text, TRIAGE_MAIL, patient_details["email"], TRIAGE_MAIL_PASSWORD)
 
