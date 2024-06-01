@@ -47,7 +47,7 @@ def generate_practice_mail(patient: Dict, diagnosis: str, appointment_reason: st
                         <table align="center" border="0" cellpadding="0" cellspacing="0" width="600" style="border: 1px solid #ddd; border-radius: 5px; background-color: #ffffff;">
                             <tr>
                                 <td align="center" bgcolor="{primary_color}" style="padding: 20px 0 20px 0; color: #ffffff; font-size: 24px; font-weight: bold; font-family: Arial, sans-serif; border-top-left-radius: 5px; border-top-right-radius: 5px;">
-                                    Triage Request Received
+                                    New appointment request
                                 </td>
                             </tr>
                             <tr>
