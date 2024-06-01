@@ -66,12 +66,12 @@ def insert_treatment_plan(register_and_login):
     for i in range(0, 4):
         patients.append(
             create_new_patient(
-                patient_details["forename"],
-                patient_details["surname"],
-                patient_details["dob"],
-                patient_details["gender"],
-                patient_details["address"],
-                f"{i}" + patient_details["email"],
+                forename=patient_details["forename"],
+                surname=patient_details["surname"],
+                dob=patient_details["dob"],
+                gender=patient_details["gender"],
+                address=patient_details["address"],
+                email=f"{i}" + patient_details["email"],
             )
         )
     for _i in range(0, 4):

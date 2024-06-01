@@ -53,12 +53,12 @@ def insert_consent_letter(register_and_login):
     }
 
     patient = create_new_patient(
-        patient_details["forename"],
-        patient_details["surname"],
-        patient_details["dob"],
-        patient_details["gender"],
-        patient_details["address"],
-        patient_details["email"],
+        forename=patient_details["forename"],
+        surname=patient_details["surname"],
+        dob=patient_details["dob"],
+        gender=patient_details["gender"],
+        address=patient_details["address"],
+        email=patient_details["email"],
     )
 
     letter_id = create_new_letter(user_id, consent_letter, patient["_id"], practice_id, 3000, 4000, 0.15, "gpt-4-turbo-preview")
