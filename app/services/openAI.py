@@ -11,6 +11,8 @@ log = logging.getLogger(__name__)
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # USD pricing per 1000 tokens
+gpt_4o = {"input": 0.005, "output": 0.015}
+
 gpt_4_turbo = {"input": 0.01, "output": 0.03}
 
 gpt_4 = {"gpt-4": {"input": 0.03, "output": 0.06}, "gpt-4-32k": {"input": 0.06, "output": 0.12}}
@@ -18,7 +20,10 @@ gpt_4 = {"gpt-4": {"input": 0.03, "output": 0.06}, "gpt-4-32k": {"input": 0.06, 
 gpt_35_turbo = {"gpt-3.5-turbo-1106": {"input": 0.0010, "output": 0.0020}, "gpt-3.5-turbo-instruct": {"input": 0.0015, "output": 0.0020}}
 
 pricing = {
+    "gpt-4o": gpt_4o,
+    "gpt-4o-2024-05-13": gpt_4o,
     "gpt-4-0125-preview": gpt_4_turbo,
+    "gpt-4-turbo": gpt_4_turbo,
     "gpt-4-turbo-preview": gpt_4_turbo,
     "gpt-4-1106-preview": gpt_4_turbo,
     "gpt-4-vision-preview": gpt_4_turbo,

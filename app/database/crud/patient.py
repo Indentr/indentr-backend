@@ -14,7 +14,16 @@ from app.database.schemas.patient import Patient
 from app.database.schemas.triage import Triage
 
 
-def create_new_patient(forename: str, surname: str, dob: str, gender: str, address: str, email: str, practice_id: Optional[str] = None):
+def create_new_patient(
+    forename: str,
+    surname: str,
+    email: str,
+    dob: Optional[str] = None,
+    gender: Optional[str] = "Other",
+    address: Optional[str] = None,
+    practice_id: Optional[str] = None,
+    phone_number: Optional[str] = None,
+):
     # try:
     # Check if a patient with the same email already exists
     existing_patient = Patient.objects(email=email, practice_id=practice_id).first()
@@ -25,11 +34,12 @@ def create_new_patient(forename: str, surname: str, dob: str, gender: str, addre
     new_patient = Patient(
         forename=forename.capitalize(),
         surname=surname.capitalize(),
-        dob=dob,
-        gender=gender,
-        address=address,
         email=email,
+        dob=dob if dob else None,
+        gender=gender if gender else "Other",
+        address=address if address else None,
         practice_id=practice_id,
+        phone_number=phone_number if phone_number else None,
     )
 
     # Save the new patient instance to the database

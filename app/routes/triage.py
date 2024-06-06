@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.constants import DB_URI, TRIAGE_MAIL, TRIAGE_MAIL_PASSWORD
 from app.database.atlas_search import atlas_search
-from app.database.crud.config import retrieve_prompt_by_title
 from app.database.crud.patient import (
     create_new_patient,
     retrieve_patient_by_email,
@@ -131,21 +130,46 @@ async def generate_triage_questions(body: GenerateQuestions):
 
         except HTTPException:
             create_new_patient(
-                patient_details["forename"],
-                patient_details["surname"],
-                patient_details["dob"],
-                patient_details["gender"],
-                patient_details["address"],
-                patient_details["email"],
+                forename=patient_details["forename"],
+                surname=patient_details["surname"],
+                email=patient_details["email"],
+                dob=patient_details["dob"],
+                gender=patient_details["gender"],
+                address=patient_details["address"],
+                practice_id=practice_id,
+                phone_number=patient_details["phone"],
             )
 
     log.info(f"Request {request_id} received for triage symptom questions.")
 
-    generate_triage_questions_prompt = retrieve_prompt_by_title("generate_triage_questions")
-
     prompt = f"""
-        Reason for appointment request: {patient_details["appointment_reason"]}
-        {generate_triage_questions_prompt}
+        Patients reason for appointment request: {patient_details["appointment_reason"]}
+
+        I want you to ask the patient follow up questions relating to the patients reason for appointment.
+        The aim of the follow up questions is to try and extract as much useful information from the patient as possible, so this way when the dentist sees the appointment request they have all the necessary information in terms of severity of the problem and patient's condition etc.
+
+        Please ask the patient between 1 - 4 follow up questions, as many as you deem appropriate to get the info required. they may be open ended or closed as you see fit.
+        If the reason for appointment doesn't necessitate any follow up questions or their reason for appointment doesn't pertain to dentistry then just send back and empty array as your response.
+
+        Please format your response as a JSON string, similar to what's shown below (choose between 1-4 q's depending on the appointment reason, if appointment reason is not severe ask less questions, if its more severe ask more questions):
+        [
+            {{
+                "symptom": "General check-up",
+                "q1": "When was your last check-up?"
+            }},
+        ]
+        another example this time with more questions being asked
+        [
+            {{
+                "symptom": "[Symptom name]",
+                "q1": "[Insert q1]",
+                "q2": "[q2]",
+                "q3": "[q3]"
+            }},
+        ]
+
+        If you think the reason for appointment doesn't have enough information then ask more questions, but if the reason for appointment is clear then ask less questions.
+        IMPORTANT: Your response must be a string!!!!, DO NOT wrap the response like so  ```json ```!!!!
     """
 
     original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-3.5-turbo")
@@ -162,7 +186,7 @@ async def generate_triage_questions(body: GenerateQuestions):
     log.info(f"GPT questions response: {questions}")
     log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
-    return questions
+    return {"questions": questions, "appointment_reason": patient_details["appointment_reason"]}
 
 
 @router.post("/create-patient-request")
@@ -182,11 +206,28 @@ async def create_patient_request(body: CreatePatientRequest):
 
     log.info(f"Request {request_id} received for creating a patient triage request.")
 
-    create_triage_request_prompt = retrieve_prompt_by_title("create_triage_request")
-
     prompt = f"""
+        The patient's stated reason for appointment: {body.appointment_reason}
         The questions and patients answers: {symptom_details}
-        {create_triage_request_prompt}
+
+        A patient has just filled out a dental triage form where they were asked some questions based on a dental symptom they have.
+
+        Based on the patients patients response I need you to give a response to the following questions:
+        1. A diagnosis title, a very short title of like 5 words max based on the appointment request
+        2. A detailed overview of the problem, a dentist will be reading this so you don't have to explain what anything means. If the diagnosis is unclear then say so.
+        3. A severity score out of 10 (10 being absolutely must see a dentist in the next hour or they will die, 1 being general checkup).
+        4. A brief overview of instructions for the patient while they wait for their appointment. This will be displayed to the patient. If the symptom is mild then it should say how to manage it in the menatime, if the symptom is very severe then it should tell them to call the practice.
+
+        Your responses to the following must be formatted as JSON, as shown below:
+        {{
+            "diagnosis": "[Your diagnosis title],
+            "overview": "[A general overview of the problem]",
+            "severity": "[An integer value between 0/10]",
+            "instructions": "[Instructions on what the patient can do while they wait for their appointment to be scheduled (don't tell them to schedule an appointment since that's what they've just done)]":
+        }}
+
+        Do not wrap the response in  ```json <response> ```
+
     """
 
     original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-3.5-turbo")
@@ -223,10 +264,12 @@ async def create_patient_request(body: CreatePatientRequest):
     if "triage_email" not in practice:
         practice["triage_email"] = practice["primary_email"]
 
-    practice_mail_text = generate_practice_mail(patient_details, response["diagnosis"], response["overview"])
+    triage_settings = retrieve_triage_settings(practice["_id"])
+
+    practice_mail_text = generate_practice_mail(patient_details, response["diagnosis"], appointment_reason, triage_settings["primary_color"])
     send_email("New triage request", practice_mail_text, TRIAGE_MAIL, practice["triage_email"], TRIAGE_MAIL_PASSWORD)
 
-    patient_mail_text = generate_patient_mail(practice, patient_details, response["instructions"])
+    patient_mail_text = generate_patient_mail(practice, patient_details, response["instructions"], triage_settings["primary_color"])
 
     send_email("Appointment request sent", patient_mail_text, TRIAGE_MAIL, patient_details["email"], TRIAGE_MAIL_PASSWORD)
 

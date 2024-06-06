@@ -23,5 +23,6 @@ class Patient(Document):
     address = StringField()
     email = EmailField(required=True)
     practice_id = ReferenceField(Practice)
+    phone_number = StringField(default="")
 
     meta = {"collection": "patients", "indexes": [{"fields": ["email", "practice_id"], "unique": True}]}

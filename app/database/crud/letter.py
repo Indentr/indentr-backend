@@ -105,10 +105,14 @@ def retrieve_patients_last_three_letters(patient_id: str):
         del patient_details["_id"]
         if "practice_id" in patient_details:
             del patient_details["practice_id"]
-        del patient_details["dob"]
-        del patient_details["gender"]
-        del patient_details["address"]
-        del patient_details["email"]
+        if "dob" in patient_details:
+            del patient_details["dob"]
+        if "gender" in patient_details:
+            del patient_details["gender"]
+        if "address" in patient_details:
+            del patient_details["address"]
+        if "email" in patient_details:
+            del patient_details["email"]
         letter_dict["patient_details"] = patient_details
         del letter_dict["patient_id"]
 

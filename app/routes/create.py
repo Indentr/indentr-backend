@@ -150,13 +150,13 @@ async def save_patient_details(body: PatientDetails, access_token=Depends(JWTBea
         patient_details = json.loads(body.patientDetails)
 
         create_new_patient(
-            patient_details["forename"],
-            patient_details["surname"],
-            patient_details["dob"],
-            patient_details["gender"],
-            patient_details["address"],
-            patient_details["email"],
-            practice_id,
+            forename=patient_details["forename"],
+            surname=patient_details["surname"],
+            email=patient_details["email"],
+            dob=patient_details["dob"],
+            gender=patient_details["gender"],
+            address=patient_details["address"],
+            practice_id=practice_id,
         )
 
         log.debug(f"Request {request_id} completed successfully in {round((time.time() - start), 2)} seconds.")
@@ -501,7 +501,7 @@ async def upload_transcript(
 
         Always use English spelling not US.
 
-        Response: MUST be written as an HTML string in the format provided below (DO NOT WRAP YOUR RESPONSE IN: ```html <html content> ``` just give it as a normal string ''),
+        Response: MUST be written as an HTML string in the format provided below (DO NOT WRAP YOUR RESPONSE IN: ```html <html content> ```),
         where each paragraph is wrapped in a <p> tag:
 
         <p class="p1-title">[insert paragraph text, do not include dear ....]</p>
@@ -634,7 +634,7 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
 
         header = ""
         if body.add_header:
-            header = format_address(patient["address"]) if letter_config["patient_address"] else ""
+            header = format_address(patient["address"]) if letter_config["patient_address"] and "address" in patient else ""
             header = format_image_header(letter_config["image"], header) if letter_config["include_image"] else header
 
             date = generate_formatted_date() if letter_config["date"] else ""
