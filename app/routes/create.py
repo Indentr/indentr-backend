@@ -501,7 +501,7 @@ async def upload_transcript(
 
         Always use English spelling not US.
 
-        Response: MUST be written as an HTML string in the format provided below (DO NOT WRAP YOUR RESPONSE IN: ```html <html content> ``` just give it as a normal string ''),
+        Response: MUST be written as an HTML string in the format provided below (DO NOT WRAP YOUR RESPONSE IN: ```html <html content> ```),
         where each paragraph is wrapped in a <p> tag:
 
         <p class="p1-title">[insert paragraph text, do not include dear ....]</p>
