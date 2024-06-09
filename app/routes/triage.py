@@ -2,6 +2,7 @@ import json
 import logging
 import time
 import uuid
+from email.mime.text import MIMEText
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
@@ -33,6 +34,7 @@ from app.models.triage import (
     CheckEmail,
     CreatePatientRequest,
     DeleteTriageRequests,
+    DemoRequest,
     GenerateQuestions,
     SearchTriageRequests,
     ToggleTriageFolderRequest,
@@ -267,6 +269,7 @@ async def create_patient_request(body: CreatePatientRequest):
     triage_settings = retrieve_triage_settings(practice["_id"])
 
     practice_mail_text = generate_practice_mail(patient_details, response["diagnosis"], appointment_reason, triage_settings["primary_color"])
+
     send_email("New triage request", practice_mail_text, TRIAGE_MAIL, practice["triage_email"], TRIAGE_MAIL_PASSWORD)
 
     patient_mail_text = generate_patient_mail(practice, patient_details, response["instructions"], triage_settings["primary_color"])
@@ -501,5 +504,65 @@ async def add_new_patient_to_practice(body: AddPatientToPractice, access_token=D
 
         return {"success": True, "message": "Added patient to practice!"}
 
+    except HTTPException as e:
+        raise e
+
+
+@router.post("/submit-details")
+async def submit_details(body: DemoRequest):
+    try:
+        # Record the current time
+        current_time = time.time()
+        print(f"[DEBUG] Current time recorded: {current_time}")
+
+        # Generate a unique request ID
+        request_id = uuid.uuid4().hex
+        print(f"[DEBUG] Generated request ID: {request_id}")
+
+        # Parse the user details from the request body
+        user_details = json.loads(body.user_details)
+        print(f"[DEBUG] User details parsed: {user_details}")
+
+        # Extract user information from the parsed details
+        full_name = user_details.get("name", "")
+        email = user_details.get("email", "")
+        phone = user_details.get("phone", "")
+        message = user_details.get("message", "")
+        print(f"[DEBUG] Extracted details - Name: {full_name}, Email: {email}, Phone: {phone}, Message: {message}")
+
+        # Use only the first name by splitting the full name
+        first_name = full_name.split()[0] if full_name else "there"
+        print(f"[DEBUG] First name extracted: {first_name}")
+
+        # Construct the indentr_mail_text with user details
+        indentr_mail_text = (
+            f"New Demo Request Received:\n\n"
+            f"Name: {full_name}\n"
+            f"Email: {email}\n"
+            f"Phone: {phone}\n"
+            f"Message: {message}\n\n"
+            f"Please reach out to {first_name} to set up a call."
+        )
+        print(f"[DEBUG] Constructed email text: {indentr_mail_text}")
+
+        # Convert the text message to a MIMEText object
+        mime_text = MIMEText(indentr_mail_text, "plain")
+        print("[DEBUG] Converted text message to MIMEText object.")
+
+        # Send the email
+        print("[INFO] Attempting to send email...")
+        send_email("New Demo Request", mime_text, TRIAGE_MAIL, "enquiries@indentr.com", TRIAGE_MAIL_PASSWORD)
+        print("[INFO] Email sent successfully.")
+
+        # Return a friendly response message
+        response_message = (
+            f"Thank you, {first_name}! "
+            f"We have received your request and will be in touch shortly to set up a call with one of our team members. "
+            f"Please look out for an email at {email} or a phone call at {phone}. "
+            "Have a wonderful day!"
+        )
+        print(f"[DEBUG] Response message: {response_message}")
+
+        return {"success": True, "message": response_message}
     except HTTPException as e:
         raise e

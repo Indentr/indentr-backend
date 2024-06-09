@@ -65,3 +65,7 @@ class AddPatientToPractice(BaseModel):
 class CheckEmail(BaseModel):
     email: str
     practiceId: str
+
+
+class DemoRequest(BaseModel):
+    user_details: str

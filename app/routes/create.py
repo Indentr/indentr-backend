@@ -533,7 +533,7 @@ async def upload_transcript(
 
         """
 
-        gpt_model = "gpt-3.5-turbo"
+        gpt_model = "gpt-4-turbo-preview"
         input_tokens = count_input_tokens(note_prompt, gpt_model)
 
         formatted_note, output_tokens = await ask_gpt(

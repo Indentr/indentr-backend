@@ -25,6 +25,24 @@ def send_email(subject: str, msg: MIMEText, sender: str, recipient: str, passwor
         raise HTTPException(status_code=500, detail=f"Error sending email: {e}") from e
 
 
+def send_email_basic(subject: str, msg: str, sender: str, recipient: str, password: str):
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = recipient
+
+    try:
+        with smtplib.SMTP_SSL("smtp.zoho.eu", 465) as smtp_server:
+            smtp_server.login(sender, password)
+            smtp_server.sendmail(sender, recipient, msg.as_string())
+
+    except smtplib.SMTPDataError as e:
+        # Handle the SMTPDataError exception
+        raise HTTPException(status_code=500, detail=f"Error sending email: {e}") from e
+    except Exception as e:
+        # Handle any other exceptions that may occur
+        raise HTTPException(status_code=500, detail=f"Error sending email: {e}") from e
+
+
 def generate_practice_mail(patient: Dict, diagnosis: str, appointment_reason: str, primary_color) -> MIMEText:
     patient_name = f"{patient['forename']} {patient['surname']}"
     patient_dob = (
