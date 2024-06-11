@@ -537,7 +537,7 @@ async def submit_details(body: DemoRequest):
         mime_text = MIMEText(indentr_mail_text, "plain")
 
         # Send the email
-        send_email("New Demo Request", mime_text, TRIAGE_MAIL, "enquiries@indentr.com", TRIAGE_MAIL_PASSWORD)
+        send_email("New Demo Request", mime_text, TRIAGE_MAIL, "book-demo@indentr.com", TRIAGE_MAIL_PASSWORD)
 
         # Return a friendly response message
         response_message = (

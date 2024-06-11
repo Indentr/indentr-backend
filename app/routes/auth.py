@@ -291,7 +291,7 @@ def sent_reset_password_email(body: UserResetPasswordRequest):
         send_email(
             subject="Reset password",
             msg=email,
-            sender="password.manager@indentr.com",
+            sender="password-manager@indentr.com",
             recipient=user_document["email"],
             password=TRIAGE_MAIL_PASSWORD,
         )
