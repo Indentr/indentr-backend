@@ -6,7 +6,6 @@ from werkzeug.security import check_password_hash
 from app.constants import (
     GRATIS_PASSWORD,
     STRIPE_SECRET_KEY,
-    TRIAGE_MAIL,
     TRIAGE_MAIL_PASSWORD,
 )
 from app.database.crud.custom_prompt import create_custom_prompt
@@ -289,7 +288,13 @@ def sent_reset_password_email(body: UserResetPasswordRequest):
         reset_token = sign_reset_password_token(user_id)
         save_password_reset_token(user_id, str(reset_token))
         email = generate_password_reset_email(user_document["email"], reset_token)
-        send_email(subject="Reset password", msg=email, sender=TRIAGE_MAIL, recipient=user_document["email"], password=TRIAGE_MAIL_PASSWORD)
+        send_email(
+            subject="Reset password",
+            msg=email,
+            sender="password-manager@indentr.com",
+            recipient=user_document["email"],
+            password=TRIAGE_MAIL_PASSWORD,
+        )
         return "Email sent successfully!"
 
     except HTTPException as e:

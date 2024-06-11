@@ -2,6 +2,7 @@ import json
 import logging
 import time
 import uuid
+from email.mime.text import MIMEText
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
@@ -33,6 +34,7 @@ from app.models.triage import (
     CheckEmail,
     CreatePatientRequest,
     DeleteTriageRequests,
+    DemoRequest,
     GenerateQuestions,
     SearchTriageRequests,
     ToggleTriageFolderRequest,
@@ -267,6 +269,7 @@ async def create_patient_request(body: CreatePatientRequest):
     triage_settings = retrieve_triage_settings(practice["_id"])
 
     practice_mail_text = generate_practice_mail(patient_details, response["diagnosis"], appointment_reason, triage_settings["primary_color"])
+
     send_email("New triage request", practice_mail_text, TRIAGE_MAIL, practice["triage_email"], TRIAGE_MAIL_PASSWORD)
 
     patient_mail_text = generate_patient_mail(practice, patient_details, response["instructions"], triage_settings["primary_color"])
@@ -501,5 +504,49 @@ async def add_new_patient_to_practice(body: AddPatientToPractice, access_token=D
 
         return {"success": True, "message": "Added patient to practice!"}
 
+    except HTTPException as e:
+        raise e
+
+
+@router.post("/submit-details")
+async def submit_details(body: DemoRequest):
+    try:
+        # Parse the user details from the request body
+        user_details = json.loads(body.user_details)
+
+        # Extract user information from the parsed details
+        full_name = user_details.get("name", "")
+        email = user_details.get("email", "")
+        phone = user_details.get("phone", "")
+        message = user_details.get("message", "")
+
+        # Use only the first name by splitting the full name
+        first_name = full_name.split()[0] if full_name else "there"
+
+        # Construct the indentr_mail_text with user details
+        indentr_mail_text = (
+            f"New Demo Request Received:\n\n"
+            f"Name: {full_name}\n"
+            f"Email: {email}\n"
+            f"Phone: {phone}\n"
+            f"Message: {message}\n\n"
+            f"Please reach out to {first_name} to set up a call."
+        )
+
+        # Convert the text message to a MIMEText object
+        mime_text = MIMEText(indentr_mail_text, "plain")
+
+        # Send the email
+        send_email("New Demo Request", mime_text, TRIAGE_MAIL, "book-demo@indentr.com", TRIAGE_MAIL_PASSWORD)
+
+        # Return a friendly response message
+        response_message = (
+            f"Thank you, {first_name}! "
+            f"We have received your request and will be in touch shortly to set up a call with one of our team members. "
+            f"Please look out for an email at {email} or a phone call at {phone}. "
+            "Have a wonderful day!"
+        )
+
+        return {"success": True, "message": response_message}
     except HTTPException as e:
         raise e
