@@ -289,7 +289,7 @@ def sent_reset_password_email(body: UserResetPasswordRequest):
         reset_token = sign_reset_password_token(user_id)
         save_password_reset_token(user_id, str(reset_token))
         email = generate_password_reset_email(user_document["email"], reset_token)
-        send_email(subject="Reset password", msg=email, sender=TRIAGE_MAIL, recipient=user_document["email"], password=TRIAGE_MAIL_PASSWORD)
+        send_email(subject="Reset password", msg=email, sender="password.manager@indentr.com", recipient=user_document["email"], password=TRIAGE_MAIL_PASSWORD)
         return "Email sent successfully!"
 
     except HTTPException as e:
