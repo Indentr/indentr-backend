@@ -504,8 +504,10 @@ async def upload_transcript(
         Response: MUST be written as an HTML string in the format provided below (DO NOT WRAP YOUR RESPONSE IN: ```html <html content> ```),
         where each paragraph is wrapped in a <p> tag:
 
+        Example formatting:
+
         <p class="p1-title">[insert paragraph text, do not include dear ....]</p>
-        <p></p> // IMPORTANT: for each new paragraph or section insert an empty p tag like this one (not after a colon though since thats not a new paragraph)
+        <p></p> // IMPORTANT: for each new section insert an empty p tag like this one, only put it above each title
         <p class="etc">[etc.]</p>
 
         If the task asks for the use of undordered list or bullet list for certain sections then here is an example of the format
@@ -523,17 +525,9 @@ async def upload_transcript(
             </ol>
         </p>
 
-        If the task specifies that it is a consultation or meeting then the expected formatt should look like this:
-
-        <p class="<person 1>">person 1: Hello, Mr. Smith. How can I help you today?</p>
-        <p class="<person 2>">person 2: Hi, Doctor. I've been feeling pain in my lower left molar.</p>
-        <p></p>
-        <p class="<person 1>">person 1: It looks like you have a cavity in your lower left 6. I recommend a filling.</p>
-        <p></p>
-
         """
 
-        gpt_model = "gpt-3.5-turbo"
+        gpt_model = "gpt-4o"
         input_tokens = count_input_tokens(note_prompt, gpt_model)
 
         formatted_note, output_tokens = await ask_gpt(
@@ -544,6 +538,7 @@ async def upload_transcript(
 
         cost = calculate_openAI_gpt_cost(input_tokens, output_tokens, gpt_model)
 
+        log.debug(f"{note_prompt}")
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
         return {"formatted_note": formatted_note, "input_tokens": input_tokens, "output_tokens": output_tokens, "cost": cost, "model": gpt_model}
