@@ -493,7 +493,7 @@ async def upload_transcript(
 
         TASK: {prompt["text"]}
 
-        {"EXAMPLE: " + prompt["example"] + "(MAKE SURE TO FOLLOW FORMATTING OF EXAMPLE EXACTLY ie if certain sections are bold then make them bold in your response)" if prompt["example"] and prompt["example"] != "<p></p>" != "" else ""}
+        {"EXAMPLE FORMATTING: " + prompt["example"] if prompt["example"] and prompt["example"] != "<p></p>" != "" else ""}
 
         IMPORTANT POINTS: If there are errors do your best to guess what the correct sentence would have been.
         eg if its a dental note: upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
@@ -501,23 +501,8 @@ async def upload_transcript(
 
         Always use English spelling not US.
 
-        RESPONSE: MUST be written as an HTML string in the format provided below (DO NOT WRAP YOUR RESPONSE IN: ```html <html content> ```),
-        where each paragraph is wrapped in a <p> tag:
-
-        EXAMPLE FORMATTING:
-
-        <p>[insert paragraph text]</p>
-        (If the task asks for the use of undordered list or bullet list for certain sections then here is an example of the format)
-        <p>
-            <ul>
-                <li>[insert list item]</li>
-                <li>[etc.]</li>
-            </ul>
-        </p>
-        <p></p> // IMPORTANT: At the end of every section (ie at the end of a ordered or unordered list) you need to insert an empty p tag as this represents a new line
-        (DO NOT INSERT EMPTY LINES BETWEEN THE TITLE AND THE BULLET LIST!)
-
-        
+        RESPONSE: MUST be written as a nicely formatted HTML string (DO NOT WRAP YOUR RESPONSE IN: ```html <html content> ```),
+        where each paragraph is wrapped in a <p> tag. At the end of each section you must insert a new line using an empty p tag e.g. <p></p>
         """
 
         gpt_model = "gpt-4o"
