@@ -489,42 +489,20 @@ async def upload_transcript(
 
         note_prompt = f"""
 
-        Transcript: {body.transcript}
+        TRANSCRIPT: {body.transcript}
 
-        Task: {prompt["text"]}
+        TASK: {prompt["text"]}
 
-        {"Example: " + prompt["example"] if prompt["example"] and prompt["example"] != "<p></p>" != "" else ""}
+        {"EXAMPLE FORMATTING: " + prompt["example"] if prompt["example"] and prompt["example"] != "<p></p>" != "" else ""}
 
-        Important points: If there are errors do your best to guess what the correct sentence would have been.
+        IMPORTANT POINTS: If there are errors do your best to guess what the correct sentence would have been.
         eg if its a dental note: upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
         in words that do not appear to fit the context will mean Upper left 3
 
         Always use English spelling not US.
 
-        Response: MUST be written as an HTML string in the format provided below (DO NOT WRAP YOUR RESPONSE IN: ```html <html content> ```),
-        where each paragraph is wrapped in a <p> tag:
-
-        Example formatting:
-
-        <p class="p1-title">[insert paragraph text, do not include dear ....]</p>
-        <p></p> // IMPORTANT: for each new section insert an empty p tag like this one, only put it above each title
-        <p class="etc">[etc.]</p>
-
-        If the task asks for the use of undordered list or bullet list for certain sections then here is an example of the format
-        <p class="insert-pX-title]">
-            <ul>
-                <li>[insert list item]</li>
-                <li>[etc.]</li>
-            </ul>
-        </p>
-        <p></p>
-        <p class="insert-pX-title]">
-            <ol>
-                <li>[insert list item]</li>
-                <li>[etc.]</li>
-            </ol>
-        </p>
-
+        RESPONSE: MUST be written as a nicely formatted HTML string (DO NOT WRAP YOUR RESPONSE IN: ```html <html content> ```),
+        where each paragraph is wrapped in a <p> tag. At the end of each section you must insert a new line using an empty p tag e.g. <p></p>
         """
 
         gpt_model = "gpt-4o"
