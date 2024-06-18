@@ -13,15 +13,16 @@ async def treatment_section_referral(dentistNotes: str, gpt_model: str):
 
         START_OF_CONTENT_INSTRUCTIONS
 
-        I need you to write a referral letter/note for a patient from the perspective of the referring dentist.
-        The patient is a patient of the practice or your practice or may have just come to see you for an initial appontment, it does not matter, the dentist you are reffering to does not
-        need to know the nature of your relationship to the patient past the fact that they are currently your patient and you are referring them over to the dentist who is currently
+        I need you to write a referral letter/note for a patient from the perspective of the referring dentist/doctor.
+        The patient is a patient of the practice or your practice or may have just come to see you for an initial appontment/GP appointment, it does not matter, the dentist/doctor you are reffering to does not
+        need to know the nature of your relationship to the patient past the fact that they are currently your patient and you are referring them over to the dentist/doctor who is currently
         not aware of the patient in question.
         The referral letter should explain the symptoms/reason for referral.
 
+
         END_OF_CONTENT_INSTRUCTIONS
 
-        Here are the dental notes that I need you to base your answer around:
+        Here are the dental/GP notes that I need you to base your answer around:
         START_OF_NOTES
         {dentistNotes}
         END_OF_NOTES
@@ -31,7 +32,7 @@ async def treatment_section_referral(dentistNotes: str, gpt_model: str):
     """
     input_tokens = count_input_tokens(prompt, gpt_model)
     section, output_tokens = await ask_gpt(
-        prompt, "You're a UK based dentist writing a referral letter for your patient to go to another dentist", gpt_model
+        prompt, "You're a UK based dentist/doctor writing a referral letter for your patient to go to another dentist/doctor", gpt_model
     )
     cost = calculate_openAI_gpt_cost(input_tokens, output_tokens, gpt_model)
     return section, input_tokens, output_tokens, cost
@@ -53,7 +54,7 @@ async def treatment_section(dentistNotes: str, formality_level: bool, detail_lev
 
         *** IMPORTANT SECTION ABOUT THE TONE OF THE LETTER***
         The formality of the section should be: {formality_level * 100}% (0% being very informal, 100% being very formal)
-        The level of detail and length of the section should be: {formality_level * 100}% (0% being not very detailed and short, 100% being incredibly detailed and very long)
+        The level of detail and length of the section should be: {detail_level * 100}% (0% being not very detailed and short, 100% being incredibly detailed and very long)
         Never use terminology like UL4, LL3 in the letter. use "upper left 3" instead for example.
         *** END OF IMPORTANT SECTION ABOUT THE TONE OF THE LETTER***
 
