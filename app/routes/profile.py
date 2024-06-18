@@ -95,7 +95,6 @@ def get_last_three_notes(access_token=Depends(JWTBearer())):
 
         notes = retrieve_last_three_notes(user_id)
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
-
         return {"notes": notes}
 
     except HTTPException as e:
