@@ -190,6 +190,7 @@ def retrieve_last_three_notes(user_id: str):
         if not isinstance(note.formatted_notes, str):
             for i in range(len(note.formatted_notes)):
                 note_dict["formatted_notes"][i]["note_prompt_id"] = str(note_dict["formatted_notes"][i]["note_prompt_id"])
+                note_dict["formatted_notes"][i]["title"] = note.formatted_notes[i].note_prompt_id.title
 
         notes_list.append(note_dict)
 
