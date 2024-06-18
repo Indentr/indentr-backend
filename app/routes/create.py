@@ -218,7 +218,7 @@ async def generate_consent_letter(body: LetterData, access_token=Depends(JWTBear
         request_id = uuid.uuid4().hex
         log.info(f"Request {request_id} received.")
 
-        gpt_model = "gpt-4-turbo-preview"
+        gpt_model = "gpt-4o"
 
         token = decodeJWT(access_token)
         user_id = token["user_id"]
