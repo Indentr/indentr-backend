@@ -507,6 +507,7 @@ async def upload_transcript(
 
         RESPONSE: MUST be written as a nicely formatted HTML string (DO NOT WRAP YOUR RESPONSE IN: ```html <html content> ```),
         where each paragraph is wrapped in a <p> tag. At the end of each section you must insert a new line using an empty p tag e.g. <p></p>
+        Use all html formatting tools to make it look as nice as possible e.g. <h2> etc
         """
 
         gpt_model = "gpt-4o"
