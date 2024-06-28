@@ -493,6 +493,10 @@ async def upload_transcript(
 
         TASK: {prompt["text"]}
 
+        (replace terms with correct dental/medical/clinical terminology where possible). The note should include relevant headings and should reformat the
+        text into clear bulleted or numbered lists where ever appropriate. The note should also include a section that states the medical
+        history has not changed (unless otherwise stated). No need to include any unmentioned sections e.g patient name
+
         {"EXAMPLE FORMATTING: " + prompt["example"] if prompt["example"] and prompt["example"] != "<p></p>" != "" else ""}
 
         IMPORTANT POINTS: If there are errors do your best to guess what the correct sentence would have been.
