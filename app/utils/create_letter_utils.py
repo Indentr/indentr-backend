@@ -14,9 +14,9 @@ async def treatment_section_referral(dentistNotes: str, gpt_model: str):
         START_OF_CONTENT_INSTRUCTIONS
 
         Write a referral letter for a patient from the perspective of the referring dentist/doctor/clinician to another dentist/doctor/clinician
-        The patient is a patient of your practice or may have just come to see you for an initial appointment/GP appointment/consultation, it does not matter. 
-        The dentist/doctor/clinician you are referring to does not need to know the nature of your relationship to the patient past the fact that they are 
-        currently your patient and you are referring them over to the dentist/doctor/clinician who is currently not aware of the patient in question. 
+        The patient is a patient of your practice or may have just come to see you for an initial appointment/GP appointment/consultation, it does not matter.
+        The dentist/doctor/clinician you are referring to does not need to know the nature of your relationship to the patient past the fact that they are
+        currently your patient and you are referring them over to the dentist/doctor/clinician who is currently not aware of the patient in question.
         The referral letter should explain the symptoms/reason for referral. It should be written formally but not coldly.
 
 
