@@ -121,7 +121,7 @@ def post_user_registration(body: UserRegisterRequest):
             new_user["_id"],
             new_user["practice_id"],
             "Dental note",
-            "Convert the dental dictation transcript into professional, concise but comprehensive dental notes for patient record inclusion.",
+            "Convert the dental dictation transcript into a professional, beautiful and comprehensive dental note for patient record inclusion (replace terms with correct dental terminology where possible). The note should include relevant headings and should reformat the text into clear bulleted or numbered lists whereever appropriate. The note should also include a section that states the medical history has not changed (unless otherwise stated)",
             "<p></p>",
         )
         create_custom_prompt(
@@ -187,13 +187,7 @@ def post_user_registration(body: UserRegisterRequest):
             "Convert the above dental dictation transcript into professional, concise but comprehensive dental treatment plan for patient record inclusion.",
             """<p><strong>1. Consultation and Assessment</strong></p><ul><li><p>Medical History Review</p></li><li><p>Dental Examination</p></li><li><p>Diagnostic Imaging (X-rays, CT scans, etc.)</p></li><li><p>Impressions for Study Models (if needed)</p></li><li><p>Discussion of Diagnosis, Procedure, Risks, and Alternatives</p></li><li><p>Presentation of Treatment Plan</p></li></ul><p></p><p></p><p><strong>2. Pre-Treatment Preparation</strong></p><ul><li><p>Medical Clearance (if required)</p></li><li><p>Professional Cleaning (if necessary)</p></li><li><p>Pre-Treatment Instructions (including medication prescriptions if needed)</p></li></ul><h4 style="text-align: start"><strong>Initial Treatment Phase</strong></h4><p style="text-align: start"></p><p style="text-align: start"><strong>3. Initial Treatment Phase</strong></p><ul><li><p style="text-align: start">Date:</p></li><li><p>Procedure<strong>:</strong></p><ul><li><p>Local Anesthesia (if applicable)</p></li><li><p>Description of specific dental procedure (e.g., filling, extraction, root canal, implant placement, etc.)</p></li><li><p>Any necessary post-procedure steps (e.g., suturing, placement of temporary restoration)</p></li></ul></li><li><p>Post-Treatment Instructions:</p></li></ul><p></p><p><strong>4. Healing and Follow-Up Care</strong></p><ul><li><p>Follow-Up Visits: (schedule based on specific treatment)</p></li><li><p>Evaluation of Healing (if applicable)</p></li><li><p>Radiographic Evaluation (if applicable)</p></li></ul><p></p><p><strong>5. Secondary Treatment Phase (if applicable)</strong></p><ul><li><p>Date<strong>:</strong></p></li><li><p>Procedure<strong>:</strong></p><ul><li><p>Local Anesthesia (if applicable)</p></li><li><p>Description of secondary dental procedure (e.g., placement of permanent restoration, abutment placement for implants, etc.)</p></li><li><p>Any necessary post-procedure steps</p></li></ul></li><li><p>Post-Treatment Instructions</p></li></ul><p></p><p><strong>6. Final Treatment Phase (if applicable)</strong></p><ul><li><p>Date:</p></li><li><p>Procedure:</p><ul><li><p>Final adjustments or placements (e.g., crown placement, final fitting of dentures, etc.)</p></li><li><p>Occlusion Check (if applicable)</p></li></ul></li><li><p>Oral Hygiene Instructions</p></li></ul><p></p><p><strong>7. Maintenance and Regular Check-Ups</strong></p><ul><li><p>Regular Check-Ups: (frequency based on specific treatment and patient needs)</p></li><li><p>Professional Cleaning</p></li><li><p>Monitoring of Treatment Outcomes</p></li></ul>""",
         )
-        create_custom_prompt(
-            new_user["_id"],
-            new_user["practice_id"],
-            "Transcribe consultation",
-            "Convert the following dental consultation transcript into a concise conversation transcript between the dentist and patient. Format each line clearly as 'Dentist' or 'Patient' ",
-            "<p></p>",
-        )
+
         insert_welcome_consent_letter(body.name, body.email.lower(), body.address)
         insert_instruction_triages(practice_id)
 
