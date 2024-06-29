@@ -46,6 +46,7 @@ from app.models.create import (
     SymptomData,
     SymptomResponse,
     TextToAnalyse,
+    LabelTranscript,
 )
 from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt, calculate_openAI_gpt_cost, count_input_tokens
@@ -472,6 +473,63 @@ async def upload_audio(request: Request, access_token: str = Depends(JWTBearer()
         raise e  # Reraise the HTTPException
 
 
+@router.post("/label-transcript")
+async def label_transcript(
+    body: LabelTranscript,
+    access_token=Depends(JWTBearer()),
+):
+    try:
+        start = time.time()
+        request_id = uuid.uuid4().hex
+
+        token = decodeJWT(access_token)
+        practice_id = token["practice_id"]
+
+        log.info(f"Request {request_id} received for uploadAudio endpoint. Received file: transcript")
+
+        note_prompt = f"""
+
+        UNLABELLED TRANSCRIPT: {body.transcript}
+
+        TASK: Above is the full transcript of a clinical consultation. I want you to interperet who said what and to reformat it as
+        a nicely labelled transcript that makes it clear who said what.
+
+        IMPORTANT POINTS: 
+        
+        1. If there are errors do your best to guess what the correct sentence would have been.
+        eg if its a dental note: upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
+        in words that do not appear to fit the context will mean Upper left 3. 
+        
+        2. Remove any of the conversation not pertaining in
+        any way to dentistry.
+
+        3. Always use English spelling not US.
+
+        4. Response MUST be written as a nicely formatted HTML string (DO NOT WRAP YOUR RESPONSE IN: ```html <html content> ```),
+        where each paragraph is wrapped in a <p> tag. At the end of each section you must insert a new line using an empty p tag e.g. <p></p>
+        Use all html formatting tools to make it look as nice as possible e.g. <h2> etc (Only give h1 tag once for the title)
+        """
+
+        gpt_model = "gpt-4o"
+        input_tokens = count_input_tokens(note_prompt, gpt_model)
+
+        labelled_transcript, output_tokens = await ask_gpt(
+            note_prompt,
+            "You label transcripts, doing exactly what the task asks, following the example and desired response format",
+            gpt_model,
+        )
+
+        cost = calculate_openAI_gpt_cost(input_tokens, output_tokens, gpt_model)
+
+        log.debug(f"{note_prompt}")
+        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+
+        return {"labelled_transcript": labelled_transcript, "input_tokens": input_tokens, "output_tokens": output_tokens, "cost": cost, "model": gpt_model}
+
+    except HTTPException as e:
+        raise e  # Reraise the HTTPException
+
+
 @router.post("/format-transcript")
 async def upload_transcript(
     body: FormatTranscript,
@@ -528,6 +586,62 @@ async def upload_transcript(
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
+
+
+@router.post("/create-transcription")
+async def create_transcription(
+    audioFile: UploadFile = File(...),
+    note_object: str = Form(...),
+    patientEmail: str = Form(...),
+    length_of_recording: int = Form(...),
+    access_token: str = Depends(JWTBearer()),
+):
+    start = time.time()
+    request_id = uuid.uuid4().hex
+    log.info(f"Request {request_id} received for saving a note.")
+
+    try:
+        # Attempting to parse transcript to ensure it's valid JSON
+        try:
+            note_dict = json.loads(note_object)
+        except json.JSONDecodeError as e:
+            log.error(f"Failed to parse transcript for request {request_id}: {e}")
+
+        token = decodeJWT(access_token)
+        user_id = token.get("user_id")
+        practice_id = token.get("practice_id")
+
+        patient = retrieve_patient_by_email(patientEmail, practice_id)
+
+        if patient:
+            log.info(f"Patient retrieved successfully for email {patientEmail}")
+        else:
+            log.error(f"No patient found for email {patientEmail}")
+            raise HTTPException(status_code=404, detail="Patient not found")
+
+        audio_content = await audioFile.read()
+        note_id = create_audio_note(
+            patient_id=patient["_id"],
+            user_id=user_id,
+            practice_id=practice_id,
+            audio_bytesio=BytesIO(audio_content),
+            note_dict=note_dict,
+            length_of_recording=length_of_recording,
+        )
+
+        log.info(f"Request {request_id} completed in {round(time.time() - start, 2)} seconds. Note {note_id} saved successfully.")
+
+        return {"message": "Note saved successfully", "note_id": note_id}
+
+    except HTTPException as e:
+        log.error(f"HTTPException during request {request_id}: {e.detail}")
+        raise e
+
+    except Exception as e:
+        log.error(f"Unhandled error during request {request_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from None
+
+
 
 
 @router.post("/create-note")
