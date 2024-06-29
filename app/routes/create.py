@@ -37,6 +37,7 @@ from app.database.crud.user import retrieve_user_by_id
 from app.middleware.jwt import JWTBearer, decodeJWT
 from app.models.create import (
     FormatTranscript,
+    LabelTranscript,
     LetterData,
     LetterResponse,
     PatientDetails,
@@ -46,7 +47,6 @@ from app.models.create import (
     SymptomData,
     SymptomResponse,
     TextToAnalyse,
-    LabelTranscript,
 )
 from app.services.deepgram import dpg_speech_to_text
 from app.services.openAI import ask_gpt, calculate_openAI_gpt_cost, count_input_tokens
@@ -494,12 +494,12 @@ async def label_transcript(
         TASK: Above is the full transcript of a clinical consultation. I want you to interperet who said what and to reformat it as
         a nicely labelled transcript that makes it clear who said what.
 
-        IMPORTANT POINTS: 
-        
+        IMPORTANT POINTS:
+
         1. If there are errors do your best to guess what the correct sentence would have been.
         eg if its a dental note: upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
-        in words that do not appear to fit the context will mean Upper left 3. 
-        
+        in words that do not appear to fit the context will mean Upper left 3.
+
         2. Remove any of the conversation not pertaining in
         any way to dentistry.
 
@@ -524,7 +524,13 @@ async def label_transcript(
         log.debug(f"{note_prompt}")
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
-        return {"labelled_transcript": labelled_transcript, "input_tokens": input_tokens, "output_tokens": output_tokens, "cost": cost, "model": gpt_model}
+        return {
+            "labelled_transcript": labelled_transcript,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cost": cost,
+            "model": gpt_model,
+        }
 
     except HTTPException as e:
         raise e  # Reraise the HTTPException
@@ -640,8 +646,6 @@ async def create_transcription(
     except Exception as e:
         log.error(f"Unhandled error during request {request_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from None
-
-
 
 
 @router.post("/create-note")
