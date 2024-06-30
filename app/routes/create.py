@@ -15,6 +15,9 @@ from app.database.crud.audio_note import (
     create_audio_note,
     retrieve_audio_note_time_for_billing_cycle,
 )
+from app.database.crud.audio_transcript_note import (
+    create_audio_transcription_note,
+)
 from app.database.crud.config import retrieve_prompt_by_title
 from app.database.crud.custom_prompt import (
     create_custom_prompt,
@@ -497,13 +500,13 @@ async def label_transcript(
         IMPORTANT POINTS:
 
         1. If there are errors do your best to guess what the correct sentence would have been.
-        eg if its a dental note: upper last 3 probably means upper left 3, UL3 or something phonetically similar but written
+        eg if its a dental note: upper last 3 probably means upper left 3 (UL3), 2 thirds probably means tooth hurts etc
         in words that do not appear to fit the context will mean Upper left 3.
 
         2. Remove any of the conversation not pertaining in
         any way to dentistry.
 
-        3. Always use English spelling not US.
+        3. DO NOT MAKE ANYTHING UP!
 
         4. Response MUST be written as a nicely formatted HTML string (DO NOT WRAP YOUR RESPONSE IN: ```html <html content> ```),
         where each paragraph is wrapped in a <p> tag. At the end of each section you must insert a new line using an empty p tag e.g. <p></p>
@@ -524,8 +527,12 @@ async def label_transcript(
         log.debug(f"{note_prompt}")
         log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
+        # formatted_notes, tokens = await ask_gpt(prompt, "You're an AI that formats transcripts into HTML string", "gpt-3.5-turbo")
+        custom_prompts = retrieve_all_users_prompts(practice_id)
+
         return {
             "labelled_transcript": labelled_transcript,
+            "custom_prompts": custom_prompts,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "cost": cost,
@@ -594,8 +601,8 @@ async def upload_transcript(
         raise e  # Reraise the HTTPException
 
 
-@router.post("/create-transcription")
-async def create_transcription(
+@router.post("/create-note")
+async def create_note(
     audioFile: UploadFile = File(...),
     note_object: str = Form(...),
     patientEmail: str = Form(...),
@@ -648,12 +655,10 @@ async def create_transcription(
         raise HTTPException(status_code=500, detail="Internal server error") from None
 
 
-@router.post("/create-note")
-async def create_note(
-    audioFile: UploadFile = File(...),
+@router.post("/create-transcription-note")
+async def create_transcription_note(
     note_object: str = Form(...),
     patientEmail: str = Form(...),
-    length_of_recording: int = Form(...),
     access_token: str = Depends(JWTBearer()),
 ):
     start = time.time()
@@ -666,6 +671,7 @@ async def create_note(
             note_dict = json.loads(note_object)
         except json.JSONDecodeError as e:
             log.error(f"Failed to parse transcript for request {request_id}: {e}")
+            raise e
 
         token = decodeJWT(access_token)
         user_id = token.get("user_id")
@@ -679,14 +685,11 @@ async def create_note(
             log.error(f"No patient found for email {patientEmail}")
             raise HTTPException(status_code=404, detail="Patient not found")
 
-        audio_content = await audioFile.read()
-        note_id = create_audio_note(
+        note_id = create_audio_transcription_note(
             patient_id=patient["_id"],
             user_id=user_id,
             practice_id=practice_id,
-            audio_bytesio=BytesIO(audio_content),
             note_dict=note_dict,
-            length_of_recording=length_of_recording,
         )
 
         log.info(f"Request {request_id} completed in {round(time.time() - start, 2)} seconds. Note {note_id} saved successfully.")

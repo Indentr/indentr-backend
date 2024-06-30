@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from mongoengine import (
-    BinaryField,
     DateTimeField,
     Document,
     EmbeddedDocument,
@@ -19,23 +18,21 @@ from app.database.schemas.practice import Practice
 from app.database.schemas.user import User
 
 
-class NotePromptOutputs(EmbeddedDocument):
+class TranscriptNotePromptOutputs(EmbeddedDocument):
     note_prompt_id = ReferenceField(CustomPrompt, required=True)
     note_text = StringField(required=True)
 
 
-class AudioNote(Document):
-    meta = {"collection": "audio_note"}  # Specify the collection name
+class AudioTranscriptNote(Document):
+    meta = {"collection": "audio_transcription_note"}  # Specify the collection name
 
     patient_id = ReferenceField(Patient, required=True)
     user_id = ReferenceField(User, required=True)
     practice_id = ReferenceField(Practice, required=True)
-    audio = BinaryField(required=False)
     transcript = StringField(required=True)
-    formatted_notes = EmbeddedDocumentListField(NotePromptOutputs)
+    formatted_notes = EmbeddedDocumentListField(TranscriptNotePromptOutputs)
     createdAt = DateTimeField(default=datetime.utcnow)
     patient_details = EmbeddedDocumentField(PatientName)
-    length_of_recording = IntField(default=0)
     input_tokens = IntField(default=0)
     output_tokens = IntField(default=0)
     cost = FloatField(default=0)

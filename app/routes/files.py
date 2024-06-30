@@ -19,6 +19,11 @@ from app.database.crud.audio_note import (
     retrieve_patients_last_three_notes,
     update_note,
 )
+from app.database.crud.audio_transcript_note import (
+    retrieve_all_users_transcription_notes,
+    retrieve_transcription_note,
+    update_transcription_note,
+)
 from app.database.crud.custom_prompt import retrieve_all_users_prompts
 from app.database.crud.letter import (
     delete_letter,
@@ -70,6 +75,13 @@ def get_files(body: GetFile, access_token=Depends(JWTBearer())):
     elif file_type == "note":
         files = retrieve_all_users_notes(user_id=user_id) if body.created_by == "You" else retrieve_all_users_notes(practice_id=practice_id)
 
+    elif file_type == "transcript":
+        files = (
+            retrieve_all_users_transcription_notes(user_id=user_id)
+            if body.created_by == "You"
+            else retrieve_all_users_transcription_notes(practice_id=practice_id)
+        )
+
     elif file_type == "patient":
         files = retrieve_all_patients_by_practice(practice_id)
 
@@ -99,7 +111,11 @@ def get_file(file_type: str, file_id: str, access_token=Depends(JWTBearer())):
             patient_details = retrieve_patient_by_email(file["patient_details"]["email"], practice_id)
             del patient_details["_id"]
             custom_prompts = retrieve_all_users_prompts(practice_id)
-
+        elif file_type == "transcript":
+            file = retrieve_transcription_note(file_id, practice_id)
+            patient_details = retrieve_patient_by_email(file["patient_details"]["email"], practice_id)
+            del patient_details["_id"]
+            custom_prompts = retrieve_all_users_prompts(practice_id)
         elif file_type == "patient":
             file = retrieve_patient_by_id(file_id, practice_id)
             letters = retrieve_patients_last_three_letters(file_id)
@@ -148,6 +164,8 @@ def save_file(body: SaveFile, access_token=Depends(JWTBearer())):
         if body.file_type == "letter":
             html_string = wrap_image_in_div(json.loads(body.file_text))
             update_letter(body.file_id, html_string, practice_id)
+        elif body.file_type == "transcript":
+            update_transcription_note(body.file_id, json.loads(body.file_text), practice_id)
         else:
             update_note(body.file_id, json.loads(body.file_text), practice_id)
 
