@@ -21,10 +21,10 @@ from app.database.crud.audio_note import (
 )
 from app.database.crud.audio_transcript_note import (
     retrieve_all_users_transcription_notes,
-    retrieve_transcription_note,
-    update_transcription_note,
-    retrieve_transcription_notes_alphabet_status,
     retrieve_all_users_transcription_notes_filtered_by_char,
+    retrieve_transcription_note,
+    retrieve_transcription_notes_alphabet_status,
+    update_transcription_note,
 )
 from app.database.crud.custom_prompt import retrieve_all_users_prompts
 from app.database.crud.letter import (
@@ -318,63 +318,61 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
 
             if body.file_type == "transcript":
                 pipeline = [
-                {
-                    "$search": {
-                        "index": "default",
-                        "compound": {
-                            "should": [
-                                {"autocomplete": {"query": search_param, "path": path}},
-                                {"autocomplete": {"query": search_param, "path": "patient_details.forename"}},
-                                {"autocomplete": {"query": search_param, "path": "patient_details.surname"}},
-                            ],
-                            "filter": [filter_condition],
-                            "minimumShouldMatch": 1,
-                        },
-                    }
-                },
-                {"$unwind": "$formatted_notes"},  # Unwind to work with each element individually
-                {
-                    "$lookup": {
-                        "from": "custom_prompts",
-                        "localField": "formatted_notes.note_prompt_id",
-                        "foreignField": "_id",
-                        "as": "custom_prompts",
-                    }
-                },
-                {
-                    "$addFields": {
-                        "formatted_notes.title": {
-                            "$arrayElemAt": [
-                                {
-                                    "$map": {
-                                        "input": "$custom_prompts",
-                                        "as": "cp",
-                                        "in": {"$cond": [{"$eq": ["$$cp._id", "$formatted_notes.note_prompt_id"]}, "$$cp.title", None]},
-                                    }
-                                },
-                                0,
-                            ]
+                    {
+                        "$search": {
+                            "index": "default",
+                            "compound": {
+                                "should": [
+                                    {"autocomplete": {"query": search_param, "path": path}},
+                                    {"autocomplete": {"query": search_param, "path": "patient_details.forename"}},
+                                    {"autocomplete": {"query": search_param, "path": "patient_details.surname"}},
+                                ],
+                                "filter": [filter_condition],
+                                "minimumShouldMatch": 1,
+                            },
                         }
-                    }
-                },
-                {
-                    "$group": {
-                        "_id": "$_id",
-                        "patient_id": {"$first": "$patient_id"},
-                        "user_id": {"$first": "$user_id"},
-                        "practice_id": {"$first": "$practice_id"},
-                        "transcript": {"$first": "$transcript"},
-                        "createdAt": {"$first": "$createdAt"},
-                        "patient_details": {"$first": "$patient_details"},
-                        "formatted_notes": {"$push": "$formatted_notes"},  # Group back the formatted_notes
-                    }
-                },
-                {"$sort": {"_id": -1}},
-                {"$limit": 15},
-                {"$project": returned_fields},
-            ]
-                
-            
+                    },
+                    {"$unwind": "$formatted_notes"},  # Unwind to work with each element individually
+                    {
+                        "$lookup": {
+                            "from": "custom_prompts",
+                            "localField": "formatted_notes.note_prompt_id",
+                            "foreignField": "_id",
+                            "as": "custom_prompts",
+                        }
+                    },
+                    {
+                        "$addFields": {
+                            "formatted_notes.title": {
+                                "$arrayElemAt": [
+                                    {
+                                        "$map": {
+                                            "input": "$custom_prompts",
+                                            "as": "cp",
+                                            "in": {"$cond": [{"$eq": ["$$cp._id", "$formatted_notes.note_prompt_id"]}, "$$cp.title", None]},
+                                        }
+                                    },
+                                    0,
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "$group": {
+                            "_id": "$_id",
+                            "patient_id": {"$first": "$patient_id"},
+                            "user_id": {"$first": "$user_id"},
+                            "practice_id": {"$first": "$practice_id"},
+                            "transcript": {"$first": "$transcript"},
+                            "createdAt": {"$first": "$createdAt"},
+                            "patient_details": {"$first": "$patient_details"},
+                            "formatted_notes": {"$push": "$formatted_notes"},  # Group back the formatted_notes
+                        }
+                    },
+                    {"$sort": {"_id": -1}},
+                    {"$limit": 15},
+                    {"$project": returned_fields},
+                ]
 
         if body.file_type == "patient":
             search_param = body.search_param
@@ -480,7 +478,7 @@ def init_alphabetised(body: GetFile, access_token=Depends(JWTBearer())):
                 else retrieve_notes_alphabet_status(practice_id=practice_id)
             )
             starts_with_char = next((char for char, count in alphabet_status.items() if count > 0), None)
-        
+
         elif body.file_type == "transcript":
             alphabet_status = (
                 retrieve_transcription_notes_alphabet_status(user_id=user_id)
