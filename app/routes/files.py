@@ -216,8 +216,18 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
                 "transcript": 1,
                 "formatted_notes": 1,
             }
+        if body.file_type == "transcript":
+            table = "audio_transcription_note"
+            path = "formatted_notes"
+            returned_fields = {
+                "_id": 1,
+                "patient_id": 1,
+                "createdAt": 1,
+                "transcript": 1,
+                "formatted_notes": 1,
+            }
 
-        if body.file_type == "letter" or body.file_type == "note" :
+        if body.file_type == "letter" or body.file_type == "note" or body.file_type == "transcript":
             search_param = body.search_param
             filter_condition = None
 
@@ -305,6 +315,66 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
                     {"$limit": 15},
                     {"$project": returned_fields},
                 ]
+
+            if body.file_type == "transcript":
+                pipeline = [
+                {
+                    "$search": {
+                        "index": "default",
+                        "compound": {
+                            "should": [
+                                {"autocomplete": {"query": search_param, "path": path}},
+                                {"autocomplete": {"query": search_param, "path": "patient_details.forename"}},
+                                {"autocomplete": {"query": search_param, "path": "patient_details.surname"}},
+                            ],
+                            "filter": [filter_condition],
+                            "minimumShouldMatch": 1,
+                        },
+                    }
+                },
+                {"$unwind": "$formatted_notes"},  # Unwind to work with each element individually
+                {
+                    "$lookup": {
+                        "from": "custom_prompts",
+                        "localField": "formatted_notes.note_prompt_id",
+                        "foreignField": "_id",
+                        "as": "custom_prompts",
+                    }
+                },
+                {
+                    "$addFields": {
+                        "formatted_notes.title": {
+                            "$arrayElemAt": [
+                                {
+                                    "$map": {
+                                        "input": "$custom_prompts",
+                                        "as": "cp",
+                                        "in": {"$cond": [{"$eq": ["$$cp._id", "$formatted_notes.note_prompt_id"]}, "$$cp.title", None]},
+                                    }
+                                },
+                                0,
+                            ]
+                        }
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": "$_id",
+                        "patient_id": {"$first": "$patient_id"},
+                        "user_id": {"$first": "$user_id"},
+                        "practice_id": {"$first": "$practice_id"},
+                        "transcript": {"$first": "$transcript"},
+                        "createdAt": {"$first": "$createdAt"},
+                        "patient_details": {"$first": "$patient_details"},
+                        "formatted_notes": {"$push": "$formatted_notes"},  # Group back the formatted_notes
+                    }
+                },
+                {"$sort": {"_id": -1}},
+                {"$limit": 15},
+                {"$project": returned_fields},
+            ]
+                
+            
 
         if body.file_type == "patient":
             search_param = body.search_param
@@ -495,6 +565,8 @@ def delete_file(body: DeleteFile, access_token=Depends(JWTBearer())):
         if body.file_type == "letter":
             delete_letter(practice_id, body.file_id)
         if body.file_type == "note":
+            delete_note(practice_id, body.file_id)
+        if body.file_type == "transcript":
             delete_note(practice_id, body.file_id)
         if body.file_type == "patient":
             delete_patient(practice_id, body.file_id)
