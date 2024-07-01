@@ -411,7 +411,7 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
 
         for i in result:
             i["_id"] = str(i["_id"])
-            if body.file_type == "note":
+            if body.file_type == "note" or body.file_type == "transcript":
                 formatted_notes = []
                 if "formatted_notes" in i and i["formatted_notes"]:
                     for formatted_note in i.get("formatted_notes", []):
