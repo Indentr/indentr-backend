@@ -23,6 +23,8 @@ from app.database.crud.audio_transcript_note import (
     retrieve_all_users_transcription_notes,
     retrieve_transcription_note,
     update_transcription_note,
+    retrieve_transcription_notes_alphabet_status,
+    retrieve_all_users_transcription_notes_filtered_by_char,
 )
 from app.database.crud.custom_prompt import retrieve_all_users_prompts
 from app.database.crud.letter import (
@@ -215,7 +217,7 @@ def search_files(body: SearchFiles, access_token=Depends(JWTBearer())):
                 "formatted_notes": 1,
             }
 
-        if body.file_type == "letter" or body.file_type == "note":
+        if body.file_type == "letter" or body.file_type == "note" :
             search_param = body.search_param
             filter_condition = None
 
@@ -408,6 +410,14 @@ def init_alphabetised(body: GetFile, access_token=Depends(JWTBearer())):
                 else retrieve_notes_alphabet_status(practice_id=practice_id)
             )
             starts_with_char = next((char for char, count in alphabet_status.items() if count > 0), None)
+        
+        elif body.file_type == "transcript":
+            alphabet_status = (
+                retrieve_transcription_notes_alphabet_status(user_id=user_id)
+                if body.created_by == "You"
+                else retrieve_transcription_notes_alphabet_status(practice_id=practice_id)
+            )
+            starts_with_char = next((char for char, count in alphabet_status.items() if count > 0), None)
 
         elif body.file_type == "patient":
             alphabet_status = retrieve_patients_alphabet_status(practice_id)
@@ -449,6 +459,12 @@ def select_char(body: SelectChar, access_token=Depends(JWTBearer())):
                 retrieve_all_users_notes_filtered_by_char(user_id=user_id, starts_with=body.char)
                 if body.created_by == "You"
                 else retrieve_all_users_notes_filtered_by_char(practice_id=practice_id, starts_with=body.char)
+            )
+        elif body.file_type == "transcript":
+            files = (
+                retrieve_all_users_transcription_notes_filtered_by_char(user_id=user_id, starts_with=body.char)
+                if body.created_by == "You"
+                else retrieve_all_users_transcription_notes_filtered_by_char(practice_id=practice_id, starts_with=body.char)
             )
         elif body.file_type == "patient":
             files = retrieve_all_practices_patients_filtered_by_char(practice_id, body.char)
