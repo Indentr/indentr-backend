@@ -156,3 +156,8 @@ class UpdatePrompt(BaseModel):
     prompt_id: str
     title: str
     text: str
+
+
+# Request model
+class LabelTranscript(BaseModel):
+    transcript: str
