@@ -183,7 +183,7 @@ def generate_patient_mail(practice: Dict, patient: Dict, instruction: str, prima
 
 
 def generate_password_reset_email(user_email: str, reset_token: str):
-    reset_link = f"{FRONTEND_URL}landing/login/reset-password/{reset_token}"
+    reset_link = f"{FRONTEND_URL}login/reset-password/{reset_token}"
     return MIMEText(
         f"""
         <html>
