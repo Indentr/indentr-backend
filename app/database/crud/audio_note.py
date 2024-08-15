@@ -313,7 +313,7 @@ def retrieve_patients_last_three_notes(patient_id: str):
         if "address" in patient_details:
             del patient_details["address"]
         if "email" in patient_details:
-        del patient_details["email"]
+            del patient_details["email"]
         note_dict["patient_details"] = patient_details
         del note_dict["patient_id"]
         if not isinstance(note.formatted_notes, str):
