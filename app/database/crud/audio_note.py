@@ -138,9 +138,12 @@ def retrieve_note(note_id: str, practice_id: str):
     del patient_details["_id"]
     if "practice_id" in patient_details:
         del patient_details["practice_id"]
-    del patient_details["dob"]
-    del patient_details["gender"]
-    del patient_details["address"]
+    if "dob" in patient_details:
+        del patient_details["dob"]
+    if "gender" in patient_details:
+        del patient_details["gender"]
+    if "address" in patient_details:
+        del patient_details["address"]
     note_dict["patient_details"] = patient_details
     del note_dict["patient_id"]
     if not isinstance(note.formatted_notes, str):
