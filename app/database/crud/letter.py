@@ -273,5 +273,5 @@ def update_letter(letter_id, text, practice_id: str):
         raise HTTPException(status_code=404, detail="No letter found")
 
     # Update the consent_letter field
-    letter.consent_letter = str(text)
+    letter.consent_letter = text
     letter.save()
