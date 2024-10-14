@@ -34,3 +34,7 @@ class TriageSettings(BaseModel):
     primary_color: str
     show_page_runner: bool
     show_requested_date: bool
+    show_date_of_birth: bool
+    show_gender: bool
+    show_phone_number: bool
+    show_address: bool
