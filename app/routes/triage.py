@@ -147,34 +147,34 @@ async def generate_triage_questions(body: GenerateQuestions):
     prompt = f"""
         Patients reason for appointment request: {patient_details["appointment_reason"]}
 
-        I want you to ask the patient follow up questions relating to the patients reason for appointment.
-        The aim of the follow up questions is to try and extract as much useful information from the patient as possible, so this way when the dentist sees the appointment request they have all the necessary information in terms of severity of the problem and patient's condition etc.
+        Instructions:
 
-        Please ask the patient between 1 - 4 follow up questions, as many as you deem appropriate to get the info required. they may be open ended or closed as you see fit.
-        If the reason for appointment doesn't necessitate any follow up questions or their reason for appointment doesn't pertain to dentistry then just send back and empty array as your response.
+        You are an AI assistant designed to help dental practices gather comprehensive information from patients seeking appointments. Based on the 
+        patient's stated reason for their appointment, generate three relevant follow-up questions. These questions should aim to extract detailed 
+        and useful information regarding the severity of the problem and the patient's condition. The questions can be a mix of open-ended and 
+        closed-ended types, depending on what is most appropriate for eliciting clear and concise information. Assume the patient is an adult unless 
+        stated otherwise.
 
-        Please format your response as a JSON string, similar to what's shown below (choose between 1-4 q's depending on the appointment reason, if appointment reason is not severe ask less questions, if its more severe ask more questions):
-        [
-            {{
-                "symptom": "General check-up",
-                "q1": "When was your last check-up?"
-            }},
-        ]
-        another example this time with more questions being asked
+        Guidelines:
+
+        1. Relevance: Ensure all follow-up questions are directly related to the patient's reason for the appointment and pertain to dental health.
+        2. Clarity: Questions should be clear and easy to understand.
+        3. Brevity: Keep questions concise to encourage patient engagement.
+        4. Format: The response must be a JSON string following the exact structure provided below.
+        5. No Action Needed: If the reason for the appointment does not require follow-up questions or is unrelated to dentistry, return an empty array.
         [
             {{
                 "symptom": "[Symptom name]",
-                "q1": "[Insert q1]",
+                "q1": "[q1]",
                 "q2": "[q2]",
                 "q3": "[q3]"
             }},
         ]
 
-        If you think the reason for appointment doesn't have enough information then ask more questions, but if the reason for appointment is clear then ask less questions.
         IMPORTANT: Your response must be a string!!!!, DO NOT wrap the response like so  ```json ```!!!!
     """
 
-    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-3.5-turbo")
+    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-4o")
 
     try:
         questions = json.loads(original_response)
@@ -232,7 +232,7 @@ async def create_patient_request(body: CreatePatientRequest):
 
     """
 
-    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-3.5-turbo")
+    original_response, tokens = await ask_gpt(prompt, "You're an AI dental assistant", "gpt-4o")
 
     try:
         response = json.loads(original_response)
