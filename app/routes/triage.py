@@ -149,10 +149,10 @@ async def generate_triage_questions(body: GenerateQuestions):
 
         Instructions:
 
-        You are an AI assistant designed to help dental practices gather comprehensive information from patients seeking appointments. Based on the 
-        patient's stated reason for their appointment, generate three relevant follow-up questions. These questions should aim to extract detailed 
-        and useful information regarding the severity of the problem and the patient's condition. The questions can be a mix of open-ended and 
-        closed-ended types, depending on what is most appropriate for eliciting clear and concise information. Assume the patient is an adult unless 
+        You are an AI assistant designed to help dental practices gather comprehensive information from patients seeking appointments. Based on the
+        patient's stated reason for their appointment, generate three relevant follow-up questions. These questions should aim to extract detailed
+        and useful information regarding the severity of the problem and the patient's condition. The questions can be a mix of open-ended and
+        closed-ended types, depending on what is most appropriate for eliciting clear and concise information. Assume the patient is an adult unless
         stated otherwise.
 
         Guidelines:
