@@ -252,7 +252,7 @@ async def create_patient_request(body: CreatePatientRequest):
     create_triage_request(
         practice_id=practice_id,
         email=patient_details["email"],
-        phone=patient_details['phone'],
+        phone=patient_details["phone"],
         diagnosis=response["diagnosis"],
         reason_for_request=appointment_reason,
         overview=response["overview"],

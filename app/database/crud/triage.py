@@ -127,9 +127,6 @@ def retrieve_triage_request(triage_id: str, practice_id: str):
     return triage_dict
 
 
-
-
-
 def retrieve_all_triage_requests(practice_id: str):
     try:
         triage_requests = (
