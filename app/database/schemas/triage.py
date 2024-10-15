@@ -17,6 +17,7 @@ from app.database.schemas.practice import Practice
 class Triage(Document):
     practice_id = ReferenceField(Practice, required=True)
     patient_id = ReferenceField(Patient, required=True)
+    phone = StringField()
     reason_for_request = StringField()
     diagnosis = StringField()
     general_overview = StringField()

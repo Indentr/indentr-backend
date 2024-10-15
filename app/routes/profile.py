@@ -493,12 +493,39 @@ async def save_triage_settings(body: TriageSettings, access_token=Depends(JWTBea
 
         token = decodeJWT(access_token)
         practice_id = token["practice_id"]
+        log.info(f"Decoded JWT for practice_id: {practice_id}")
 
-        update_triage_settings(practice_id, body.primary_color, body.show_page_runner, body.show_requested_date)
+        # Logging the received body data
+        log.info(
+            f"Received triage settings - primary_color: {body.primary_color}, "
+            f"show_page_runner: {body.show_page_runner}, show_requested_date: {body.show_requested_date}, "
+            f"show_date_of_birth: {body.show_date_of_birth}, show_gender: {body.show_gender}, "
+            f"show_phone_number: {body.show_phone_number}, show_address: {body.show_address}"
+        )
 
-        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
+        # Call to update the triage settings
+        update_triage_settings(
+            practice_id,
+            body.primary_color,
+            body.show_page_runner,
+            body.show_requested_date,
+            body.show_date_of_birth,
+            body.show_gender,
+            body.show_phone_number,
+            body.show_address,
+        )
+
+        log.info(f"Triage settings successfully updated for practice_id: {practice_id}")
+
+        elapsed_time = round((time.time() - start), 2)
+        log.debug(f"Request {request_id} completed in {elapsed_time} seconds.")
 
         return {"message": "Triage settings saved"}
 
     except HTTPException as e:
+        log.error(f"HTTPException occurred during request {request_id}: {e.detail}")
         raise e  # Reraise the HTTPException
+
+    except Exception as e:
+        log.error(f"An unexpected error occurred during request {request_id}: {e}")
+        raise e

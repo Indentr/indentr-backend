@@ -16,6 +16,7 @@ from app.database.schemas.user import User
 def create_triage_request(
     practice_id: str,
     email: str,
+    phone: str,
     diagnosis: str,
     reason_for_request: str = None,
     overview: str = None,
@@ -45,6 +46,7 @@ def create_triage_request(
     new_triage = Triage(
         practice_id=practice_id,
         patient_id=patient,
+        phone=phone,
         diagnosis=diagnosis,
         general_overview=overview,
         severity=severity,
@@ -69,23 +71,58 @@ def delete_triage_requests(triage_requests: List[str], practice_id: str):
 
 
 def retrieve_triage_request(triage_id: str, practice_id: str):
+    print(f"Attempting to retrieve triage request with ID: {triage_id} for practice ID: {practice_id}")
+
     triage = Triage.objects(id=triage_id, practice_id=practice_id).first()
 
     if not triage:
+        print(f"Triage request not found for ID: {triage_id} and practice ID: {practice_id}")
         raise HTTPException(status_code=404, detail="Triage request not found")
 
     # Update the 'opened' field to True
     triage.update(set__opened=True)
+    print(f"Marked triage request {triage_id} as opened")
 
     triage_dict = triage.to_mongo().to_dict()
+
+    # Convert ObjectId fields to strings
     triage_dict["_id"] = str(triage.id)
-    triage_dict["practice_id"] = str(triage.practice_id.id)
-    patient_details = triage.patient_id.to_mongo().to_dict()
-    patient_details["_id"] = str(patient_details["_id"])
-    if "practice_id" in patient_details:
-        patient_details["practice_id"] = str(patient_details["practice_id"])
-    triage_dict["patient_details"] = patient_details
-    del triage_dict["patient_id"]
+    print(f"triage_dict['_id']: {triage_dict['_id']}")
+
+    # Handle practice_id
+    if triage.practice_id:
+        triage_dict["practice_id"] = str(triage.practice_id.id)
+        print(f"triage_dict['practice_id']: {triage_dict['practice_id']}")
+    else:
+        triage_dict["practice_id"] = None
+        print(f"Practice ID is None for triage request {triage_id}")
+
+    # Include the phone number from the triage request
+    triage_dict["phone"] = triage.phone
+    print(f"Retrieved phone number from triage: {triage_dict['phone']}")
+
+    # Get patient details
+    if triage.patient_id:
+        patient_details = triage.patient_id.to_mongo().to_dict()
+        patient_details["_id"] = str(patient_details["_id"])
+        print(f"Patient details retrieved for patient ID: {patient_details['_id']}")
+
+        if "practice_id" in patient_details and patient_details["practice_id"]:
+            patient_details["practice_id"] = str(patient_details["practice_id"])
+            print(f"Patient's practice ID: {patient_details['practice_id']}")
+        else:
+            patient_details["practice_id"] = None
+            print(f"Patient's practice ID is None for patient ID: {patient_details['_id']}")
+
+        triage_dict["patient_details"] = patient_details
+    else:
+        print(f"Patient ID is None for triage request {triage_id}")
+        raise HTTPException(status_code=500, detail="Invalid triage request: Missing patient information")
+
+    # Remove fields that are not needed or might cause issues
+    triage_dict.pop("patient_id", None)
+
+    print(f"Successfully retrieved triage request {triage_dict['_id']} with phone number {triage_dict['phone']}")
 
     return triage_dict
 

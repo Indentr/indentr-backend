@@ -22,6 +22,7 @@ class Patient(Document):
     gender = StringField()
     address = StringField()
     email = EmailField(required=True)
+    phone = StringField()
     practice_id = ReferenceField(Practice)
     phone_number = StringField(default="")
 
