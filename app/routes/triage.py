@@ -155,6 +155,10 @@ async def generate_triage_questions(body: GenerateQuestions):
         closed-ended types, depending on what is most appropriate for eliciting clear and concise information. Assume the patient is an adult unless
         stated otherwise.
 
+        guidlines to follow if necessary:
+        If they have a specific problem ask which tooth.
+        If they ask for corwn ask if tooth broken.
+
         Guidelines:
 
         1. Relevance: Ensure all follow-up questions are directly related to the patient's reason for the appointment and pertain to dental health.
