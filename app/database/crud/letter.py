@@ -139,21 +139,29 @@ def retrieve_all_users_letters(user_id: str = None, practice_id: str = None):
         else:
             raise e
 
-    # Transform the MongoEngine documents to a list of dictionaries
+    # Transform the MongoEngine documents to a list of dictionaries, handling any errors per letter
     letters_list = []
     for letter in letters:
-        created_at = letter.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
-        letter_dict = letter.to_mongo().to_dict()
-        letter_dict["createdAt"] = created_at
-        letter_dict["_id"] = str(letter_dict["_id"])
-        patient_details = letter.patient_id.to_mongo().to_dict()
-        del patient_details["_id"]
-        if "practice_id" in patient_details:
-            del patient_details["practice_id"]
-        letter_dict["patient_details"] = patient_details
-        del letter_dict["patient_id"]
+        try:
+            created_at = letter.id.generation_time.strftime("%Y-%m-%d %H:%M:%S")
+            letter_dict = letter.to_mongo().to_dict()
+            letter_dict["createdAt"] = created_at
+            letter_dict["_id"] = str(letter_dict["_id"])
 
-        letters_list.append(letter_dict)
+            # Extract patient details, handling missing fields
+            patient_details = letter.patient_id.to_mongo().to_dict()
+            del patient_details["_id"]
+            if "practice_id" in patient_details:
+                del patient_details["practice_id"]
+            letter_dict["patient_details"] = patient_details
+            del letter_dict["patient_id"]
+
+            letters_list.append(letter_dict)
+
+        except Exception as letter_error:
+            # Log the error for debugging purposes and continue with the next letter
+            print(f"Error processing letter with ID {letter.id}: {letter_error}")
+            continue
 
     return letters_list
 
