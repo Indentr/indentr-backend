@@ -46,7 +46,7 @@ async def ask_gpt(prompt: str, system_prompt: str, model_name: str):
         response = client.chat.completions.create(
             model=model_name,
             messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
-            temperature=0.6,
+            temperature=0.0,
         )
         content = response.choices[0].message.content
         total_tokens = response.usage.total_tokens
