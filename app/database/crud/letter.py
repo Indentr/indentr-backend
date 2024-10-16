@@ -125,10 +125,7 @@ def retrieve_all_users_letters(user_id: str = None, practice_id: str = None):
     try:
         if not user_id:
             letters = (
-                Letter.objects(practice_id=practice_id)
-                .only("consent_letter", "patient_id", "createdAt")
-                .order_by("-createdAt")
-                .select_related()
+                Letter.objects(practice_id=practice_id).only("consent_letter", "patient_id", "createdAt").order_by("-createdAt").select_related()
             )
         else:
             letters = Letter.objects(user_id=user_id).only("consent_letter", "patient_id", "createdAt").order_by("-createdAt").select_related()
@@ -150,7 +147,7 @@ def retrieve_all_users_letters(user_id: str = None, practice_id: str = None):
             letter_dict = letter.to_mongo().to_dict()
             letter_dict["createdAt"] = created_at
             letter_dict["_id"] = str(letter_dict["_id"])
-            
+
             # Extract patient details, handling missing fields
             patient_details = letter.patient_id.to_mongo().to_dict()
             del patient_details["_id"]
@@ -160,14 +157,13 @@ def retrieve_all_users_letters(user_id: str = None, practice_id: str = None):
             del letter_dict["patient_id"]
 
             letters_list.append(letter_dict)
-        
+
         except Exception as letter_error:
             # Log the error for debugging purposes and continue with the next letter
             print(f"Error processing letter with ID {letter.id}: {letter_error}")
             continue
 
     return letters_list
-
 
 
 def retrieve_all_users_letters_filtered_by_char(starts_with: str, user_id: str = None, practice_id: str = None):
