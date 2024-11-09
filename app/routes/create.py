@@ -259,25 +259,26 @@ async def generate_consent_letter(body: LetterData, access_token=Depends(JWTBear
                 log.debug(f"Error processing {request_id}: User not stripe or gratis customer")
                 raise HTTPException(status_code=500, detail="User not stripe or gratis customer") from None
 
-            # print("bdoy: ", body.patientDetails)
-
-            # patientDetails = json.loads(body.patientDetails) if body.patientDetails else None
-            # dentistNotes = json.loads(body.dentistNotes) if body.dentistNotes else None
-
-            dentistNotes = body.dentistNotes
-            patientDetails = None
+            patientDetails = json.loads(body.patientDetails) if body.patientDetails else None
+            dentistNotes = json.loads(body.dentistNotes) if body.dentistNotes else None
 
             treatment_stream = treatment_section(dentistNotes, letter_config["formality_level"], letter_config["detail_level"], gpt_model)
-            fees_stream = fees_section(
-                dentistNotes,
-                letter_config["formality_level"],
-                letter_config["detail_level"],
-                letter_config["pricing"],
-                pricing_list,
-                letter_config["patient_insurance_info"],
-                letter_config["include_insurance_info"],
-                gpt_model,
-            )
+            # Initialize as an empty async generator
+            async def empty_stream():
+                return
+                yield  # This makes it an async generator but yields nothing
+
+            fees_stream = empty_stream()
+            if (letter_config["pricing"] or letter_config["include_insurance_info"]):
+                fees_stream = fees_section(
+                    dentistNotes,
+                    letter_config["detail_level"],
+                    letter_config["pricing"],
+                    pricing_list,
+                    letter_config["patient_insurance_info"],
+                    letter_config["include_insurance_info"],
+                    gpt_model,
+                )
 
             # Initialize sections
             header = ""

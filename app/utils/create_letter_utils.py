@@ -39,7 +39,12 @@ async def treatment_section_referral(dentistNotes: str, gpt_model: str):
     return section, input_tokens, output_tokens, cost
 
 
-async def treatment_section(dentistNotes: str, formality_level: bool, detail_level: bool, gpt_model: str):
+async def treatment_section(
+    dentistNotes: str, 
+    formality_level: bool, 
+    detail_level: bool, 
+    gpt_model: str
+):
     example_section = "<p>Following our comprehensive consultation and review of your Cone Beam Computed Tomography (CBCT) scan, we have identified that the vertical bone height in the posterior maxilla is insufficient for standard dental implant placement. This is primarily due to the pneumatisation of the maxillary sinus. We have discussed at length the various treatment options available to you, and after careful consideration, you have decided to proceed with a Sinus Graft procedure. This letter serves to outline the details of the treatment, including the risks and benefits, to ensure that you are fully informed and have given your consent to proceed.</p><p></p><p>The Sinus Graft procedure is designed to increase the amount of bone in the posterior maxilla, which is essential for the successful placement and long-term stability of dental implants. The treatment will involve the following steps:</p><p></p><ol><li><p>Anesthetic Administration: To ensure your comfort during the procedure, local anesthesia will be administered, typically 2% lidocaine with 1:100,000 epinephrine. You have also opted for intravenous sedation, which will help you to relax and reduce any anxiety during the surgery.</p><p></p></li><li><p>Incision and Access: An intraoral incision will be made to expose the lateral wall of the maxillary sinus. A careful dissection will then be performed to create a small window in the bone, providing access to the sinus cavity.</p><p></p></li><li><p>Sinus Lift and Graft: Once access is achieved, the sinus membrane will be gently elevated to create a space for the placement of the graft material. The graft material used will be Rocky Mountain irradiated bone and Bio-Oss, which are well-established in their ability to facilitate new bone growth. In some cases, a Bio-guide membrane may be used to cover the graft or repair any incidental tears in the sinus lining.</p><p></p></li><li><p>Closure: The incision will be meticulously closed with sutures, and you will be provided with detailed postoperative instructions to ensure optimal healing.</p></li></ol><p></p><p>As with any surgical procedure, there are potential risks and benefits that must be considered. The benefits of a Sinus Graft include the ability to create sufficient bone volume for the future placement of dental implants, which can ultimately restore function and aesthetics to your dentition. This procedure is a well-established and successful technique with a high success rate when performed under the right conditions.</p><p></p><p>However, there are also risks associated with the Sinus Graft procedure. One such risk is the possibility of a large tear in the sinus membrane, which could prevent the completion of the procedure. Should this occur, we will communicate with you immediately about the situation and discuss potential alternative treatments. Another risk is the potential for the graft to be unsuccessful, particularly if an infection develops. In such cases, the graft may need to be removed, and the area will be reassessed for future treatment possibilities.</p><p></p><p>Postoperative care is crucial for the success of the Sinus Graft. You will be prescribed antibiotics and pain management medication, and follow-up appointments will be scheduled to monitor the healing process both clinically and radiographically. It is imperative that you maintain excellent oral hygiene, avoid strenuous activities, and attend all scheduled follow-up visits to ensure the best possible outcome.</p><p></p><p>The plan is to schedule the placement of the dental implants approximately six months following the Sinus Graft procedure, with the restoration of the implants planned for three months after their placement. It is essential to adhere to this timeline to allow for proper healing and integration of the graft material.</p><p></p><p>Please be assured that the procedure will be performed with the utmost care and precision, and we are committed to providing you with the highest standard of treatment. Your understanding and cooperation during the preoperative and postoperative periods are greatly appreciated.</p>"
     prompt = f"""
         I need you to write three sections: 'Introduction', 'Description of treatment' and 'Discussion of risks and benefits' for a dental consent letter, its up to you as for the length of each section but make sure the description of treatment and discussion of risks covers all necessary details. Please format it as a html string where each paragraph is wrapped in <p></p> with an empty <p/> between each paragraph.
@@ -69,7 +74,6 @@ async def treatment_section(dentistNotes: str, formality_level: bool, detail_lev
 async def fees_section(
     dentistNotes: str,
     formality_level: bool,
-    detail_level: bool,
     include_pricing: bool,
     pricing_list: str,
     patient_insurance_info: str,
@@ -79,9 +83,6 @@ async def fees_section(
     example_pricing_section = "<p></p><p>The cost for a composite dental filling per tooth is £123.00, as per our current pricing list. This fee includes all materials and labor associated with the procedure. Please note that the actual cost may vary based on any additional requirements or unforeseen circumstances during the procedure.</p><p></p><p>Should you choose to proceed with the recommended treatment, we will schedule your next appointment at your earliest convenience. We will also provide you with detailed aftercare instructions to ensure the best possible outcome and recovery.</p>"
     example_insurance_section = "<p></p><p>Regarding your insurance coverage, we have on record that you are insured by DentalCare Insurance under the policy number DC123456789, with coverage valid through December 31, 2025. We will assist you in submitting the necessary claims to your insurance provider. However, please be aware that you are responsible for ensuring that the costs of the procedure are within the terms of your coverage. We recommend that you contact DentalCare Insurance directly to confirm the extent of your coverage for this procedure.</p><p></p><p>Any portion of the fees not covered by your insurance will be your responsibility, and we will provide you with a detailed breakdown of costs for your records and for submission to your insurance company. Payment for the procedure is due at the time of service unless other arrangements have been made in advance with our office.</p>"
     prompt = ""
-    
-    # if not include_pricing and not include_insurance_info:
-    #     return "", 0, 0, 0
 
     if include_pricing:
         prompt = f"""
@@ -114,8 +115,9 @@ async def fees_section(
             Make sure to use english spelling. Only include information necessary to the fees and costs section of a consent letter, e.g. don't include opening 'Dear...' or signoff 'From...' etc.
             Important: every new paragraph needs a blank line between it so for each new line make sure to include an empty <p></p> tag and dont wrap your response in ```html I want just a normal string response
         """
+    # This is needed in case pricing shouldn't be included but insurance should
     elif include_insurance_info:
-        prompt += f"""
+        prompt = f"""
             I need you to write a short paragraph on patient insurance details for a dental consent letter. It only needs to be one paragraph specifically to do with patients insurance coverage information.
             Your response needs to be a html string where each paragraph is wrapped in a <p></p> tag.
 
