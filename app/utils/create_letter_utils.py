@@ -3,6 +3,7 @@ from datetime import datetime
 
 from app.services.openAI import (
     ask_gpt,
+    ask_gpt_stream,
     calculate_openAI_gpt_cost,
     count_input_tokens,
 )
@@ -61,10 +62,8 @@ async def treatment_section(dentistNotes: str, formality_level: bool, detail_lev
         Make sure to use english spelling. Don't include any introductions or signoffs like 'Dear...' or 'From....'
         Each new paragraph needs a: <p/> between the paragraphs as this represents a blank line and dont wrap your response in ```html I want just a normal string response
     """
-    input_tokens = count_input_tokens(prompt, gpt_model)
-    section, output_tokens = await ask_gpt(prompt, "You're a UK based dentist writing consent letters for patients", gpt_model)
-    cost = calculate_openAI_gpt_cost(input_tokens, output_tokens, gpt_model)
-    return section, input_tokens, output_tokens, cost
+    async for chunk in ask_gpt_stream(prompt, "You're a UK based dentist writing consent letters for patients", gpt_model):
+        yield chunk
 
 
 async def fees_section(
@@ -80,8 +79,10 @@ async def fees_section(
     example_pricing_section = "<p></p><p>The cost for a composite dental filling per tooth is £123.00, as per our current pricing list. This fee includes all materials and labor associated with the procedure. Please note that the actual cost may vary based on any additional requirements or unforeseen circumstances during the procedure.</p><p></p><p>Should you choose to proceed with the recommended treatment, we will schedule your next appointment at your earliest convenience. We will also provide you with detailed aftercare instructions to ensure the best possible outcome and recovery.</p>"
     example_insurance_section = "<p></p><p>Regarding your insurance coverage, we have on record that you are insured by DentalCare Insurance under the policy number DC123456789, with coverage valid through December 31, 2025. We will assist you in submitting the necessary claims to your insurance provider. However, please be aware that you are responsible for ensuring that the costs of the procedure are within the terms of your coverage. We recommend that you contact DentalCare Insurance directly to confirm the extent of your coverage for this procedure.</p><p></p><p>Any portion of the fees not covered by your insurance will be your responsibility, and we will provide you with a detailed breakdown of costs for your records and for submission to your insurance company. Payment for the procedure is due at the time of service unless other arrangements have been made in advance with our office.</p>"
     prompt = ""
-    if not include_pricing and not include_insurance_info:
-        return "", 0, 0, 0
+    
+    # if not include_pricing and not include_insurance_info:
+    #     return "", 0, 0, 0
+
     if include_pricing:
         prompt = f"""
             I need you to write the fees and costs section of a dental consent letter. Its important that you include any necessary detail that is typically found in a financial considerations section of a dental consent letter.
@@ -114,7 +115,7 @@ async def fees_section(
             Important: every new paragraph needs a blank line between it so for each new line make sure to include an empty <p></p> tag and dont wrap your response in ```html I want just a normal string response
         """
     elif include_insurance_info:
-        prompt = f"""
+        prompt += f"""
             I need you to write a short paragraph on patient insurance details for a dental consent letter. It only needs to be one paragraph specifically to do with patients insurance coverage information.
             Your response needs to be a html string where each paragraph is wrapped in a <p></p> tag.
 
@@ -126,10 +127,9 @@ async def fees_section(
             Make sure to use english spelling. Only include information necessary to the fees and costs section of a consent letter, e.g. don't include opening 'Dear...' or signoff 'From...' etc.
             Important: every new paragraph needs a blank line between it so for each new line make sure to include an empty <p></p> tag and dont wrap your response in ```html I want just a normal string response
         """
-    input_tokens = count_input_tokens(prompt, gpt_model)
-    section, output_tokens = await ask_gpt(prompt, "You're a UK based dentist writing consent letters for patients", gpt_model)
-    cost = calculate_openAI_gpt_cost(input_tokens, output_tokens, gpt_model)
-    return section, input_tokens, output_tokens, cost
+    
+    async for chunk in ask_gpt_stream(prompt, "You're a UK based dentist writing consent letters for patients", gpt_model):
+        yield chunk
 
 
 def format_address(address: str):

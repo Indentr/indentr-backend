@@ -8,6 +8,7 @@ from io import BytesIO
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import StreamingResponse
 
 from app.constants import DB_URI
 from app.database.atlas_search import atlas_search
@@ -211,55 +212,63 @@ async def generate_questions(body: SymptomData, access_token=Depends(JWTBearer()
     return questions
 
 
-@router.post("/consent-letter", response_model=LetterResponse)
+@router.post("/consent-letter")
 async def generate_consent_letter(body: LetterData, access_token=Depends(JWTBearer())):
     """
     # Generates a consent letter based on Patient and Symptom Details
     This endpoint generates a consent letter tailored to the patient's symptoms. The consent letter is returned as an HTML-formatted string.
     """
-    try:
-        start = time.time()
-        request_id = uuid.uuid4().hex
-        log.info(f"Request {request_id} received.")
+    async def generate():
+        try:
+            start = time.time()
+            request_id = uuid.uuid4().hex
+            log.info(f"Request {request_id} received.")
 
-        gpt_model = "gpt-4o"
+            gpt_model = "gpt-4o"
 
-        token = decodeJWT(access_token)
-        user_id = token["user_id"]
-        practice_id = token["practice_id"]
+            token = decodeJWT(access_token)
+            user_id = token["user_id"]
+            practice_id = token["practice_id"]
 
-        letter_config = retrieve_letter_config(practice_id)
-        pricing_list = retrieve_pricing(practice_id) if letter_config["pricing"] else ""
-        practice = retrieve_practice_by_id(practice_id)
-        user = retrieve_user_by_id(user_id)
+            # Retrieve necessary data from database
+            letter_config = retrieve_letter_config(practice_id)
+            pricing_list = retrieve_pricing(practice_id) if letter_config["pricing"] else ""
+            practice = retrieve_practice_by_id(practice_id)
+            user = retrieve_user_by_id(user_id)
 
-        if "stripe_customer_id" in practice:
-            stripe_customer_details = await retrieve_stripe_customer_details(practice["stripe_customer_id"])
-            start_date = stripe_customer_details["start_date"]
-            end_date = stripe_customer_details["end_date"]
-            allowed_consent_letters = stripe_customer_details["allowed_consent_letters"]
-            active_subscription = stripe_customer_details["active_subscription"]
-            trial_subscription = stripe_customer_details["trial_subscription"]
-            letter_count = retrieve_letter_count_for_billing_cycle(practice_id, start_date, end_date)
+            # Check if user is a stripe customer
+            if "stripe_customer_id" in practice:
+                # Check if the stipe users subscription is active
+                stripe_customer_details = await retrieve_stripe_customer_details(practice["stripe_customer_id"])
+                start_date = stripe_customer_details["start_date"]
+                end_date = stripe_customer_details["end_date"]
+                allowed_consent_letters = stripe_customer_details["allowed_consent_letters"]
+                active_subscription = stripe_customer_details["active_subscription"]
+                trial_subscription = stripe_customer_details["trial_subscription"]
+                letter_count = retrieve_letter_count_for_billing_cycle(practice_id, start_date, end_date)
 
-            if not active_subscription and not trial_subscription:
-                log.debug(f"Error processing {request_id}: no active plan")
-                raise HTTPException(status_code=500, detail="No plan is active") from None
+                if not active_subscription and not trial_subscription:
+                    log.debug(f"Error processing {request_id}: no active plan")
+                    raise HTTPException(status_code=500, detail="No plan is active") from None
 
-            if letter_count >= int(allowed_consent_letters):
-                log.debug(f"Error processing {request_id}: Reached consent letter quota")
-                raise HTTPException(status_code=500, detail="You have reached your monthly quota for creating consent letters.") from None
+                if letter_count >= int(allowed_consent_letters):
+                    log.debug(f"Error processing {request_id}: Reached consent letter quota")
+                    raise HTTPException(status_code=500, detail="You have reached your monthly quota for creating consent letters.") from None
 
-        elif "gratis_password" not in practice:
-            log.debug(f"Error processing {request_id}: User not stripe or gratis customer")
-            raise HTTPException(status_code=500, detail="User not stripe or gratis customer") from None
+            elif "gratis_password" not in practice:
+                log.debug(f"Error processing {request_id}: User not stripe or gratis customer")
+                raise HTTPException(status_code=500, detail="User not stripe or gratis customer") from None
 
-        patientDetails = json.loads(body.patientDetails) if body.patientDetails else None
-        dentistNotes = json.loads(body.dentistNotes) if body.dentistNotes else None
+            # print("bdoy: ", body.patientDetails)
 
-        results = await asyncio.gather(
-            treatment_section(dentistNotes, letter_config["formality_level"], letter_config["detail_level"], gpt_model),
-            fees_section(
+            # patientDetails = json.loads(body.patientDetails) if body.patientDetails else None
+            # dentistNotes = json.loads(body.dentistNotes) if body.dentistNotes else None
+
+            dentistNotes = body.dentistNotes
+            patientDetails = None
+
+            treatment_stream = treatment_section(dentistNotes, letter_config["formality_level"], letter_config["detail_level"], gpt_model)
+            fees_stream = fees_section(
                 dentistNotes,
                 letter_config["formality_level"],
                 letter_config["detail_level"],
@@ -268,58 +277,66 @@ async def generate_consent_letter(body: LetterData, access_token=Depends(JWTBear
                 letter_config["patient_insurance_info"],
                 letter_config["include_insurance_info"],
                 gpt_model,
-            ),
-        )
-
-        # Access the results
-        treatment_section_result, treatment_section_input_tokens, treatment_section_output_tokens, treatment_section_cost = results[0]
-        fees_section_result, fees_section_input_tokens, fees_section_output_tokens, fees_section_cost = results[1]
-        log.info(f"GPT treatment plan response: {treatment_section_result + fees_section_result}")
-
-        header = ""
-        if patientDetails:
-            header = format_address(patientDetails["address"]) if letter_config["patient_address"] else ""
-            header = format_image_header(letter_config["image"], header) if letter_config["include_image"] else header
-
-            date = generate_formatted_date() if letter_config["date"] else ""
-            dear = generate_formatted_dear(
-                patientDetails["gender"] if patientDetails else None,
-                letter_config["salutation"],
-                patientDetails["forename"] if patientDetails else None,
-                letter_config["recipient_naming"],
-                patientDetails["surname"] if patientDetails else None,
             )
-            header = header + date + dear
 
-        contact_details_text = format_contact_details_text(letter_config["contact_details_text"]) if letter_config["practice_contact_details"] else ""
+            # Initialize sections
+            header = ""
+            if patientDetails:
+                header = format_address(patientDetails["address"]) if letter_config["patient_address"] else ""
+                header = format_image_header(letter_config["image"], header) if letter_config["include_image"] else header
+                date = generate_formatted_date() if letter_config["date"] else ""
+                dear = generate_formatted_dear(
+                    patientDetails["gender"] if patientDetails else None,
+                    letter_config["salutation"],
+                    patientDetails["forename"] if patientDetails else None,
+                    letter_config["recipient_naming"],
+                    patientDetails["surname"] if patientDetails else None,
+                )
+                header = header + date + dear
 
-        signature_lines = ""
-        if letter_config["dentist_signature"] and letter_config["patient_signature"]:
-            signature_lines = dentist_signature + patient_signature
-        elif letter_config["dentist_signature"]:
-            signature_lines = dentist_signature
-        elif letter_config["patient_signature"]:
-            signature_lines = patient_signature
+            # Yield the header first
+            yield header
 
-        signoff = generate_signoff(letter_config["sign_off"], user["name"], letter_config["dentist_naming"], practice["practice_name"])
+            # Process treatment section stream
+            async for chunk in treatment_stream:
+                yield chunk
 
-        response_html = header + treatment_section_result + fees_section_result + contact_details_text + signoff + signature_lines
+            # Process fees section stream
+            async for chunk in fees_stream:
+                yield chunk
 
-        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
-        return {
-            "html_content": response_html,
-            "input_tokens": treatment_section_input_tokens + fees_section_input_tokens,
-            "output_tokens": treatment_section_output_tokens + fees_section_output_tokens,
-            "cost": round((treatment_section_cost + fees_section_cost), 2),
-            "model": gpt_model,
-        }
+            # Generate and yield the footer sections
+            contact_details_text = format_contact_details_text(letter_config["contact_details_text"]) if letter_config["practice_contact_details"] else ""
+            
+            signature_lines = ""
+            if letter_config["dentist_signature"] and letter_config["patient_signature"]:
+                signature_lines = dentist_signature + patient_signature
+            elif letter_config["dentist_signature"]:
+                signature_lines = dentist_signature
+            elif letter_config["patient_signature"]:
+                signature_lines = patient_signature
 
-    except HTTPException as e:
-        log.debug(f"Error processing {request_id}: {e}")
-        raise e  # Reraise the HTTPException
-    except Exception as e:
-        log.debug(f"Error processing {request_id}: {e}")
-        raise HTTPException(status_code=500, detail=e) from e
+            signoff = generate_signoff(
+                letter_config["sign_off"], 
+                user["name"], 
+                letter_config["dentist_naming"], 
+                practice["practice_name"]
+            )
+
+            footer = contact_details_text + signoff + signature_lines
+            yield footer
+
+        except HTTPException as e:
+            log.debug(f"Error processing {request_id}: {e}")
+            raise e  # Reraise the HTTPException
+        except Exception as e:
+            log.debug(f"Error processing {request_id}: {e}")
+            raise HTTPException(status_code=500, detail=e) from e
+        
+    return StreamingResponse(
+        generate(),
+        media_type="text/html"
+    )
 
 
 @router.post("/referral-letter", response_model=LetterResponse)
