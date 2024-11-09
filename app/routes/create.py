@@ -340,71 +340,72 @@ async def generate_consent_letter(body: LetterData, access_token=Depends(JWTBear
     )
 
 
-@router.post("/referral-letter", response_model=LetterResponse)
+
+@router.post("/referral-letter")
 async def generate_referral_letter(body: LetterData, access_token=Depends(JWTBearer())):
     """
     # Generates a referral letter
-    This endpoint generates a referral letter based on patients details along with some information pertaining to the patients symptoms and reason for appointment
+    This endpoint generates a referral letter based on patients details along with some information 
+    pertaining to the patients symptoms and reason for appointment
     """
-    try:
-        start = time.time()
-        request_id = uuid.uuid4().hex
-        log.info(f"Request {request_id} received.")
+    async def generate():
+        try:
+            start = time.time()
+            request_id = uuid.uuid4().hex
+            log.info(f"Request {request_id} received.")
+            gpt_model = "gpt-4o"
+            
+            token = decodeJWT(access_token)
+            practice_id = token["practice_id"]
+            practice = retrieve_practice_by_id(practice_id)
 
-        gpt_model = "gpt-4-turbo-preview"
+            # Check if user is a stripe customer
+            if "stripe_customer_id" in practice:
+                stripe_customer_details = await retrieve_stripe_customer_details(practice["stripe_customer_id"])
+                start_date = stripe_customer_details["start_date"]
+                end_date = stripe_customer_details["end_date"]
+                allowed_consent_letters = stripe_customer_details["allowed_consent_letters"]
+                active_subscription = stripe_customer_details["active_subscription"]
+                trial_subscription = stripe_customer_details["trial_subscription"]
+                letter_count = retrieve_letter_count_for_billing_cycle(practice_id, start_date, end_date)
 
-        token = decodeJWT(access_token)
-        practice_id = token["practice_id"]
+                if not active_subscription and not trial_subscription:
+                    log.debug(f"Error processing {request_id}: no active plan")
+                    raise HTTPException(status_code=500, detail="No plan is active") from None
 
-        practice = retrieve_practice_by_id(practice_id)
+                if letter_count >= int(allowed_consent_letters):
+                    log.debug(f"Error processing {request_id}: Reached consent letter quota")
+                    raise HTTPException(
+                        status_code=500, 
+                        detail="You have reached your monthly quota for creating consent letters."
+                    ) from None
 
-        if "stripe_customer_id" in practice:
-            stripe_customer_details = await retrieve_stripe_customer_details(practice["stripe_customer_id"])
-            start_date = stripe_customer_details["start_date"]
-            end_date = stripe_customer_details["end_date"]
-            allowed_consent_letters = stripe_customer_details["allowed_consent_letters"]
-            active_subscription = stripe_customer_details["active_subscription"]
-            trial_subscription = stripe_customer_details["trial_subscription"]
-            letter_count = retrieve_letter_count_for_billing_cycle(practice_id, start_date, end_date)
+            elif "gratis_password" not in practice:
+                log.debug(f"Error processing {request_id}: User not stripe or gratis customer")
+                raise HTTPException(
+                    status_code=500, 
+                    detail="User not stripe or gratis customer"
+                ) from None
 
-            if not active_subscription and not trial_subscription:
-                log.debug(f"Error processing {request_id}: no active plan")
-                raise HTTPException(status_code=500, detail="No plan is active") from None
+            dentistNotes = json.loads(body.dentistNotes) if body.dentistNotes else None
 
-            if letter_count >= int(allowed_consent_letters):
-                log.debug(f"Error processing {request_id}: Reached consent letter quota")
-                raise HTTPException(status_code=500, detail="You have reached your monthly quota for creating consent letters.") from None
+            # Get the streaming response from treatment_section_referral
+            async for chunk in treatment_section_referral(dentistNotes, gpt_model):
+                yield chunk
 
-        elif "gratis_password" not in practice:
-            log.debug(f"Error processing {request_id}: User not stripe or gratis customer")
-            raise HTTPException(status_code=500, detail="User not stripe or gratis customer") from None
+            log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
 
-        dentistNotes = json.loads(body.dentistNotes) if body.dentistNotes else None
+        except HTTPException as e:
+            log.debug(f"Error processing {request_id}: {e}")
+            raise e  # Reraise the HTTPException
+        except Exception as e:
+            log.debug(f"Error processing {request_id}: {e}")
+            raise HTTPException(status_code=500, detail=str(e)) from e
 
-        (
-            referral_section_result,
-            referral_section_input_tokens,
-            referral_section_output_tokens,
-            referral_section_cost,
-        ) = await treatment_section_referral(dentistNotes, gpt_model)
-        log.info(f"GPT treatment plan response: {referral_section_result}")
-
-        log.debug(f"Request {request_id} completed in {round((time.time() - start), 2)} seconds.")
-
-        return {
-            "html_content": referral_section_result,
-            "input_tokens": referral_section_input_tokens,
-            "output_tokens": referral_section_output_tokens,
-            "cost": round((referral_section_cost), 2),
-            "model": gpt_model,
-        }
-
-    except HTTPException as e:
-        log.debug(f"Error processing {request_id}: {e}")
-        raise e  # Reraise the HTTPException
-    except Exception as e:
-        log.debug(f"Error processing {request_id}: {e}")
-        raise HTTPException(status_code=500, detail=e) from e
+    return StreamingResponse(
+        generate(),
+        media_type="text/html"
+    )
 
 
 @router.post("/analyse-image")

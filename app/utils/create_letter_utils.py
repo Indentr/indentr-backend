@@ -31,12 +31,8 @@ async def treatment_section_referral(dentistNotes: str, gpt_model: str):
         Make sure to use english spelling. Don't include any introductions or signoffs like 'Dear...' or 'From....'
         Please format it as a html string where each paragraph is wrapped in <p></p> with an empty <p/> between each paragraph and dont wrap your response in ```html I want just a normal string response
     """
-    input_tokens = count_input_tokens(prompt, gpt_model)
-    section, output_tokens = await ask_gpt(
-        prompt, "You're a UK based dentist/doctor writing a referral letter for your patient to go to another dentist/doctor", gpt_model
-    )
-    cost = calculate_openAI_gpt_cost(input_tokens, output_tokens, gpt_model)
-    return section, input_tokens, output_tokens, cost
+    async for chunk in ask_gpt_stream(prompt, "You're a UK based dentist/doctor writing a referral letter for your patient to go to another dentist/doctor", gpt_model):
+        yield chunk
 
 
 async def treatment_section(
