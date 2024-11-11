@@ -16,8 +16,8 @@ from app.database.schemas.user import User
 def create_triage_request(
     practice_id: str,
     email: str,
-    phone: str,
     diagnosis: str,
+    phone: str = None,
     reason_for_request: str = None,
     overview: str = None,
     severity: str = None,
