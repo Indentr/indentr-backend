@@ -46,11 +46,7 @@ async def ask_gpt(prompt: str, system_prompt: str, model_name: str):
         response = client.chat.completions.create(
             model=model_name,
             messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
-
-
-
             temperature=0.0,
-
         )
         content = response.choices[0].message.content
         total_tokens = response.usage.total_tokens
@@ -64,19 +60,17 @@ async def ask_gpt(prompt: str, system_prompt: str, model_name: str):
         log.error(f"An error occurred: {str(e)}")
         raise
 
+
 async def ask_gpt_stream(prompt: str, system_prompt: str, model_name: str):
     log.info(f"Sending prompt to GPT:\nSystem Prompt: {system_prompt}\nUser Prompt: {prompt}")
     openai.api_key = OPENAI_API_KEY
-    
+
     try:
         response = client.chat.completions.create(
             model=model_name,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
-            ],
+            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
             temperature=0.0,
-            stream=True
+            stream=True,
         )
 
         # Handle streaming response
@@ -86,7 +80,7 @@ async def ask_gpt_stream(prompt: str, system_prompt: str, model_name: str):
                 content_chunk = chunk.choices[0].delta.content
                 full_content += content_chunk
                 yield content_chunk
-        
+
         # Log the complete response after streaming is done
         log.info(f"GPT response:\n{full_content}")
 

@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 import re
@@ -43,7 +42,6 @@ from app.models.create import (
     FormatTranscript,
     LabelTranscript,
     LetterData,
-    LetterResponse,
     PatientDetails,
     PatientSearch,
     SaveFile,
@@ -218,9 +216,9 @@ async def generate_consent_letter(body: LetterData, access_token=Depends(JWTBear
     # Generates a consent letter based on Patient and Symptom Details
     This endpoint generates a consent letter tailored to the patient's symptoms. The consent letter is returned as an HTML-formatted string.
     """
+
     async def generate():
         try:
-            start = time.time()
             request_id = uuid.uuid4().hex
             log.info(f"Request {request_id} received.")
 
@@ -263,13 +261,14 @@ async def generate_consent_letter(body: LetterData, access_token=Depends(JWTBear
             dentistNotes = json.loads(body.dentistNotes) if body.dentistNotes else None
 
             treatment_stream = treatment_section(dentistNotes, letter_config["formality_level"], letter_config["detail_level"], gpt_model)
+
             # Initialize as an empty async generator
             async def empty_stream():
                 return
                 yield  # This makes it an async generator but yields nothing
 
             fees_stream = empty_stream()
-            if (letter_config["pricing"] or letter_config["include_insurance_info"]):
+            if letter_config["pricing"] or letter_config["include_insurance_info"]:
                 fees_stream = fees_section(
                     dentistNotes,
                     letter_config["detail_level"],
@@ -307,8 +306,10 @@ async def generate_consent_letter(body: LetterData, access_token=Depends(JWTBear
                 yield chunk
 
             # Generate and yield the footer sections
-            contact_details_text = format_contact_details_text(letter_config["contact_details_text"]) if letter_config["practice_contact_details"] else ""
-            
+            contact_details_text = (
+                format_contact_details_text(letter_config["contact_details_text"]) if letter_config["practice_contact_details"] else ""
+            )
+
             signature_lines = ""
             if letter_config["dentist_signature"] and letter_config["patient_signature"]:
                 signature_lines = dentist_signature + patient_signature
@@ -317,12 +318,7 @@ async def generate_consent_letter(body: LetterData, access_token=Depends(JWTBear
             elif letter_config["patient_signature"]:
                 signature_lines = patient_signature
 
-            signoff = generate_signoff(
-                letter_config["sign_off"], 
-                user["name"], 
-                letter_config["dentist_naming"], 
-                practice["practice_name"]
-            )
+            signoff = generate_signoff(letter_config["sign_off"], user["name"], letter_config["dentist_naming"], practice["practice_name"])
 
             footer = contact_details_text + signoff + signature_lines
             yield footer
@@ -333,28 +329,25 @@ async def generate_consent_letter(body: LetterData, access_token=Depends(JWTBear
         except Exception as e:
             log.debug(f"Error processing {request_id}: {e}")
             raise HTTPException(status_code=500, detail=e) from e
-        
-    return StreamingResponse(
-        generate(),
-        media_type="text/html"
-    )
 
+    return StreamingResponse(generate(), media_type="text/html")
 
 
 @router.post("/referral-letter")
 async def generate_referral_letter(body: LetterData, access_token=Depends(JWTBearer())):
     """
     # Generates a referral letter
-    This endpoint generates a referral letter based on patients details along with some information 
+    This endpoint generates a referral letter based on patients details along with some information
     pertaining to the patients symptoms and reason for appointment
     """
+
     async def generate():
         try:
             start = time.time()
             request_id = uuid.uuid4().hex
             log.info(f"Request {request_id} received.")
             gpt_model = "gpt-4o"
-            
+
             token = decodeJWT(access_token)
             practice_id = token["practice_id"]
             practice = retrieve_practice_by_id(practice_id)
@@ -375,17 +368,11 @@ async def generate_referral_letter(body: LetterData, access_token=Depends(JWTBea
 
                 if letter_count >= int(allowed_consent_letters):
                     log.debug(f"Error processing {request_id}: Reached consent letter quota")
-                    raise HTTPException(
-                        status_code=500, 
-                        detail="You have reached your monthly quota for creating consent letters."
-                    ) from None
+                    raise HTTPException(status_code=500, detail="You have reached your monthly quota for creating consent letters.") from None
 
             elif "gratis_password" not in practice:
                 log.debug(f"Error processing {request_id}: User not stripe or gratis customer")
-                raise HTTPException(
-                    status_code=500, 
-                    detail="User not stripe or gratis customer"
-                ) from None
+                raise HTTPException(status_code=500, detail="User not stripe or gratis customer") from None
 
             dentistNotes = json.loads(body.dentistNotes) if body.dentistNotes else None
 
@@ -402,10 +389,7 @@ async def generate_referral_letter(body: LetterData, access_token=Depends(JWTBea
             log.debug(f"Error processing {request_id}: {e}")
             raise HTTPException(status_code=500, detail=str(e)) from e
 
-    return StreamingResponse(
-        generate(),
-        media_type="text/html"
-    )
+    return StreamingResponse(generate(), media_type="text/html")
 
 
 @router.post("/analyse-image")
